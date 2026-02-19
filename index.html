@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="apple-mobile-web-app-title" content="Cockpit Lite">
+    <meta name="application-name" content="Cockpit Lite">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Cockpit Lite</title>
+    <meta name="description" content="An intuitive and customizable cross-platform ground control station for remote vehicles of all types.">
+</head>
+
+<body>
+    <div id="non-app-main">
+        <div id="browser-overlay">
+            <p>Please use Google Chrome or Microsoft Edge for the best experience on our website.</p>
+            <button id="proceed-browser-overlay">Proceed Anyway</button>
+        </div>
+        <div id="underlying-fallback">
+            <p class="text-3xl">It looks like something went wrong while loading Cockpit.</p>
+
+            <p class="text-lg my-4">
+                This can happen, for example, if you just updated Cockpit's version, and the server cache is still serving
+                old files. In this and other cases, <strong>doing a hard refresh (Ctrl/Cmd+Shift+R) should solve the problem.</strong>
+            </p>
+
+            <p class="text-md my-4">
+                If you just tried a hard refresh, it probably means something is wrong with your Cockpit configuration
+                (e.g. the settings file may be somehow broken/malformed). If you need to maintain your widget layouts,
+                joystick mappings, custom Actions, etc, then please download your settings and logs and <a href="https://blueos.cloud/cockpit/docs/latest/usage/overview/#discussions-and-support" target="_blank" style="color: #4a9eff; text-decoration: underline;">reach out for support</a>.
+                If you need a fix right now, you can try importing a settings file, or reset Cockpit to its default configuration
+                and profiles.
+            </p>
+
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                <button id="download-logs-btn">Download logs</button>
+                <button id="backup-settings-btn">Download settings</button>
+                <button id="import-settings-btn">Import settings</button>
+                <button id="clear-settings-btn">Reset settings</button>
+            </div>
+        </div>
+    </div>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+    <link rel="stylesheet" href="/src/styles/global.css">
+
+    <script>
+        // Start console capture
+        const {
+            backupSettings,
+            importSettings,
+            downloadLogs,
+            resetSettings,
+        } = import('./src/libs/index-utils.js');
+
+        document.addEventListener("DOMContentLoaded", async function() {
+            // Import utility functions
+            const {
+                backupSettings,
+                importSettings,
+                downloadLogs,
+                resetSettings,
+            } = await import('./src/libs/index-utils.js');
+
+            const overlay = document.getElementById('browser-overlay')
+            const content = document.getElementById('app')
+            const proceedButton = document.getElementById('proceed-browser-overlay');
+            const underlyingFallback = document.getElementById('underlying-fallback');
+            const backupSettingsButton = document.getElementById('backup-settings-btn');
+            const importSettingsButton = document.getElementById('import-settings-btn');
+            const downloadLogsButton = document.getElementById('download-logs-btn');
+            const clearSettingsButton = document.getElementById('clear-settings-btn');
+
+            const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor)
+            const isEdge = /Edg/.test(navigator.userAgent)
+
+            if (!isChrome && !isEdge) {
+                overlay.style.display = 'flex'
+                content.style.display = 'none'
+            } else {
+                underlyingFallback.style.display = 'flex';
+            }
+
+            proceedButton.addEventListener('click', function() {
+                overlay.style.display = 'none';
+                content.style.display = 'block';
+                underlyingFallback.style.display = 'flex';
+            });
+
+            // Button event handlers using utility functions
+            backupSettingsButton.addEventListener('click', async function() {
+                const result = await backupSettings();
+                if (!result.success) {
+                    alert(result.message);
+                }
+            });
+
+            importSettingsButton.addEventListener('click', async function() {
+                const result = await importSettings();
+                if (!result.success && !result.message.includes('cancelled')) {
+                    alert(result.message);
+                }
+                location.reload();
+            });
+
+            downloadLogsButton.addEventListener('click', async function() {
+                const result = await downloadLogs();
+                alert(result.message);
+            });
+
+            clearSettingsButton.addEventListener('click', async function() {
+                const result = await resetSettings();
+                if (!result.success && !result.message.includes('cancelled')) {
+                    alert(result.message);
+                }
+            });
+        })
+    </script>
+
+    <style>
+        #non-app-main {
+            color: #fff;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        #browser-overlay {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            border: #fff solid 1px;
+            border-radius: 5px;
+            margin: 1.5rem;
+            padding: 1.5rem;
+        }
+
+        #underlying-fallback {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            border: #fff solid 1px;
+            border-radius: 5px;
+            margin: 1.5rem;
+            padding: 3rem;
+            max-width: 65%;
+        }
+        #non-app-main button {
+            background-color: #0486aa;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 1.5rem;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #clear-settings-btn {
+            background-color: #a12626 !important;
+        }
+
+        #backup-settings-btn {
+            background-color: #26a159 !important;
+        }
+
+        #import-settings-btn {
+            background-color: #2563eb !important;
+        }
+
+        #download-logs-btn {
+            background-color: #ea580c !important;
+        }
+    </style>
+</body>
+</html>

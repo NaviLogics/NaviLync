@@ -1,0 +1,91 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "🏗️ Build Docker Container",
+            "type": "shell",
+            "command": "echo 'Building Docker container...' && docker build -t yarn-cockpit-container .devcontainer/ && echo '✅ Container built successfully!'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "group": "build",
+            "options": {
+                "env": {
+                    "INSIDE_CONTAINER": "${env:REMOTE_CONTAINERS}"
+                }
+            },
+            "runOptions": {
+                "runOn": "default"
+            }
+        },
+        {
+            "label": "🚀 Start Dev Server",
+            "type": "shell",
+            "command": "if [ -z  \"$CONTAINER\" ]; then docker run -it -v ${workspaceFolder}:/workspace -p 5173:5173 yarn-cockpit-container dev; else yarn dev --host 0.0.0.0; fi",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true,
+                "close": false
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "📦 Install Dependencies",
+            "type": "shell",
+            "command": "if [ -z  \"$CONTAINER\" ]; then docker run -v ${workspaceFolder}:/workspace yarn-cockpit-container install; else yarn install; fi",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        },
+        {
+            "label": "🧪 Run Tests",
+            "type": "shell",
+            "command": "if [ -z  \"$CONTAINER\" ]; then docker run -v ${workspaceFolder}:/workspace yarn-cockpit-container test; else yarn test; fi",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        },
+        {
+            "label": "🔨 Build",
+            "type": "shell",
+            "command": "if [ -z  \"$CONTAINER\" ]; then docker run -v ${workspaceFolder}:/workspace yarn-cockpit-container run build; else yarn run build; fi",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        },
+        {
+            "label": "🧹 Clean Install",
+            "type": "shell",
+            "command": "if [ -z  \"$CONTAINER\" ]; then docker run -v ${workspaceFolder}:/workspace yarn-cockpit-container bash -c \"rm -rf node_modules yarn.lock && yarn install\"; else rm -rf node_modules yarn.lock && yarn install; fi",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        }
+    ]
+}

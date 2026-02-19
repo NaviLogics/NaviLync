@@ -1,0 +1,665 @@
+<template>
+  <p
+    v-if="!widget.options.dataLakeVariableId"
+    class="w-full h-full flex items-center justify-center text-center text-white text-h5 font-weight-bold p-4 overflow-hidden"
+  >
+    {{ $t('widgetConfig.plotter.noVariableMessage') }}
+  </p>
+  <div v-else class="main">
+    <canvas ref="canvasRef" :width="canvasSize.width" :height="canvasSize.height" />
+  </div>
+  <InteractionDialog
+    v-model="widgetStore.widgetManagerVars(widget.hash).configMenuOpen"
+    :title="$t('widgetConfig.plotter.title')"
+    variant="text-only"
+  >
+    <template #content>
+      <div
+        class="max-h-[85vh] overflow-y-auto -mr-2 -mt-12"
+        :class="interfaceStore.isOnSmallScreen ? 'max-w-[85vw]' : 'max-w-[50vw]'"
+      >
+        <!-- Data source section -->
+        <ExpansiblePanel no-top-divider no-bottom-divider is-expanded compact>
+          <template #title>{{ $t('widgetConfig.plotter.dataSource') }}</template>
+          <template #content>
+            <div class="py-2">
+              <v-text-field
+                v-model="searchTerm"
+                density="compact"
+                variant="filled"
+                theme="dark"
+                type="text"
+                :placeholder="$t('widgetConfig.plotter.searchVariables')"
+                class="mb-4"
+                clearable
+                @update:model-value="menuOpen = true"
+                @click:clear="menuOpen = false"
+                @update:focused="(isFocused: boolean) => (menuOpen = isFocused)"
+              />
+              <v-select
+                v-model="widget.options.dataLakeVariableId"
+                :items="filteredDataLakeNumberVariables"
+                item-title="name"
+                item-value="id"
+                :label="$t('widgetConfig.plotter.dataLakeVariable')"
+                :hint="$t('widgetConfig.plotter.selectVariable')"
+                persistent-hint
+                theme="dark"
+                variant="outlined"
+                density="comfortable"
+                :menu-props="{ modelValue: menuOpen }"
+                @click="menuOpen = !menuOpen"
+              />
+            </div>
+          </template>
+        </ExpansiblePanel>
+
+        <!-- Appearance section -->
+        <ExpansiblePanel no-top-divider no-bottom-divider compact :is-expanded="!interfaceStore.isOnSmallScreen">
+          <template #title>{{ $t('widgetConfig.plotter.appearance') }}</template>
+          <template #content>
+            <div class="flex flex-wrap gap-x-8 gap-y-2 py-2">
+              <v-checkbox
+                v-model="widget.options.showTitle"
+                :label="$t('widgetConfig.plotter.showTitle')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props: colorPickerActivatorProps }">
+                  <div v-bind="colorPickerActivatorProps" class="flex cursor-pointer">
+                    <span class="mt-3">{{ $t('widgetConfig.plotter.backgroundColor') }}</span>
+                    <div
+                      class="w-[30px] h-[30px] border-2 border-slate-700 rounded-lg cursor-pointer ml-2 mt-2"
+                      :style="{ backgroundColor: widget.options.backgroundColor }"
+                    ></div>
+                  </div>
+                </template>
+                <v-color-picker v-model="widget.options.backgroundColor" label="Background" hide-inputs theme="dark" />
+              </v-menu>
+              <v-menu :close-on-content-click="false">
+                <template #activator="{ props: colorPickerActivatorProps }">
+                  <div v-bind="colorPickerActivatorProps" class="flex cursor-pointer">
+                    <span class="mt-3">{{ $t('widgetConfig.plotter.lineColor') }}</span>
+                    <div
+                      class="w-[30px] h-[30px] border-2 border-slate-700 rounded-lg cursor-pointer ml-2 mt-2"
+                      :style="{ backgroundColor: widget.options.lineColor }"
+                    ></div>
+                  </div>
+                </template>
+                <v-color-picker v-model="widget.options.lineColor" label="Line" hide-inputs theme="dark" />
+              </v-menu>
+              <v-text-field
+                v-model.number="widget.options.lineThickness"
+                type="number"
+                :label="$t('widgetConfig.plotter.lineThickness')"
+                variant="outlined"
+                density="compact"
+                :rules="[(v: number) => v > 0 || $t('widgetConfig.plotter.mustBeGreaterThanZero')]"
+                width="140px"
+                hide-details
+              />
+            </div>
+          </template>
+        </ExpansiblePanel>
+
+        <!-- Data points section -->
+        <ExpansiblePanel no-top-divider no-bottom-divider compact :is-expanded="!interfaceStore.isOnSmallScreen">
+          <template #title>{{ $t('widgetConfig.plotter.dataPoints') }}</template>
+          <template #content>
+            <div class="py-2">
+              <div class="flex flex-wrap gap-x-8 gap-y-2">
+                <v-text-field
+                  v-model.number="widget.options.decimalPlaces"
+                  type="number"
+                  :label="$t('widgetConfig.plotter.decimalPlaces')"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="[(v: number) => v >= 0 || $t('widgetConfig.plotter.mustBeZeroOrGreater')]"
+                  :hint="$t('widgetConfig.plotter.decimalPlacesHint')"
+                  width="100px"
+                />
+                <v-checkbox v-model="widget.options.limitSamples" :label="$t('widgetConfig.plotter.limitSamples')" />
+                <v-text-field
+                  v-model.number="widget.options.maxSamples"
+                  type="number"
+                  :label="$t('widgetConfig.plotter.maximumSamples')"
+                  variant="outlined"
+                  density="comfortable"
+                  :disabled="!widget.options.limitSamples"
+                  :rules="[(v: number) => v > 0 || $t('widgetConfig.plotter.mustBeGreaterThanZero')]"
+                  :hint="$t('widgetConfig.plotter.maximumSamplesHint')"
+                  width="150px"
+                />
+              </div>
+              <v-checkbox
+                v-model="widget.options.updateOnConstantValue"
+                :label="$t('widgetConfig.plotter.updateOnConstant')"
+                :hint="$t('widgetConfig.plotter.updateOnConstantHint')"
+                persistent-hint
+              />
+            </div>
+          </template>
+        </ExpansiblePanel>
+
+        <!-- Statistics display section -->
+        <ExpansiblePanel no-top-divider no-bottom-divider compact :is-expanded="!interfaceStore.isOnSmallScreen">
+          <template #title>{{ $t('widgetConfig.plotter.statisticsDisplay') }}</template>
+          <template #content>
+            <div class="flex flex-wrap gap-x-6 py-2">
+              <v-checkbox
+                v-model="widget.options.showCurrent"
+                :label="$t('widgetConfig.plotter.current')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-checkbox
+                v-model="widget.options.showMin"
+                :label="$t('widgetConfig.plotter.min')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-checkbox
+                v-model="widget.options.showMedian"
+                :label="$t('widgetConfig.plotter.median')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-checkbox
+                v-model="widget.options.showAvg"
+                :label="$t('widgetConfig.plotter.avg')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-checkbox
+                v-model="widget.options.showMax"
+                :label="$t('widgetConfig.plotter.max')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-checkbox
+                v-model="widget.options.showStdDev"
+                :label="$t('widgetConfig.plotter.stdDev')"
+                hide-details
+                class="-mt-1"
+              />
+            </div>
+          </template>
+        </ExpansiblePanel>
+
+        <!-- Vertical Range section -->
+        <ExpansiblePanel no-top-divider no-bottom-divider compact :is-expanded="!interfaceStore.isOnSmallScreen">
+          <template #title>{{ $t('widgetConfig.plotter.verticalRange') }}</template>
+          <template #content>
+            <div class="flex items-center gap-x-4 py-2 mb-2">
+              <v-checkbox
+                v-model="widget.options.useFixedMinY"
+                :label="$t('widgetConfig.plotter.fixedMinimum')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-text-field
+                v-model.number="widget.options.fixedMinY"
+                type="number"
+                :label="$t('widgetConfig.plotter.minValue')"
+                variant="outlined"
+                density="compact"
+                :disabled="!widget.options.useFixedMinY"
+                width="100px"
+                hide-details
+              />
+              <div class="h-12 border-l border-slate-500"></div>
+              <v-checkbox
+                v-model="widget.options.useFixedMaxY"
+                :label="$t('widgetConfig.plotter.fixedMaximum')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-text-field
+                v-model.number="widget.options.fixedMaxY"
+                type="number"
+                :label="$t('widgetConfig.plotter.maxValue')"
+                variant="outlined"
+                density="compact"
+                :disabled="!widget.options.useFixedMaxY"
+                width="100px"
+                hide-details
+              />
+            </div>
+          </template>
+        </ExpansiblePanel>
+      </div>
+    </template>
+    <template #actions>
+      <div class="flex w-full justify-end my-2">
+        <v-btn @click="widgetStore.widgetManagerVars(widget.hash).configMenuOpen = false">{{
+          $t('widgetConfig.plotter.close')
+        }}</v-btn>
+      </div>
+    </template>
+  </InteractionDialog>
+</template>
+
+<script setup lang="ts">
+import { useElementVisibility, useWindowSize } from '@vueuse/core'
+import { computed, nextTick, onBeforeMount, onMounted, onUnmounted, ref, toRefs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+import {
+  DataLakeVariable,
+  getAllDataLakeVariablesInfo,
+  getDataLakeVariableData,
+  listenDataLakeVariable,
+  listenToDataLakeVariablesInfoChanges,
+  unlistenDataLakeVariable,
+  unlistenToDataLakeVariablesInfoChanges,
+} from '@/libs/actions/data-lake'
+import { resetCanvas } from '@/libs/utils'
+import { useAppInterfaceStore } from '@/stores/appInterface'
+import { useWidgetManagerStore } from '@/stores/widgetManager'
+import type { Widget } from '@/types/widgets'
+
+import ExpansiblePanel from '../ExpansiblePanel.vue'
+import InteractionDialog from '../InteractionDialog.vue'
+
+const { t } = useI18n()
+
+const interfaceStore = useAppInterfaceStore()
+
+const widgetStore = useWidgetManagerStore()
+
+const props = defineProps<{
+  /**
+   * Widget reference
+   */
+  widget: Widget
+}>()
+const widget = toRefs(props).widget
+const availableDataLakeVariables = ref<DataLakeVariable[]>([])
+let dataLakeVariableListenerId: string | undefined
+let dataLakeVariableInfoListenerId: string | undefined
+
+onBeforeMount(() => {
+  // Set initial widget options if they don't exist
+  const defaultOptions = {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    lineColor: 'rgba(255, 0, 0, 1.0)',
+    dataLakeVariableId: undefined,
+    maxSamples: 1000,
+    limitSamples: true,
+    lineThickness: 1,
+    decimalPlaces: 2,
+    showTitle: true,
+    updateOnConstantValue: true,
+    useFixedMinY: false,
+    useFixedMaxY: false,
+    fixedMinY: 0,
+    fixedMaxY: 100,
+    showCurrent: true,
+    showMin: true,
+    showMax: true,
+    showAvg: true,
+    showMedian: true,
+    showStdDev: true,
+  }
+  widget.value.options = { ...defaultOptions, ...widget.value.options }
+})
+
+onMounted(() => {
+  changeDataLakeVariable(widget.value.options.dataLakeVariableId)
+  availableDataLakeVariables.value = Object.values(getAllDataLakeVariablesInfo())
+  dataLakeVariableInfoListenerId = listenToDataLakeVariablesInfoChanges((variables) => {
+    availableDataLakeVariables.value = Object.values(variables)
+  })
+
+  // Try to get an initial value for the data lake variable
+  if (valuesHistory.length === 0) {
+    const initialValue = getDataLakeVariableData(widget.value.options.dataLakeVariableId)
+    if (initialValue) {
+      pushNewValue(initialValue as number)
+    }
+  }
+})
+
+onUnmounted(() => {
+  if (dataLakeVariableInfoListenerId) {
+    unlistenToDataLakeVariablesInfoChanges(dataLakeVariableInfoListenerId)
+  }
+  if (dataLakeVariableListenerId) {
+    unlistenDataLakeVariable(widget.value.options.dataLakeVariableId, dataLakeVariableListenerId)
+  }
+})
+
+const availableDataLakeNumberVariables = computed(() => {
+  return availableDataLakeVariables.value.filter((variable) => variable.type === 'number')
+})
+
+const searchTerm = ref('')
+const menuOpen = ref(false)
+
+watch(
+  () => widget.value.options.dataLakeVariableId,
+  () => (menuOpen.value = false)
+)
+
+const filteredDataLakeNumberVariables = computed(() => {
+  const search = (searchTerm.value || '').toLowerCase()
+  return availableDataLakeNumberVariables.value.filter((variable) => variable.name.toLowerCase().includes(search))
+})
+
+// Remove the oldest sample if the number of samples is greater than the max samples
+// Use shift if the number of samples is exactly the max samples + 1 for performance reasons
+const cutExtraSamples = (): void => {
+  if (widget.value.options.limitSamples) {
+    if (valuesHistory.length === widget.value.options.maxSamples + 1) {
+      valuesHistory.shift()
+    } else if (valuesHistory.length > widget.value.options.maxSamples) {
+      valuesHistory.splice(0, valuesHistory.length - widget.value.options.maxSamples)
+    }
+  }
+}
+
+const pushNewValue = (value: number): void => {
+  valuesHistory.push(value)
+  cutExtraSamples()
+  renderCanvas()
+}
+
+const changeDataLakeVariable = (newId: string, oldId?: string): void => {
+  if (newId === undefined) {
+    console.error('No data lake variable ID provided!')
+    return
+  }
+
+  if (oldId !== undefined && dataLakeVariableListenerId) {
+    unlistenDataLakeVariable(oldId, dataLakeVariableListenerId)
+  }
+
+  dataLakeVariableListenerId = listenDataLakeVariable(newId, (value) => pushNewValue(value as number), {
+    notifyOnTimestampChange: widget.value.options.updateOnConstantValue,
+  })
+}
+
+watch(
+  () => widget.value.options.dataLakeVariableId,
+  (newId, oldId) => {
+    changeDataLakeVariable(newId, oldId)
+    valuesHistory.length = 0
+  }
+)
+
+// Re-register listener when updateOnConstantValue option changes
+watch(
+  () => widget.value.options.updateOnConstantValue,
+  () => {
+    const currentId = widget.value.options.dataLakeVariableId
+    if (currentId) {
+      changeDataLakeVariable(currentId, currentId)
+    }
+  }
+)
+
+// Make canvas size follows window resizing
+const { width: windowWidth, height: windowHeight } = useWindowSize()
+const canvasSize = computed(() => ({
+  width: widget.value.size.width * windowWidth.value,
+  height: widget.value.size.height * windowHeight.value,
+}))
+
+const canvasRef = ref<HTMLCanvasElement | undefined>()
+const canvasContext = ref()
+
+const drawText = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void => {
+  // Add a semi-transparent background for better readability
+  const metrics = ctx.measureText(text)
+  const padding = 4
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+  ctx.fillRect(
+    x - padding,
+    y - 16 - padding, // 16 is approx. font height
+    metrics.width + padding * 2,
+    16 + padding * 2
+  )
+
+  // Draw the text
+  ctx.fillStyle = widget.value.options.lineColor
+  ctx.fillText(text, x, y)
+}
+
+const renderCanvas = (): void => {
+  if (canvasRef.value === undefined || canvasRef.value === null) return
+  if (canvasContext.value === undefined) {
+    console.debug('Canvas context undefined!')
+    canvasContext.value = canvasRef.value.getContext('2d')
+    return
+  }
+  const ctx = canvasContext.value
+  const canvasWidth = canvasSize.value.width
+  const canvasHeight = canvasSize.value.height
+  resetCanvas(ctx)
+
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+  ctx.fillStyle = widget.value.options.backgroundColor
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+  ctx.strokeStyle = widget.value.options.lineColor
+  ctx.lineWidth = Math.max(widget.value.options.lineThickness, 1)
+
+  try {
+    maxValue = Math.max(...valuesHistory)
+    minValue = Math.min(...valuesHistory)
+    medianValue = calculateMedian(valuesHistory)
+    averageValue = calculateAverage(valuesHistory)
+    stdDevValue = calculateStdDev(valuesHistory, averageValue)
+
+    // Use fixed Y-axis bounds if enabled, otherwise calculate with a buffer to keep the plot neatly within bounds, and centered when there are no changes
+    const tempMinValue = widget.value.options.useFixedMinY ? widget.value.options.fixedMinY : minValue
+    const tempMaxValue = widget.value.options.useFixedMaxY ? widget.value.options.fixedMaxY : maxValue
+    const buffer = 0.05 * (tempMaxValue != tempMinValue ? tempMaxValue - tempMinValue : 1)
+    const minY = widget.value.options.useFixedMinY ? widget.value.options.fixedMinY : tempMinValue - buffer
+    const maxY = widget.value.options.useFixedMaxY ? widget.value.options.fixedMaxY : tempMaxValue + buffer
+
+    const currentValue = valuesHistory[valuesHistory.length - 1]
+
+    // Draw zero reference line if zero is within the visible range
+    if (minY <= 0 && maxY >= 0) {
+      const zeroY = canvasHeight - ((0 - minY) / (maxY - minY)) * canvasHeight
+      ctx.beginPath()
+      ctx.setLineDash([5, 5])
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+      ctx.lineWidth = 1
+      ctx.moveTo(0, zeroY)
+      ctx.lineTo(canvasWidth, zeroY)
+      ctx.stroke()
+      // Restore line settings for the main graph
+      ctx.strokeStyle = widget.value.options.lineColor
+      ctx.lineWidth = Math.max(widget.value.options.lineThickness, 1)
+    }
+
+    // Draw the graph
+    ctx.beginPath()
+    ctx.moveTo(0, canvasHeight / 2)
+    ctx.setLineDash([])
+
+    if (valuesHistory.length === 0) {
+      // Draw an open circle in the middle of the canvas indicating no value
+      ctx.beginPath()
+      ctx.arc(0, canvasHeight / 2, 7, 0, 2 * Math.PI)
+      ctx.stroke()
+    } else if (valuesHistory.length === 1) {
+      // Draw a filled circle in the middle of the canvas with a small dash line to the right indicating a single value
+      ctx.fillStyle = widget.value.options.lineColor
+      ctx.beginPath()
+      ctx.arc(0, canvasHeight / 2, 7, 0, 2 * Math.PI)
+      ctx.fill()
+
+      ctx.beginPath()
+      ctx.setLineDash([5, 5])
+      ctx.moveTo(0, canvasHeight / 2)
+      ctx.lineTo(0 + 50, canvasHeight / 2)
+      ctx.stroke()
+    } else {
+      ctx.setLineDash([])
+      valuesHistory.forEach((sample, index) => {
+        const x = index * (canvasWidth / valuesHistory.length)
+        const y = canvasHeight - ((sample - minY) / (maxY - minY)) * canvasHeight
+        ctx.lineTo(x, y)
+      })
+    }
+    ctx.stroke()
+
+    // Setup text rendering
+    ctx.font = '14px monospace'
+    ctx.textBaseline = 'bottom'
+
+    // Draw the title if enabled
+    if (widget.value.options.showTitle && widget.value.options.dataLakeVariableId) {
+      const variable = availableDataLakeVariables.value.find((v) => v.id === widget.value.options.dataLakeVariableId)
+      if (variable) {
+        drawText(ctx, variable.name, 10, 26)
+        ctx.textBaseline = 'bottom'
+      }
+    }
+
+    // Draw the values (stacked based on which ones are enabled)
+    const decimalPlaces = widget.value.options.decimalPlaces
+    const lineHeight = 20
+    let yOffset = 10
+
+    if (widget.value.options.showStdDev) {
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsStdDev', { value: Number(stdDevValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
+      yOffset += lineHeight
+    }
+    if (widget.value.options.showMax) {
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsMax', { value: Number(maxValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
+      yOffset += lineHeight
+    }
+    if (widget.value.options.showAvg) {
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsAvg', { value: Number(averageValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
+      yOffset += lineHeight
+    }
+    if (widget.value.options.showMedian) {
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsMedian', { value: Number(medianValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
+      yOffset += lineHeight
+    }
+    if (widget.value.options.showMin) {
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsMin', { value: Number(minValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
+      yOffset += lineHeight
+    }
+    if (widget.value.options.showCurrent) {
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsCurrent', { value: Number(currentValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
+    }
+  } catch (error) {
+    console.error('Error drawing graph:', error)
+  }
+}
+
+const valuesHistory: number[] = []
+let maxValue = 0
+let minValue = 0
+let medianValue = 0
+let averageValue = 0
+let stdDevValue = 0
+
+/**
+ * Calculate the median value from an array of numbers
+ * @param {number[]} values - Array of numbers to calculate median from
+ * @returns {number} The median value
+ */
+const calculateMedian = (values: number[]): number => {
+  if (values.length === 0) return NaN
+  if (values.length === 1) return values[0]
+
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2
+  }
+  return sorted[mid]
+}
+
+/**
+ * Calculate the average (mean) value from an array of numbers
+ * @param {number[]} values - Array of numbers to calculate average from
+ * @returns {number} The average value
+ */
+const calculateAverage = (values: number[]): number => {
+  if (values.length === 0) return NaN
+  return values.reduce((sum, val) => sum + val, 0) / values.length
+}
+
+/**
+ * Calculate the standard deviation from an array of numbers
+ * @param {number[]} values - Array of numbers to calculate standard deviation from
+ * @param {number} mean - Pre-calculated mean value (optional, will be calculated if not provided)
+ * @returns {number} The standard deviation (population)
+ */
+const calculateStdDev = (values: number[], mean?: number): number => {
+  if (values.length === 0) return NaN
+  if (values.length === 1) return 0
+
+  const avg = mean !== undefined ? mean : calculateAverage(values)
+  const squaredDiffs = values.map((val) => Math.pow(val - avg, 2))
+  const avgSquaredDiff = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length
+  return Math.sqrt(avgSquaredDiff)
+}
+
+// Update canvas whenever reference variables changes
+watch(
+  [canvasSize, widget],
+  () => {
+    if (!widgetStore.isWidgetVisible(widget.value)) return
+    cutExtraSamples()
+    nextTick(() => renderCanvas())
+  },
+  { deep: true }
+)
+
+const canvasVisible = useElementVisibility(canvasRef)
+watch(canvasVisible, (isVisible, wasVisible) => {
+  if (isVisible && !wasVisible) renderCanvas()
+})
+</script>
+
+<style scoped>
+.main {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  min-height: 200px;
+}
+</style>
