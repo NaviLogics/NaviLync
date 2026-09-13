@@ -1,17 +1,16 @@
 name: Import NaviLync from local GitLab
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/import-from-local-gitlab.yml'
+  workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
 
 jobs:
   import:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.issue.title == 'IMPORT LOCAL GITLAB NAVILYNC' }}
     runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 20
     steps:
@@ -24,7 +23,7 @@ jobs:
           export GIT_TERMINAL_PROMPT=0
 
           SOURCE='/var/opt/gitlab/git-data/repositories/@hashed/6b/86/6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b.git'
-          DEST='https://x-access-token:${GH_TOKEN}@github.com/NaviLogics/NaviLync.git'
+          DEST="https://x-access-token:${GH_TOKEN}@github.com/NaviLogics/NaviLync.git"
           TMP="/tmp/navilync-import-${GITHUB_RUN_ID}.git"
 
           cleanup() {
@@ -48,7 +47,7 @@ jobs:
           git --git-dir="$TMP" remote remove origin || true
           git --git-dir="$TMP" remote add github "$DEST"
 
-          echo '== Push branches and tags only =='
+          echo '== Push source branches and tags =='
           git --git-dir="$TMP" push github 'refs/heads/*:refs/heads/*'
           git --git-dir="$TMP" push github 'refs/tags/*:refs/tags/*'
 
