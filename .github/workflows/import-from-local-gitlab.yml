@@ -1,0 +1,59 @@
+name: Import NaviLync from local GitLab
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/import-from-local-gitlab.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 20
+    steps:
+      - name: Import GitLab Cockpit history into NaviLync
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0
+
+          SOURCE='/var/opt/gitlab/git-data/repositories/@hashed/6b/86/6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b.git'
+          DEST='https://x-access-token:${GH_TOKEN}@github.com/NaviLogics/NaviLync.git'
+          TMP="/tmp/navilync-import-${GITHUB_RUN_ID}.git"
+
+          cleanup() {
+            sudo -n rm -rf "$TMP" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          echo '== Source validation =='
+          sudo -n test -d "$SOURCE"
+          sudo -n git --git-dir="$SOURCE" fsck --no-dangling
+          SOURCE_HEAD=$(sudo -n git --git-dir="$SOURCE" rev-parse refs/heads/master)
+          echo "SOURCE_MASTER=$SOURCE_HEAD"
+          echo "SOURCE_BRANCHES=$(sudo -n git --git-dir="$SOURCE" for-each-ref refs/heads --format='%(refname)' | wc -l | tr -d ' ')"
+          echo "SOURCE_TAGS=$(sudo -n git --git-dir="$SOURCE" for-each-ref refs/tags --format='%(refname)' | wc -l | tr -d ' ')"
+          echo "SOURCE_COMMITS=$(sudo -n git --git-dir="$SOURCE" rev-list --all --count)"
+
+          echo '== Create temporary mirror =='
+          sudo -n git clone --mirror "$SOURCE" "$TMP"
+          sudo -n chown -R "$(id -u):$(id -g)" "$TMP"
+
+          git --git-dir="$TMP" remote remove origin || true
+          git --git-dir="$TMP" remote add github "$DEST"
+
+          echo '== Push branches and tags only =='
+          git --git-dir="$TMP" push github 'refs/heads/*:refs/heads/*'
+          git --git-dir="$TMP" push github 'refs/tags/*:refs/tags/*'
+
+          echo '== Verify destination master =='
+          REMOTE_MASTER=$(git ls-remote "$DEST" refs/heads/master | awk '{print $1}')
+          test "$REMOTE_MASTER" = "$SOURCE_HEAD"
+          echo "REMOTE_MASTER=$REMOTE_MASTER"
+          echo 'IMPORT PASS'
