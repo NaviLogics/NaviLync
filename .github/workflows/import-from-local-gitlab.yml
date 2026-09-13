@@ -17,13 +17,18 @@ jobs:
       - name: Import GitLab Cockpit history into NaviLync
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
+          IMPORT_TOKEN: ${{ secrets.NAVILYNC_IMPORT_TOKEN }}
         run: |
           set -euo pipefail
           export GIT_TERMINAL_PROMPT=0
 
+          if [ -z "${IMPORT_TOKEN:-}" ]; then
+            echo 'NAVILYNC_IMPORT_TOKEN secret is not configured.' >&2
+            exit 2
+          fi
+
           SOURCE='/var/opt/gitlab/git-data/repositories/@hashed/6b/86/6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b.git'
-          DEST="https://x-access-token:${GH_TOKEN}@github.com/NaviLogics/NaviLync.git"
+          DEST="https://x-access-token:${IMPORT_TOKEN}@github.com/NaviLogics/NaviLync.git"
           TMP="/tmp/navilync-import-${GITHUB_RUN_ID}.git"
 
           cleanup() {
