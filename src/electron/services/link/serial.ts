@@ -9,6 +9,23 @@ import { Link } from './link'
 const SerialPortObject = require('serialport').SerialPort
 
 /**
+ * Normalize a serial URI path across POSIX and Windows.
+ * @param uri Serial connection URI
+ * @returns Native serial port path
+ */
+export const normalizeSerialPath = (uri: URL): string => {
+  const candidate = decodeURIComponent(uri.pathname || uri.hostname)
+
+  if (process.platform === 'win32') {
+    // WHATWG URLs commonly expose serial:///COM3 as /COM3. Windows SerialPort
+    // expects COM3 (or COM10+) without the leading slash.
+    return candidate.replace(/^\/+/, '')
+  }
+
+  return candidate
+}
+
+/**
  * SerialLink class for managing serial connections
  */
 export class SerialLink extends Link {
@@ -19,16 +36,21 @@ export class SerialLink extends Link {
 
   /**
    * Serial Link Constructor
-   * @param {URL} uri - The URI of the TCP link
+   * @param {URL} uri - The URI of the serial link
    * @throws {Error} If the URI is invalid or the protocol is not supported
    * @description The URI should be in the format: serial:path?baudrate=[baudrate default:115200]
-   * For example: serial:/dev/ttyUSB0?baudrate=115200
+   * For example: serial:///dev/ttyUSB0?baudrate=115200 or serial:///COM3?baudrate=115200
    */
   constructor(uri: URL) {
     super(uri)
     this.protocol = uri.protocol.replace(':', '')
-    this.path = uri.pathname
+    this.path = normalizeSerialPath(uri)
     this.baudRate = parseInt(uri.searchParams.get('baudrate') || '115200', 10)
+
+    if (!this.path) {
+      throw new Error('Serial port path is required')
+    }
+
     if (isNaN(this.baudRate) || this.baudRate <= 0) {
       throw new Error(`Invalid baud rate: ${uri.searchParams.get('baudrate')}`)
     }
@@ -37,25 +59,34 @@ export class SerialLink extends Link {
   /**
    * Open the serial link
    * @returns {void}
-   * @description This method should create a serial port connection using the specified path and baud rate.
-   * It should handle any necessary setup for the serial port, such as configuring the data bits, stop bits, and parity.
-   * @example
-   * const serialLink = new SerialLink(new URL('serial:///dev/ttyUSB0?baudRate=115200'))
-   * serialLink.open()
+   * @description This method creates a serial port connection using the specified path and baud rate.
    */
   async open(): Promise<void> {
+    let ports: PortInfo[] | undefined
+
     try {
-      const ports = await SerialPortObject.list()
+      ports = await SerialPortObject.list()
       console.log(
-        `Available serial ports:`,
+        'Available serial ports:',
         ports.map((p: PortInfo) => p.path)
       )
-      const portExists = ports.some((p: PortInfo) => p.path === this.path)
+    } catch (listError: any) {
+      // Port enumeration can fail on a restricted host. In that case we still
+      // attempt to open the explicitly requested port and let SerialPort report
+      // the authoritative open error.
+      console.warn('Unable to enumerate serial ports before opening:', listError)
+    }
+
+    if (ports) {
+      const requestedPath = process.platform === 'win32' ? this.path.toLowerCase() : this.path
+      const portExists = ports.some((p: PortInfo) => {
+        const availablePath = process.platform === 'win32' ? p.path.toLowerCase() : p.path
+        return availablePath === requestedPath
+      })
+
       if (!portExists) {
         throw new Error(`Port ${this.path} not found`)
       }
-    } catch (listError: any) {
-      console.error('Error listing ports:', listError)
     }
 
     const port = new SerialPortObject({
@@ -68,7 +99,7 @@ export class SerialLink extends Link {
       port.open((error: Error | null) => {
         if (error) {
           console.error(`Error opening serial port ${this.path}:`, error)
-          reject()
+          reject(error)
           return
         }
 
@@ -92,12 +123,6 @@ export class SerialLink extends Link {
   /**
    * Close the serial link
    * @returns {Promise<void>}
-   * @description This method should close the serial port connection and clean up any resources.
-   * It should ensure that the port is properly closed to avoid any resource leaks.
-   * @throws {Error} If the method is not implemented
-   * @example
-   * const serialLink = new SerialLink(new URL('serial:///dev/ttyUSB0?baudRate=115200'))
-   * await serialLink.close()
    */
   async close(): Promise<void> {
     if (!this.isOpen) {
@@ -122,12 +147,6 @@ export class SerialLink extends Link {
    * Write data to the serial link
    * @param {Uint8Array} data - The data to write to the serial link
    * @returns {Promise<void>}
-   * @description This method should send data over the serial link.
-   * It should handle the data format and ensure it is sent correctly.
-   * @throws {Error} If the method is not implemented
-   * @example
-   * const data = new Uint8Array([0x01, 0x02, 0x03])
-   * serialLink.write(data)
    */
   async write(data: Uint8Array): Promise<void> {
     if (!this.isOpen) {
@@ -150,10 +169,6 @@ export class SerialLink extends Link {
   /**
    * Check if the serial link is open
    * @returns {boolean}
-   * @description This method should return true if the serial link is currently open, otherwise false.
-   * @example
-   * const serialLink = new SerialLink(new URL('serial:///dev/ttyUSB0?baudRate=115200'))
-   * serialLink.isOpen() // returns true or false based on the link status
    */
   get isOpen(): boolean {
     return this.socket?.isOpen ?? false
