@@ -1,10 +1,10 @@
 {
-  "name": "cockpit",
-  "author": "Blue Robotics",
+  "name": "navilync",
+  "author": "NaviLogics",
   "version": "0.0.0",
   "private": true,
   "main": "dist/electron/main.js",
-  "description": "An intuitive and customizable cross-platform ground control station for remote vehicles of all types.",
+  "description": "NaviLync is NaviLogics' cross-platform ground control station for autonomous and remotely operated vehicles.",
   "scripts": {
     "build": "vite build",
     "build:serve": "vite build && vite preview",
@@ -160,11 +160,12 @@
         ]
       }
     ],
-    "appId": "org.bluerobotics.cockpit",
-    "productName": "Cockpit",
+    "appId": "com.navilogics.navilync",
+    "productName": "NaviLync",
     "publish": {
       "provider": "github",
-      "owner": "bluerobotics"
+      "owner": "NaviLogics",
+      "repo": "NaviLync"
     },
     "artifactName": "${productName}-${os}-${arch}-${version}.${ext}",
     "mac": {
@@ -189,7 +190,7 @@
     "flatpak": {
       "base": "org.electronjs.Electron2.BaseApp",
       "baseVersion": "22.08",
-      "description": "An intuitive and customizable cross-platform ground control station for remote vehicles of all types.",
+      "description": "NaviLync ground control station for autonomous and remotely operated vehicles.",
       "finishArgs": [
         "--socket=wayland",
         "--socket=x11",
