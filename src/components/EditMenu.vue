@@ -775,6 +775,7 @@ const widgetImages = {
   Map: MapImg,
   MiniWidgetsBar: MiniWidgetsBarImg,
   MissionControlPanel: MissionControlPanelImg,
+  NavisAtlasStatus: MissionControlPanelImg,
   Plotter: PlotterImg,
   URLVideoPlayer: URLVideoPlayerImg,
   VideoPlayer: VideoPlayerImg,
