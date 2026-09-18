@@ -25,6 +25,8 @@ jobs:
           git checkout --detach FETCH_HEAD
           rm -rf .github/workflows
           git add -A
-          git config user.name "NaviLogics Import Bot"\n          git config user.email "132571220+NaviLogics@users.noreply.github.com"\n          tree="$(git write-tree)"
+          git config user.name "NaviLogics Import Bot"
+          git config user.email "132571220+NaviLogics@users.noreply.github.com"
+          tree="$(git write-tree)"
           commit="$(printf '%s\n' 'Import Cockpit v1.18.4 base tree' | git commit-tree "$tree")"
           git push origin "$commit":refs/heads/upstream/cockpit-v1.18.4 --force
