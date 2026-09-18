@@ -693,10 +693,7 @@ const uploadConfigFile = (): void => {
 
 const resetAllCockpitSettings = (): void => {
   showDialog({
-    message:
-      "Are you sure you want to reset NaviLync's stored browser settings to defaults? " +
-      'Settings on the vehicle will not be affected - ' +
-      'once you connect back to the vehicle, the settings will be restored.',
+    message: 'Reset all NaviLync browser settings to defaults? Vehicle settings will not be affected.',
     variant: 'warning',
     maxWidth: 800,
     actions: [
