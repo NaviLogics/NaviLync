@@ -4,7 +4,7 @@
       <v-card-title class="text-h6 font-weight-bold py-4 text-center">
         <div class="flex justify-between w-full -mt-1">
           <div class="w-10" />
-          Cockpit settings manager
+          NaviLync settings manager
           <v-icon class="self-end" @click="closeConfigDialog">mdi-close</v-icon>
         </div>
       </v-card-title>
@@ -694,7 +694,7 @@ const uploadConfigFile = (): void => {
 const resetAllCockpitSettings = (): void => {
   showDialog({
     message:
-      "Are you sure you want to reset Cockpit's stored browser settings to defaults? " +
+      "Are you sure you want to reset NaviLync's stored browser settings to defaults? " +
       'Settings on the vehicle will not be affected - ' +
       'once you connect back to the vehicle, the settings will be restored.',
     variant: 'warning',
