@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="apple-mobile-web-app-title" content="Cockpit Lite">
+    <meta name="application-name" content="Cockpit Lite">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Cockpit Lite</title>
+    <meta name="description" content="An intuitive and customizable cross-platform ground control station for remote vehicles of all types.">
+    <style>
+        #non-app-main {
+            color: #fff;
+            background: #333;
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        #loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2.5rem;
+        }
+
+        #loading-logo {
+            width: min(350px, 60vw);
+            filter: brightness(1.25);
+        }
+
+        #loading-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            border-top-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="non-app-main">
+        <div id="loading-screen">
+            <img src="/cockpit-name-logo.png" alt="Cockpit" id="loading-logo" style="margin-right: 2rem;"/>
+            <div id="loading-spinner" style="margin-left: 2rem;"></div>
+        </div>
+    </div>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+    <link rel="stylesheet" href="/src/styles/global.css">
+
+    <!-- Inert templates: parsed but never rendered until cloned into the DOM via JS -->
+    <template id="browser-overlay-template">
+        <div style="display:flex;justify-content:center;align-items:center;flex-direction:column;border:#fff solid 1px;border-radius:5px;margin:1.5rem;padding:1.5rem;">
+            <p>Please use Google Chrome or Microsoft Edge for the best experience on our website.</p>
+            <button id="proceed-browser-overlay">Proceed Anyway</button>
+        </div>
+    </template>
+
+    <template id="fallback-template">
+        <div style="display:flex;justify-content:center;align-items:center;flex-direction:column;border:#fff solid 1px;border-radius:5px;margin:1.5rem;padding:3rem;max-width:65%;">
+            <p class="text-3xl">It looks like something went wrong while loading Cockpit.</p>
+
+            <p class="text-lg my-4">
+                This can happen, for example, if you just updated Cockpit's version, and the server cache is still serving
+                old files. In this and other cases, <strong>doing a hard refresh (Ctrl/Cmd+Shift+R) should solve the problem.</strong>
+            </p>
+
+            <p class="text-md my-4">
+                If you just tried a hard refresh, it probably means something is wrong with your Cockpit configuration
+                (e.g. the settings file may be somehow broken/malformed). If you need to maintain your widget layouts,
+                joystick mappings, custom Actions, etc, then please download your settings and logs and <a href="https://blueos.cloud/cockpit/docs/latest/usage/overview/#discussions-and-support" target="_blank" style="color: #4a9eff; text-decoration: underline;">reach out for support</a>.
+                If you need a fix right now, you can try importing a settings file, or reset Cockpit to its default configuration
+                and profiles.
+            </p>
+
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                <button id="download-logs-btn">Download logs</button>
+                <button id="backup-settings-btn">Download settings</button>
+                <button id="import-settings-btn">Import settings</button>
+                <button id="clear-settings-btn">Reset settings</button>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Start console capture
+        const __indexUtils = import('./src/libs/index-utils.js');
+
+        let __appLoaded = false;
+        const __fallbackTimeout = setTimeout(function() {
+            if (__appLoaded) return;
+
+            const nonAppMain = document.getElementById('non-app-main');
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) loadingScreen.remove();
+
+            const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+            const isEdge = /Edg/.test(navigator.userAgent);
+            const isElectron = /Electron/.test(navigator.userAgent);
+
+            if (!isChrome && !isEdge && !isElectron) {
+                const overlayContent = document.getElementById('browser-overlay-template').content.cloneNode(true);
+                nonAppMain.appendChild(overlayContent);
+
+                const appDiv = document.getElementById('app');
+                appDiv.style.display = 'none';
+
+                document.getElementById('proceed-browser-overlay').addEventListener('click', function() {
+                    nonAppMain.firstElementChild.remove();
+                    appDiv.style.display = 'block';
+                });
+                return;
+            }
+
+            __indexUtils.then(function(utils) {
+                const fallbackContent = document.getElementById('fallback-template').content.cloneNode(true);
+                nonAppMain.appendChild(fallbackContent);
+
+                document.getElementById('backup-settings-btn').addEventListener('click', function() {
+                    utils.backupSettings().then(function(r) { if (!r.success) alert(r.message); });
+                });
+                document.getElementById('import-settings-btn').addEventListener('click', function() {
+                    utils.importSettings().then(function(r) {
+                        if (!r.success && !r.message.includes('cancelled')) alert(r.message);
+                        location.reload();
+                    });
+                });
+                document.getElementById('download-logs-btn').addEventListener('click', function() {
+                    utils.downloadLogs().then(function(r) { alert(r.message); });
+                });
+                document.getElementById('clear-settings-btn').addEventListener('click', function() {
+                    utils.resetSettings().then(function(r) {
+                        if (!r.success && !r.message.includes('cancelled')) alert(r.message);
+                    });
+                });
+            });
+        }, 5000);
+
+        window.addEventListener('cockpit-app-loaded', function() {
+            __appLoaded = true;
+            clearTimeout(__fallbackTimeout);
+            const el = document.getElementById('non-app-main');
+            if (el) el.style.display = 'none';
+        });
+    </script>
+
+    <style>
+        #non-app-main button {
+            background-color: #0486aa;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 1.5rem;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #clear-settings-btn {
+            background-color: #a12626 !important;
+        }
+
+        #backup-settings-btn {
+            background-color: #26a159 !important;
+        }
+
+        #import-settings-btn {
+            background-color: #2563eb !important;
+        }
+
+        #download-logs-btn {
+            background-color: #ea580c !important;
+        }
+    </style>
+</body>
+</html>

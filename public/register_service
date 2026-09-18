@@ -1,0 +1,11 @@
+{
+    "name": "Cockpit Lite",
+    "description": "A browser-based version of the Cockpit application - an intuitive and customizable ground control station for remote vehicles of all types.",
+    "icon": "mdi-gamepad-square",
+    "company": "Blue Robotics",
+    "version": "0.0.0",
+    "new_page": true,
+    "webpage": "https://github.com/bluerobotics/BlueOS-docker",
+    "api": "https://github.com/bluerobotics/BlueOS-docker",
+    "works_in_relative_paths": true
+}

@@ -1,0 +1,549 @@
+import ky, { HTTPError } from 'ky'
+import { z } from 'zod'
+
+import { ExtrasJsonSchema, ServiceSchema } from '@/libs/blueos/schemas'
+import { sleep } from '@/libs/utils'
+import {
+  type ActionsFromExtension,
+  type BagOfHoldingsError,
+  type ExtrasJson,
+  type RawCpuLoadInfo,
+  type RawCpuTempInfo,
+  type RawNetworkInfo,
+  type Service,
+  JoystickMapSuggestionGroupsFromExtension,
+  NoPathInBlueOsErrorName,
+} from '@/types/blueos'
+import { vehicleNewStyleSettingsKey } from '@/types/settings-management'
+import { ExternalWidgetSetupInfo } from '@/types/widgets'
+
+const defaultTimeout = 10000
+const quickStatusTimeout = 3000
+const beaconTimeout = 5000
+
+const protocol = window.location.protocol.includes('file') ? 'http:' : window.location.protocol
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export const getBagOfHoldingFromVehicle = async (
+  vehicleAddress: string,
+  bagPath: string
+): Promise<Record<string, any> | any | undefined> => {
+  try {
+    const options = { timeout: defaultTimeout, retry: 0 }
+    return await ky.get(`${protocol}//${vehicleAddress}/bag/v1.0/get/${bagPath}`, options).json()
+  } catch (error) {
+    const errorBody = (await (error as HTTPError).response?.json()) as BagOfHoldingsError
+    if (errorBody?.detail === 'Invalid path') {
+      return undefined
+    }
+    throw new Error(`Could not get bag of holdings for ${bagPath}. ${error}`)
+  }
+}
+
+export const getKeyDataFromCockpitVehicleStorage = async (
+  vehicleAddress: string,
+  storageKey: string
+): Promise<any | undefined> => {
+  return await getBagOfHoldingFromVehicle(vehicleAddress, `cockpit/${storageKey}`)
+}
+
+const blueOsServiceUrl = (vehicleAddress: string, service: Service): string => {
+  const port = service.port
+  return service.metadata?.worksInRelativePaths
+    ? `${protocol}//${vehicleAddress}/extensionv2/${service.metadata?.sanitizedName}`
+    : `${protocol}//${vehicleAddress}:${port}`
+}
+
+const getServicesFromBlueOS = async (vehicleAddress: string): Promise<Service[]> => {
+  const options = { timeout: defaultTimeout, retry: 0 }
+  const rawData = await ky.get(`${protocol}//${vehicleAddress}/helper/v1.0/web_services`, options).json()
+
+  const services: Service[] = z.array(ServiceSchema).parse(rawData)
+  return services
+}
+
+export const getExtrasJsonFromBlueOsService = async (
+  vehicleAddress: string,
+  service: Service
+): Promise<ExtrasJson | null> => {
+  const options = { timeout: defaultTimeout, retry: 0 }
+  if (service.metadata?.extras?.cockpit === undefined) {
+    return null
+  }
+  const baseUrl = blueOsServiceUrl(vehicleAddress, service)
+  const fullUrl = baseUrl + service.metadata?.extras?.cockpit
+  const rawData = await ky.get(fullUrl, options).json()
+
+  const extraJson: ExtrasJson = ExtrasJsonSchema.parse(rawData)
+
+  return extraJson
+}
+
+export const getWidgetsFromBlueOS = async (vehicleAddress: string): Promise<ExternalWidgetSetupInfo[]> => {
+  const services = await getServicesFromBlueOS(vehicleAddress)
+  const widgets: ExternalWidgetSetupInfo[] = []
+  await Promise.all(
+    services.map(async (service) => {
+      try {
+        const extraJson = await getExtrasJsonFromBlueOsService(vehicleAddress, service)
+        const baseUrl = blueOsServiceUrl(vehicleAddress, service)
+        if (extraJson !== null) {
+          const extensionPath = new URL(baseUrl).pathname
+          widgets.push(
+            ...extraJson.widgets.map((widget) => {
+              const useExtPath = widget.useExtensionPathAsBaseUrl ?? false
+              const iconUrl = widget.iconUrl ?? widget.iframeIcon ?? ''
+
+              return {
+                ...widget,
+                iframeUrl: useExtPath ? extensionPath + widget.iframeUrl : widget.iframeUrl,
+                iframeIcon: useExtPath ? baseUrl + iconUrl : iconUrl,
+              }
+            })
+          )
+        }
+      } catch (error) {
+        console.error(`Could not get widgets from BlueOS service ${service.metadata?.sanitizedName}. ${error}`)
+      }
+    })
+  )
+
+  return widgets
+}
+
+export const getActionsFromBlueOS = async (vehicleAddress: string): Promise<ActionsFromExtension[]> => {
+  const services = await getServicesFromBlueOS(vehicleAddress)
+  const actionsFromExtensions: ActionsFromExtension[] = []
+
+  await Promise.all(
+    services.map(async (service) => {
+      try {
+        const extraJson = await getExtrasJsonFromBlueOsService(vehicleAddress, service)
+        if (extraJson !== null && extraJson.actions) {
+          const extensionName = service.metadata?.sanitizedName || 'Unknown Extension'
+          actionsFromExtensions.push({ extensionName, actionConfigs: extraJson.actions })
+        }
+      } catch (error) {
+        console.error(`Could not get actions from BlueOS service ${service.metadata?.sanitizedName}. ${error}`)
+      }
+    })
+  )
+
+  return actionsFromExtensions
+}
+
+export const getJoystickSuggestionsFromBlueOS = async (
+  vehicleAddress: string
+): Promise<JoystickMapSuggestionGroupsFromExtension[]> => {
+  const services = await getServicesFromBlueOS(vehicleAddress)
+  const suggestionsMap = new Map<string, JoystickMapSuggestionGroupsFromExtension>()
+
+  await Promise.all(
+    services.map(async (service) => {
+      try {
+        const extraJson = await getExtrasJsonFromBlueOsService(vehicleAddress, service)
+        if (extraJson !== null && extraJson.joystickSuggestions) {
+          const extensionName = service.metadata?.sanitizedName || 'Unknown Extension'
+
+          suggestionsMap.set(extensionName, {
+            extensionName,
+            suggestionGroups: extraJson.joystickSuggestions,
+          })
+        }
+      } catch (error) {
+        console.error(
+          `Could not get joystick suggestions from BlueOS service ${service.metadata?.sanitizedName}. ${error}`
+        )
+      }
+    })
+  )
+
+  return Array.from(suggestionsMap.values())
+}
+
+export const setBagOfHoldingOnVehicle = async (
+  vehicleAddress: string,
+  bagName: string,
+  bagData: Record<string, any> | any
+): Promise<void> => {
+  try {
+    await ky.post(`${protocol}//${vehicleAddress}/bag/v1.0/set/${bagName}`, { json: bagData, timeout: defaultTimeout })
+  } catch (error) {
+    throw new Error(`Could not set bag of holdings for ${bagName}. ${error}`)
+  }
+}
+
+export const setKeyDataOnCockpitVehicleStorage = async (
+  vehicleAddress: string,
+  storageKey: string,
+  storageData: Record<string, any> | any
+): Promise<void> => {
+  await setBagOfHoldingOnVehicle(vehicleAddress, `cockpit/${storageKey}`, storageData)
+}
+
+/* eslint-disable jsdoc/require-jsdoc */
+type RawIpInfo = { ip: string; service_type: string; interface_type: string }
+export type IpInfo = { ipv4Address: string; interfaceType: string }
+
+type StreamConfiguration = {
+  type: string
+  encode: string
+  height: number
+  width: number
+  frame_interval: {
+    numerator: number
+    denominator: number
+  }
+}
+
+type VideoSourceEntry = {
+  name: string
+  source?: Record<string, string>
+  device_path?: string
+  type?: any
+}
+
+type VideoSource = {
+  [key: string]: VideoSourceEntry
+}
+
+type StreamInfo = {
+  id: string
+  running: boolean
+  state?: string
+  error: string | null
+  video_and_stream: {
+    name: string
+    stream_information: {
+      endpoints: string[]
+      configuration: StreamConfiguration
+      extended_configuration: any
+    }
+    video_source: VideoSource
+  }
+}
+
+export type ProcessedStreamInfo = {
+  name: string
+  sourceName: string
+  encode: string
+  width: number
+  height: number
+  fps: number
+  running: boolean
+  rtspSourceUrl: string | undefined
+}
+/* eslint-enable jsdoc/require-jsdoc */
+
+export const getIpsInformationFromVehicle = async (vehicleAddress: string): Promise<IpInfo[]> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}/beacon/v1.0/services`
+    const rawIpsInfo: RawIpInfo[] = await ky.get(url, { timeout: defaultTimeout }).json()
+    return rawIpsInfo
+      .filter((ipInfo) => ipInfo['service_type'] === '_http')
+      .map((ipInfo) => ({ ipv4Address: ipInfo.ip, interfaceType: ipInfo.interface_type }))
+  } catch (error) {
+    throw new Error(`Could not get information about IPs on BlueOS. ${error}`)
+  }
+}
+
+/**
+ * Tells if an interface type reported by the beacon means the vehicle is reached through a cable.
+ * @param {string} interfaceType Interface type as reported by the beacon service.
+ * @returns {boolean} True for wired and USB interfaces.
+ */
+export const isTetheredInterfaceType = (interfaceType: string): boolean => ['WIRED', 'USB'].includes(interfaceType)
+
+/* eslint-disable jsdoc/require-jsdoc */
+type RawM2rServiceInfo = { name: string; version: string; sha: string; build_date: string; authors: string }
+type RawM2rInfo = { version: number; service: RawM2rServiceInfo }
+/* eslint-enable jsdoc/require-jsdoc */
+
+export const getMavlink2RestVersion = async (vehicleAddress: string): Promise<string> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}/mavlink2rest/info`
+    const m2rRawInfo: RawM2rInfo = await ky.get(url, { timeout: defaultTimeout }).json()
+    return m2rRawInfo.service.version
+  } catch (error) {
+    throw new Error(`Could not get Mavlink2Rest version. ${error}`)
+  }
+}
+
+/* eslint-disable jsdoc/require-jsdoc */
+type RawArdupilotFirmwareInfo = { version: string; type: string }
+/* eslint-enable jsdoc/require-jsdoc */
+
+export const getArdupilotVersion = async (vehicleAddress: string): Promise<string> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}/ardupilot-manager/v1.0/firmware_info`
+    const ardupilotFirmwareRawInfo: RawArdupilotFirmwareInfo = await ky.get(url, { timeout: defaultTimeout }).json()
+    return ardupilotFirmwareRawInfo.version
+  } catch (error) {
+    throw new Error(`Could not get Ardupilot firmware version. ${error}`)
+  }
+}
+
+export const getStatus = async (vehicleAddress: string): Promise<boolean> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}/status`
+    const statusResponse = await ky.get(url, { timeout: quickStatusTimeout })
+    return statusResponse.ok
+  } catch (error) {
+    throw new Error(`Could not get BlueOS status. ${error}`)
+  }
+}
+
+export const getBeaconInfo = async (vehicleAddress: string): Promise<Record<string, any>> => {
+  try {
+    const url = `http://${vehicleAddress}/beacon/`
+    const beaconInfoResponse = await ky.get(url, { timeout: beaconTimeout })
+    return beaconInfoResponse
+  } catch (error) {
+    throw new Error(`Could not fetch beacon info. ${error}`)
+  }
+}
+
+export const getVehicleName = async (vehicleAddress: string): Promise<string> => {
+  try {
+    const url = `http://${vehicleAddress}/beacon/v1.0/vehicle_name`
+    const vehicleNameResponse = await ky.get(url, { timeout: beaconTimeout, retry: 0 })
+    if (!vehicleNameResponse.ok) {
+      throw new Error(`Could not fetch vehicle name from beacon. ${vehicleNameResponse.status}`)
+    }
+    return vehicleNameResponse.text()
+  } catch (error) {
+    throw new Error(`Could not fetch vehicle name from beacon. ${error}`)
+  }
+}
+
+export const getCpuTempCelsius = async (vehicleAddress: string): Promise<number> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}/system-information/system/temperature`
+    const cpuTempRawInfo: RawCpuTempInfo[] = await ky.get(url, { timeout: defaultTimeout }).json()
+    return cpuTempRawInfo[0].temperature
+  } catch (error) {
+    throw new Error(`Could not get temperature of the BlueOS CPU. ${error}`)
+  }
+}
+
+export const getCpusInfo = async (vehicleAddress: string): Promise<RawCpuLoadInfo[]> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}/system-information/system/cpu`
+    const cpuLoadRawInfo: RawCpuLoadInfo[] = await ky.get(url, { timeout: defaultTimeout }).json()
+    return cpuLoadRawInfo
+  } catch (error) {
+    throw new Error(`Could not get load of the BlueOS CPU. ${error}`)
+  }
+}
+
+/**
+ * Tells if a vehicle network interface is a wireless one, judging by the naming convention BlueOS follows.
+ * @param {string} interfaceName Name of the vehicle network interface.
+ * @returns {boolean} True for wireless interfaces.
+ */
+export const isWirelessInterfaceName = (interfaceName: string): boolean => interfaceName.includes('wlan')
+
+const isCabledInterfaceName = (interfaceName: string): boolean => interfaceName.includes('eth')
+
+const minCounterSpanMs = 6000
+
+/**
+ * Turns the progress of one of the vehicle's byte counters into a transfer rate.
+ * The vehicle refreshes those counters slower than Cockpit polls them, so the span has to cover several
+ * refreshes to mean anything: a poll-to-poll delta reads zero most of the time and spikes on the polls that
+ * catch a refresh, on an idle interface just as much as on a busy one.
+ * @param {number} deltaBytes How far the counter moved across the span.
+ * @param {number} spanMs Time the span covers, in milliseconds.
+ * @returns {number} The rate in Mbps, and zero for a span too short to cover a refresh or for a counter reset by a vehicle reboot.
+ */
+export const counterDeltaToMbps = (deltaBytes: number, spanMs: number): number => {
+  if (spanMs < minCounterSpanMs || deltaBytes < 0) return 0
+  return (deltaBytes * 8) / (1024 * 1024) / (spanMs / 1000)
+}
+
+export const getNetworkInfo = async (vehicleAddress: string): Promise<RawNetworkInfo[]> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}/system-information/system/network`
+    const networkRawInfo: RawNetworkInfo[] = await ky.get(url, { timeout: defaultTimeout }).json()
+    return networkRawInfo.filter((network) => {
+      return (
+        (isWirelessInterfaceName(network.name) || isCabledInterfaceName(network.name)) && !network.name.startsWith('v')
+      )
+    })
+  } catch (error) {
+    throw new Error(`Could not get network information from BlueOS. ${error}`)
+  }
+}
+
+// Checks for similarity between all 'cockpit-*' keys stored in BlueOS and the data in localStorage
+export const checkBlueOsUserDataSimilarity = async (vehicleAddress: string, username: string): Promise<boolean> => {
+  const storedSettings: Record<string, any> = Object.keys(localStorage)
+    .filter((key) => key.startsWith('cockpit-'))
+    .reduce((acc: Record<string, any>, key: string) => {
+      const value = localStorage.getItem(key)
+      try {
+        acc[key] = value ? JSON.parse(value) : null
+      } catch {
+        acc[key] = value
+      }
+      return acc
+    }, {})
+
+  const blueOsData = (await getKeyDataFromCockpitVehicleStorage(vehicleAddress, `settings/${username}`)) ?? {}
+
+  const keysInCommon = Object.keys(storedSettings).filter((key) => key in blueOsData)
+
+  for (const key of keysInCommon) {
+    if (JSON.stringify(storedSettings[key]) !== JSON.stringify(blueOsData[key])) {
+      return false
+    }
+  }
+
+  return true
+}
+
+export const getSettingsUsernamesFromBlueOS = async (vehicleAddress: string): Promise<string[]> => {
+  const usernames = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, vehicleNewStyleSettingsKey)
+  // `getKeyDataFromCockpitVehicleStorage` returns `undefined` when the bag does not exist yet
+  // (fresh vehicle, never written to). That is a legitimate "no users yet" state, not a failure.
+  if (usernames === undefined) return []
+  // Anything else that isn't a plain object is an unexpected payload shape; surface it as an
+  // error so the caller can distinguish it from a real empty result.
+  if (typeof usernames !== 'object' || usernames === null || Array.isArray(usernames)) {
+    throw new Error(`Unexpected '${vehicleNewStyleSettingsKey}' payload shape on vehicle '${vehicleAddress}'.`)
+  }
+  return Object.keys(usernames)
+}
+
+export const deleteUsernameOnBlueOS = async (vehicleAddress: string, username: string): Promise<void> => {
+  let allSettings: Record<string, any> = {}
+  try {
+    allSettings = (await getKeyDataFromCockpitVehicleStorage(vehicleAddress, vehicleNewStyleSettingsKey)) as Record<
+      string,
+      any
+    >
+  } catch (err) {
+    if ((err as Error).name === NoPathInBlueOsErrorName) return
+    throw err
+  }
+
+  if (!(username in allSettings)) return
+  delete allSettings[username]
+
+  await setKeyDataOnCockpitVehicleStorage(vehicleAddress, vehicleNewStyleSettingsKey, allSettings)
+}
+
+/**
+ * Checks if other GCS is sending MANUAL_CONTROL messages to the vehicle
+ * @param {string} vehicleAddress The address of the vehicle
+ * @returns {Promise<boolean>} True if another GCS is sending MANUAL_CONTROL or RC_CHANNELS_OVERRIDE messages (within the last 3 seconds)
+ */
+export const checkForOtherManualControlSources = async (vehicleAddress: string): Promise<boolean> => {
+  try {
+    const waitTime = 3
+    const secondsSinceCockpitOpened = performance.now() / 1000
+    // Ensure Cockpit has been open long enough to avoid detecting its past self
+    if (secondsSinceCockpitOpened < waitTime) {
+      await sleep((waitTime - secondsSinceCockpitOpened) * 1000)
+    }
+
+    // Try common component IDs (MISSIONPLANNER (190) and UDP_BRIDGE (240))
+    const componentIds = [190, 240]
+    // Try both available manual control / joystick protocols
+    const messageNames = ['MANUAL_CONTROL', 'RC_CHANNELS_OVERRIDE']
+
+    for (const componentId of componentIds) {
+      for (const messageName of messageNames) {
+        try {
+          const endpoint = `${protocol}//${vehicleAddress}:6040/v1/mavlink/vehicles/255/components/${componentId}/messages/${messageName}`
+          const response = await fetch(endpoint)
+
+          if (!response.ok) continue
+
+          const data = await response.json()
+          const lastUpdateTime = data?.status?.time?.last_update
+
+          if (!lastUpdateTime) continue
+
+          // The API returns time in UTC format
+          // Convert both times to milliseconds since epoch for accurate comparison
+          const lastUpdateTimestamp = new Date(lastUpdateTime).getTime()
+          const currentTimestamp = Date.now()
+          const secondsAgo = (currentTimestamp - lastUpdateTimestamp) / 1000
+
+          if (secondsAgo < waitTime) {
+            console.warn(
+              `Detected ${messageName} messages from another source (component ID: ${componentId}, ${secondsAgo.toFixed(
+                2
+              )}s ago)`
+            )
+            return true
+          }
+        } catch (error) {
+          console.warn(`Error checking ${messageName} for component ${componentId}:`, error)
+        }
+      }
+    }
+
+    return false
+  } catch (error) {
+    console.error('Error checking for other active control stations:', error)
+    return false
+  }
+}
+
+export const getStreamInformationFromVehicle = async (vehicleAddress: string): Promise<ProcessedStreamInfo[]> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}:6020/streams`
+    const options = { timeout: defaultTimeout, retry: 0 }
+    const rawStreamsInfo: StreamInfo[] = await ky.get(url, options).json()
+
+    return rawStreamsInfo.map((stream) => {
+      const config = stream.video_and_stream.stream_information.configuration
+      const videoSource = stream.video_and_stream.video_source
+
+      // Extract source name from the video source object
+      let sourceName = 'Unknown'
+      const sourceKeys = Object.keys(videoSource)
+      if (sourceKeys.length > 0) {
+        const sourceType = videoSource[sourceKeys[0]]
+        sourceName = sourceType.name || 'Unknown'
+      }
+
+      // Calculate FPS from frame_interval
+      let fps = 0
+      if (config.frame_interval) {
+        fps = config.frame_interval.denominator / config.frame_interval.numerator
+      }
+
+      // Extract the direct RTSP source URL from the video source (the camera's own feed).
+      // The source field is a type-keyed object, e.g. { "Onvif": "rtsp://192.168.0.10:554/stream_0" }
+      let rtspSourceUrl: string | undefined
+      if (sourceKeys.length > 0) {
+        const sourceObj = videoSource[sourceKeys[0]].source
+        if (sourceObj) {
+          for (const sourceUrl of Object.values(sourceObj)) {
+            if (sourceUrl.startsWith('rtsp://') || sourceUrl.startsWith('rtsps://')) {
+              rtspSourceUrl = sourceUrl
+              break
+            }
+          }
+        }
+      }
+
+      return {
+        name: stream.video_and_stream.name,
+        sourceName,
+        encode: config.encode,
+        width: config.width,
+        height: config.height,
+        fps,
+        running: stream.running || stream.state === 'idle' || stream.state === 'running',
+        rtspSourceUrl,
+      }
+    })
+  } catch (error) {
+    console.error('Could not get stream information from vehicle:', error)
+    return []
+  }
+}

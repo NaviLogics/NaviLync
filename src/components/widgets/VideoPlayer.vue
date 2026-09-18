@@ -1,0 +1,540 @@
+<template>
+  <div ref="videoWidget" class="video-widget">
+    <div
+      v-if="widget.options.statsForNerds"
+      class="stats-inverse-wrapper"
+      :style="{ transform: inverseTransformStyle }"
+    >
+      <statsForNerds :stream-name="externalStreamId" />
+    </div>
+    <div v-if="nameSelectedStream === undefined" class="no-video-alert">
+      <span>No video stream selected.</span>
+    </div>
+    <div v-else-if="!namesAvailableStreams.includes(nameSelectedStream)" class="no-video-alert">
+      <template v-if="namesAvailableStreams.isEmpty()">
+        <p>No video streams are available.</p>
+        <br />
+        <p>
+          Cockpit may still be looking for this vehicle's streams, or every stream may have been deleted, ignored or
+          turned off.
+        </p>
+        <br />
+        <p>
+          If this message stays, open the video configuration page to restore a stream from the ignored streams list, or
+          check that the vehicle's cameras are on and streaming.
+        </p>
+      </template>
+      <template v-else>
+        <p>The selected stream "{{ nameSelectedStream }}" is not available.</p>
+        <p>Available ones are: {{ namesAvailableStreams.map((name) => `"${name}"`).join(', ') }}.</p>
+        <br />
+        <p>
+          This can happen if you changed vehicles and the stream name in the new one is different from the former, or if
+          the source is not available at all.
+        </p>
+        <br />
+        <p>
+          Please open this video player configuration and select a new stream from the ones available, or check your
+          source for issues.
+        </p>
+      </template>
+    </div>
+    <Transition name="loading-complete">
+      <div v-if="showLoadingOverlay" class="loading-overlay">
+        <div v-if="showSuccessState" class="success-icon mb-4">
+          <v-icon size="48" color="white">mdi-check-circle</v-icon>
+        </div>
+        <v-progress-circular v-else indeterminate color="white" size="48" width="3" class="mb-4" />
+        <p class="loading-text">{{ loadingMessage }}</p>
+        <div v-if="shouldShowVerboseLoading && !streamConnected && !showSuccessState" class="verbose-status">
+          <p class="status-line">
+            <span class="status-label">Server: </span>
+            <span v-for="(statusParagraph, i) in serverStatus.toString().split('\\n')" :key="'server-' + i">
+              {{ statusParagraph }}
+            </span>
+          </p>
+          <p class="status-line">
+            <span class="status-label">Stream: </span>
+            <span v-for="(statusParagraph, i) in streamStatus.toString().split('\\n')" :key="'stream-' + i">
+              {{ statusParagraph }}
+            </span>
+          </p>
+        </div>
+        <v-btn
+          v-if="!streamConnected && !showSuccessState"
+          variant="text"
+          size="small"
+          class="mt-3 toggle-details-btn"
+          @click="toggleVerboseLoading"
+        >
+          {{ shouldShowVerboseLoading ? 'Hide details' : 'Show details' }}
+        </v-btn>
+      </div>
+    </Transition>
+    <video id="mainDisplayStream" ref="videoElement" muted autoplay playsinline disablePictureInPicture>
+      Your browser does not support the video tag.
+    </video>
+  </div>
+  <v-dialog v-model="widgetStore.widgetManagerVars(widget.hash).configMenuOpen" width="auto">
+    <v-card class="pa-4 text-white" style="border-radius: 15px" :style="interfaceStore.globalGlassMenuStyles">
+      <v-card-title class="text-center">Video widget config</v-card-title>
+      <v-card-text class="flex flex-col gap-y-4">
+        <v-select
+          v-model="nameSelectedStream"
+          label="Stream"
+          class="my-3"
+          :items="enrichedStreamItems"
+          item-value="internalName"
+          density="compact"
+          variant="outlined"
+          no-data-text="No streams available."
+          hide-details
+          theme="dark"
+        >
+          <template #selection="{ item }">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">{{ item.raw.internalName }}</span>
+              <v-chip
+                size="x-small"
+                :color="item.raw.protocolLabel === 'RTSP' ? '#e67e22' : '#3498db'"
+                variant="flat"
+                label
+                class="text-white"
+              >
+                {{ item.raw.protocolLabel }}
+              </v-chip>
+            </div>
+          </template>
+          <template #item="{ item, props: itemProps }">
+            <v-list-item v-bind="itemProps" :title="undefined">
+              <div class="flex items-center justify-between w-full py-1">
+                <div class="flex flex-col min-w-0 mr-3">
+                  <span class="text-sm font-medium text-white">{{ item.raw.internalName }}</span>
+                  <span class="text-xs text-gray-400 truncate">{{ item.raw.externalName }}</span>
+                  <span v-if="item.raw.resolution !== 'Unknown'" class="text-xs text-gray-500">
+                    {{ item.raw.resolution }}
+                    <template v-if="item.raw.fps"> @ {{ item.raw.fps }}</template>
+                  </span>
+                </div>
+                <v-chip
+                  size="x-small"
+                  :color="item.raw.protocolLabel === 'RTSP' ? '#e67e22' : '#3498db'"
+                  variant="flat"
+                  label
+                  class="text-white shrink-0"
+                >
+                  {{ item.raw.protocolLabel }}
+                </v-chip>
+              </div>
+            </v-list-item>
+          </template>
+        </v-select>
+        <v-select
+          v-model="widget.options.videoFitStyle"
+          label="Fit style"
+          class="my-3"
+          :items="['cover', 'fill', 'contain']"
+          item-title="style"
+          density="compact"
+          variant="outlined"
+          no-data-text="No streams available."
+          hide-details
+          return-object
+        />
+        <v-switch
+          v-model="widget.options.flipHorizontally"
+          class="my-1"
+          label="Flip horizontally"
+          :color="widget.options.flipHorizontally ? 'white' : undefined"
+          hide-details
+        />
+        <v-switch
+          v-model="widget.options.flipVertically"
+          class="my-1"
+          label="Flip vertically"
+          :color="widget.options.flipVertically ? 'white' : undefined"
+          hide-details
+        />
+        <v-switch
+          v-model="widget.options.statsForNerds"
+          class="my-1"
+          label="Stats for nerds"
+          :color="widget.options.statsForNerds ? 'white' : undefined"
+          hide-details
+        />
+        <v-switch
+          v-model="widget.options.showVerboseLoading"
+          class="my-1"
+          label="Verbose loading status"
+          :color="widget.options.showVerboseLoading ? 'white' : undefined"
+          hide-details
+        />
+        <div class="flex-wrap justify-center d-flex ga-5">
+          <v-btn prepend-icon="mdi-file-rotate-left" variant="outlined" @click="rotateVideo(-90)"> Rotate Left</v-btn>
+          <v-btn prepend-icon="mdi-file-rotate-right" variant="outlined" @click="rotateVideo(+90)"> Rotate Right</v-btn>
+        </div>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
+</template>
+
+<script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { computed, onBeforeMount, onBeforeUnmount, ref, toRefs, watch } from 'vue'
+
+import StatsForNerds from '@/components/VideoPlayerStatsForNerds.vue'
+import { useAppInterfaceStore } from '@/stores/appInterface'
+import { useVideoStore } from '@/stores/video'
+import { useWidgetManagerStore } from '@/stores/widgetManager'
+import type { Widget } from '@/types/widgets'
+const interfaceStore = useAppInterfaceStore()
+
+const videoStore = useVideoStore()
+const widgetStore = useWidgetManagerStore()
+
+const { namessAvailableAbstractedStreams: namesAvailableStreams } = storeToRefs(videoStore)
+
+const enrichedStreamItems = computed(() => {
+  return videoStore.streamsCorrespondency.map((corr) => {
+    const displayInfo = videoStore.getStreamDisplayInfo(corr.externalId)
+    return {
+      internalName: corr.name,
+      externalName: corr.externalId,
+      resolution: displayInfo.resolution,
+      fps: displayInfo.fps,
+      source: displayInfo.source,
+      protocolLabel: displayInfo.protocolLabel,
+    }
+  })
+})
+
+const props = defineProps<{
+  /**
+   * Widget reference
+   */
+  widget: Widget
+}>()
+
+const widget = toRefs(props).widget
+
+const nameSelectedStream = ref<string | undefined>()
+const videoElement = ref<HTMLVideoElement | undefined>()
+const mediaStream = ref<MediaStream | undefined>()
+const streamConnected = ref(false)
+const showVerboseLoadingTemporary = ref(false)
+const videoPlaying = ref(false)
+const showSuccessState = ref(false)
+let successTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+onBeforeMount(() => {
+  // Set the default initial values that are not present in the widget options
+  const defaultOptions = {
+    videoFitStyle: 'cover',
+    flipHorizontally: false,
+    flipVertically: false,
+    rotationAngle: 0,
+    statsForNerds: false,
+    internalStreamName: undefined as string | undefined,
+    showVerboseLoading: false,
+  }
+  widget.value.options = { ...defaultOptions, ...widget.value.options }
+  nameSelectedStream.value = widget.value.options.internalStreamName
+})
+
+const externalStreamId = computed(() => {
+  return nameSelectedStream.value ? videoStore.externalStreamId(nameSelectedStream.value) : undefined
+})
+
+// Register/unregister this widget as a consumer of the stream, so the video store can tear down streams that no
+// widget points to anymore instead of leaking their WebRTC session.
+watch(
+  externalStreamId,
+  (newId, oldId) => {
+    if (oldId) videoStore.unregisterStreamConsumer(oldId, widget.value.hash)
+    if (newId) videoStore.registerStreamConsumer(newId, widget.value.hash)
+  },
+  { immediate: true }
+)
+
+watch(
+  () => videoStore.streamsCorrespondency,
+  () => {
+    mediaStream.value = undefined
+
+    if (!nameSelectedStream.value) return
+
+    const selectedExternalId = videoStore.externalStreamId(nameSelectedStream.value)
+    if (!selectedExternalId) return
+
+    const newStreamCorr = videoStore.streamsCorrespondency.find((stream) => stream.externalId === selectedExternalId)
+    if (!newStreamCorr) return
+
+    const newInternalName = newStreamCorr.name
+
+    if (nameSelectedStream.value !== newInternalName) {
+      nameSelectedStream.value = newInternalName
+      widget.value.options.internalStreamName = newInternalName
+    }
+  },
+  { deep: true }
+)
+
+const streamConnectionRoutine = setInterval(() => {
+  if (widget.value.options.internalStreamName !== nameSelectedStream.value) {
+    nameSelectedStream.value = widget.value.options.internalStreamName
+  }
+
+  // If the video player widget is cold booted, assign the first stream to it
+  if (widget.value.options.internalStreamName === undefined && !namesAvailableStreams.value.isEmpty()) {
+    widget.value.options.internalStreamName = namesAvailableStreams.value[0]
+    nameSelectedStream.value = widget.value.options.internalStreamName
+  }
+
+  if (externalStreamId.value !== undefined) {
+    const updatedMediaStream = videoStore.getMediaStream(externalStreamId.value)
+    // If the widget is not connected to the MediaStream, try to connect it
+    // Use reference comparison for MediaStream objects, not deep equality, as the media stream can be the same with one
+    // or more attributes having changed.
+    if (updatedMediaStream !== mediaStream.value) {
+      mediaStream.value = updatedMediaStream
+    }
+
+    const updatedStreamState = videoStore.getStreamData(externalStreamId.value)?.connected ?? false
+    if (updatedStreamState !== streamConnected.value) {
+      streamConnected.value = updatedStreamState
+    }
+  }
+
+  if (!namesAvailableStreams.value.isEmpty() && !namesAvailableStreams.value.includes(nameSelectedStream.value!)) {
+    if (videoStore.lastRenamedStreamName !== '') {
+      nameSelectedStream.value = videoStore.lastRenamedStreamName
+      return
+    }
+    nameSelectedStream.value = namesAvailableStreams.value[0]
+  }
+}, 1000)
+onBeforeUnmount(() => {
+  clearInterval(streamConnectionRoutine)
+  if (successTimeoutId) clearTimeout(successTimeoutId)
+  if (externalStreamId.value) videoStore.unregisterStreamConsumer(externalStreamId.value, widget.value.hash)
+})
+
+watch(nameSelectedStream, () => {
+  widget.value.options.internalStreamName = nameSelectedStream.value
+  mediaStream.value = undefined
+  videoPlaying.value = false
+  showSuccessState.value = false
+  if (successTimeoutId) clearTimeout(successTimeoutId)
+})
+
+watch(
+  () => widget.value.options.internalStreamName,
+  (newName) => {
+    if (newName !== nameSelectedStream.value) {
+      nameSelectedStream.value = newName
+    }
+  }
+)
+
+watch(mediaStream, () => {
+  if (!videoElement.value || !mediaStream.value) {
+    videoPlaying.value = false
+    showSuccessState.value = false
+    return
+  }
+  videoElement.value.srcObject = mediaStream.value
+  videoElement.value
+    .play()
+    .then(() => {
+      console.log('[VideoPlayer] Stream is playing')
+      videoPlaying.value = true
+      showSuccessState.value = true
+      if (successTimeoutId) clearTimeout(successTimeoutId)
+      successTimeoutId = setTimeout(() => {
+        showSuccessState.value = false
+      }, 1000)
+    })
+    .catch((reason) => {
+      const msg = `Failed to play stream. Reason: ${reason}`
+      console.error(`[VideoPlayer] ${msg}`)
+      videoPlaying.value = false
+      showSuccessState.value = false
+    })
+})
+
+const rotateVideo = (angle: number): void => {
+  widget.value.options.rotationAngle += angle
+}
+
+const flipStyle = computed(() => {
+  return `scale(${widget.value.options.flipHorizontally ? -1 : 1}, ${widget.value.options.flipVertically ? -1 : 1})`
+})
+
+const rotateStyle = computed(() => {
+  return `rotate(${widget.value.options.rotationAngle ?? 0}deg)`
+})
+
+const transformStyle = computed(() => {
+  return `${flipStyle.value} ${rotateStyle.value}`
+})
+
+const inverseTransformStyle = computed(() => {
+  const flipH = widget.value.options.flipHorizontally ? -1 : 1
+  const flipV = widget.value.options.flipVertically ? -1 : 1
+  const angle = -(widget.value.options.rotationAngle ?? 0)
+  return `rotate(${angle}deg) scale(${flipH}, ${flipV})`
+})
+
+const serverStatus = computed(() => {
+  if (externalStreamId.value === undefined) return 'Unknown.'
+  return videoStore.getSignallerStatus(externalStreamId.value)
+})
+
+const streamStatus = computed(() => {
+  if (externalStreamId.value === undefined) return 'Unknown.'
+
+  const availableSources = videoStore.availableIceIps
+  if (!availableSources.isEmpty() && !availableSources.find((ip) => videoStore.allowedIceIps.includes(ip))) {
+    return `Stream is coming from IPs [${availableSources.join(', ')}], which are not in the list of allowed sources
+      [${videoStore.allowedIceIps.join(', ')}].\\n Please check your configuration.`
+  }
+  return videoStore.getStreamStatus(externalStreamId.value)
+})
+
+const shouldShowVerboseLoading = computed(() => {
+  return widget.value.options.showVerboseLoading || showVerboseLoadingTemporary.value
+})
+
+const showLoadingOverlay = computed(() => {
+  if (nameSelectedStream.value === undefined) return false
+  if (!namesAvailableStreams.value.includes(nameSelectedStream.value)) return false
+  if (showSuccessState.value) return true
+  return !videoPlaying.value
+})
+
+const loadingMessage = computed(() => {
+  const streamInfo = nameSelectedStream.value
+    ? `'${nameSelectedStream.value} (${externalStreamId.value ?? 'unknown'})'`
+    : ''
+  if (showSuccessState.value) return 'Stream loaded'
+  return (streamConnected.value ? 'Loading' : 'Connecting to') + ` stream ${streamInfo}`
+})
+
+const toggleVerboseLoading = (): void => {
+  showVerboseLoadingTemporary.value = !showVerboseLoadingTemporary.value
+}
+</script>
+
+<style scoped>
+.video-widget {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: v-bind('transformStyle');
+}
+video {
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  object-fit: v-bind('widget.options.videoFitStyle');
+}
+.stats-inverse-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+}
+.no-video-alert {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(30, 40, 50, 0.95);
+  text-align: center;
+  padding: 1.5rem;
+  color: white;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+.loading-overlay {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(30, 40, 50, 0.7);
+  text-align: center;
+  padding: 1rem;
+  color: white;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+.loading-text {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0;
+  opacity: 0.9;
+}
+.verbose-status {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.status-line {
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+  word-break: break-word;
+  opacity: 0.85;
+}
+.status-label {
+  font-weight: 600;
+  opacity: 1;
+}
+.toggle-details-btn {
+  opacity: 0.7;
+  font-size: 0.75rem;
+}
+.toggle-details-btn:hover {
+  opacity: 1;
+}
+.success-icon {
+  animation: success-pop 0.3s ease-out;
+}
+@keyframes success-pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.loading-complete-leave-active {
+  transition: all 0.3s ease-out;
+}
+.loading-complete-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+</style>

@@ -1,0 +1,802 @@
+<template>
+  <div id="draggable-container" @dragover.prevent="handleDragOver">
+    <BaseConfigurationView>
+      <template #help-icon>
+        <GlassButton
+          icon="mdi-help-circle-outline"
+          :icon-size="interfaceStore.isOnSmallScreen ? 14 : 18"
+          :icon-class="interfaceStore.isOnSmallScreen ? '-mt-[2px]' : '-mb-[3px]'"
+          variant="uncontained"
+          no-effects
+          @click="openHelpDialog"
+        />
+      </template>
+      <template #title
+        ><div :class="interfaceStore.isOnPhoneScreen ? '' : 'mt-1'">On screen telemetry data</div></template
+      >
+      <template #content>
+        <div
+          class="flex justify-start align-start mb-2 overflow-y-auto"
+          :class="
+            interfaceStore.isOnSmallScreen
+              ? 'h-[80vh] w-[80vw] gap-x-0 mt-2'
+              : interfaceStore.isOnVeryLargeScreen
+              ? 'h-[50vh] w-[50vw] gap-x-1 mt-4'
+              : 'h-[60vh] w-[70vw] gap-x-1 mt-4'
+          "
+        >
+          <div
+            class="overflow-y-auto overflow-x-hidden"
+            :class="interfaceStore.isOnSmallScreen ? 'h-[80vh] w-[200px] pr-1 ml-0' : 'h-[50vh] min-w-[220px] '"
+          >
+            <div id="leftColumn" class="flex flex-col justify-start align-start mt-[2vh] overflow-auto">
+              <ExpansiblePanel compact mark-expanded darken-content hover-effect>
+                <template #title>Overlay Options</template>
+                <template #content>
+                  <div>
+                    <div class="flex flex-col flex-wrap justify-between align-start gap-y-0 pt-3">
+                      <div class="flex flex-row justify-between align-center w-full gap-x-3">
+                        <span
+                          class="font-bold text-white text-start mb-5"
+                          :class="interfaceStore.isOnSmallScreen ? ' text-xs w-[75px]' : 'text-sm w-[125px]'"
+                          >Font size</span
+                        >
+                        <v-text-field
+                          v-model="telemetryDisplayOptions.fontSize"
+                          density="compact"
+                          :class="interfaceStore.isOnSmallScreen ? 'w-[50px]' : 'w-[75px]'"
+                        />
+                      </div>
+                      <div class="flex flex-row justify-between align-center w-full gap-x-3 -mt-2">
+                        <span
+                          class="font-bold text-white text-start mb-5"
+                          :class="interfaceStore.isOnSmallScreen ? ' text-xs w-[75px]' : 'text-sm w-[125px]'"
+                          >Shadow size</span
+                        >
+                        <v-text-field
+                          v-model="telemetryDisplayOptions.fontShadowSize"
+                          density="compact"
+                          min="1"
+                          max="5"
+                          :class="interfaceStore.isOnSmallScreen ? 'w-[50px]' : 'w-[75px]'"
+                        />
+                      </div>
+                      <div
+                        class="flex flex-col justify-between w-full"
+                        :class="interfaceStore.isOnSmallScreen ? 'gap-y-3' : 'gap-y-5 mt-2'"
+                      >
+                        <div class="flex flex-row justify-between w-[90%] align-center gap-x-3">
+                          <v-menu
+                            :close-on-content-click="false"
+                            location="top start"
+                            origin="top start"
+                            transition="scale-transition"
+                          >
+                            <template #activator="{ props }">
+                              <span
+                                :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
+                                class="text-sm font-bold text-white text-start"
+                                >Font color</span
+                              >
+                              <div
+                                v-bind="props"
+                                class="w-[20px] h-[20px] border-2 border-slate-600 rounded-full cursor-pointer"
+                                :style="{ backgroundColor: telemetryDisplayOptions.fontColor }"
+                              ></div>
+                            </template>
+                            <v-card class="overflow-hidden"
+                              ><v-color-picker v-model="telemetryDisplayOptions.fontColor" width="400px"
+                            /></v-card>
+                          </v-menu>
+                        </div>
+                        <div class="flex flex-row justify-between items-center w-[90%] gap-x-3 mt-1">
+                          <v-menu
+                            :close-on-content-click="false"
+                            location="top start"
+                            origin="top start"
+                            transition="scale-transition"
+                            class="overflow-hidden"
+                          >
+                            <template #activator="{ props }">
+                              <span
+                                :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
+                                class="text-sm font-bold text-white text-start"
+                                >Outline color</span
+                              >
+                              <div
+                                v-bind="props"
+                                class="w-[20px] h-[20px] border-2 border-slate-600 rounded-full cursor-pointer"
+                                :style="{ backgroundColor: telemetryDisplayOptions.fontOutlineColor }"
+                              ></div>
+                            </template>
+                            <v-card class="overflow-hidden"
+                              ><v-color-picker v-model="telemetryDisplayOptions.fontOutlineColor" width="400px"
+                            /></v-card>
+                          </v-menu>
+                        </div>
+                        <div class="flex flex-row justify-between items-center w-[90%] gap-x-3">
+                          <v-menu
+                            :close-on-content-click="false"
+                            location="top start"
+                            origin="top start"
+                            transition="scale-transition"
+                          >
+                            <template #activator="{ props }">
+                              <span
+                                :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
+                                class="text-sm font-bold text-white text-start"
+                                >Shadow color</span
+                              >
+                              <div
+                                v-bind="props"
+                                class="w-[20px] h-[20px] border-2 border-slate-600 rounded-full cursor-pointer"
+                                :style="{ backgroundColor: telemetryDisplayOptions.fontShadowColor }"
+                              ></div>
+                            </template>
+                            <v-card class="overflow-hidden"
+                              ><v-color-picker v-model="telemetryDisplayOptions.fontShadowColor" width="400px"
+                            /></v-card>
+                          </v-menu>
+                        </div>
+                      </div>
+                      <div>
+                        <div
+                          class="flex flex-row justify-start align-center -ml-2"
+                          :class="interfaceStore.isOnSmallScreen ? 'h-[40px] mt-[20px]' : 'h-[50px] mt-[30px]'"
+                        >
+                          <v-checkbox v-model="telemetryDisplayOptions.fontBold" />
+                          <span
+                            class="text-sm font-bold text-white -mt-[20px] text-start"
+                            :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
+                            >Bold</span
+                          >
+                        </div>
+                        <div
+                          class="flex flex-row justify-start align-center -ml-2"
+                          :class="interfaceStore.isOnSmallScreen ? 'h-[40px]' : 'h-[50px]'"
+                        >
+                          <v-checkbox v-model="telemetryDisplayOptions.fontItalic" />
+                          <span
+                            class="text-sm font-bold text-white -mt-[20px] text-start"
+                            :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
+                            >Italic</span
+                          >
+                        </div>
+                        <div
+                          class="flex flex-row justify-start align-center -ml-2"
+                          :class="interfaceStore.isOnSmallScreen ? 'h-[40px]' : 'h-[50px]'"
+                        >
+                          <v-checkbox v-model="telemetryDisplayOptions.fontUnderline" />
+                          <span
+                            class="text-sm font-bold text-white -mt-[20px] text-start"
+                            :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
+                            >Underline</span
+                          >
+                        </div>
+                        <div
+                          class="flex flex-row justify-start align-center -ml-2"
+                          :class="interfaceStore.isOnSmallScreen ? 'h-[30px]' : 'h-[50px]'"
+                        >
+                          <v-checkbox v-model="telemetryDisplayOptions.fontStrikeout" />
+                          <span
+                            class="text-sm font-bold text-white -mt-[20px] text-start"
+                            :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
+                            >Strikethrough</span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </ExpansiblePanel>
+              <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
+                <template #title>Vehicle Variables</template>
+                <template #content>
+                  <VueDraggable
+                    v-model="loggedVariables"
+                    tag="div"
+                    :sort="true"
+                    class="flex flex-col items-start w-full min-h-[50px] overflow-x-hidden py-2 overflow-y-auto"
+                    :animation="150"
+                    :group="{ name: 'availableDataElements', put: false }"
+                  >
+                    <div v-for="variable in loggedVariables.sort()" :key="variable">
+                      <v-chip
+                        :size="
+                          interfaceStore.isOnSmallScreen
+                            ? 'x-small'
+                            : interfaceStore.isOnVeryLargeScreen
+                            ? 'large'
+                            : 'small'
+                        "
+                        :class="interfaceStore.isOnSmallScreen ? '' : 'my-[2px]'"
+                        label
+                        class="cursor-grab elevation-1"
+                        >{{ variable }}</v-chip
+                      >
+                    </div>
+                  </VueDraggable>
+                </template>
+              </ExpansiblePanel>
+              <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
+                <template #title>Mission Variables</template>
+                <template #content>
+                  <VueDraggable
+                    v-model="otherLoggingElements"
+                    tag="div"
+                    :sort="true"
+                    class="flex flex-col items-start w-full min-h-[50px] overflow-x-hidden py-2 overflow-y-auto grow"
+                    :animation="150"
+                    :group="{ name: 'availableDataElements', put: false }"
+                  >
+                    <div v-for="element in otherLoggingElements.sort()" :key="element">
+                      <v-chip
+                        :size="
+                          interfaceStore.isOnSmallScreen
+                            ? 'x-small'
+                            : interfaceStore.isOnVeryLargeScreen
+                            ? 'large'
+                            : 'small'
+                        "
+                        :class="interfaceStore.isOnSmallScreen ? '' : 'my-[2px]'"
+                        label
+                        class="cursor-grab elevation-1"
+                        >{{ element }}</v-chip
+                      >
+                    </div>
+                  </VueDraggable>
+                </template>
+              </ExpansiblePanel>
+              <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
+                <template #title>Data Lake Variables</template>
+                <template #content>
+                  <v-text-field
+                    v-model="dataLakeSearch"
+                    placeholder="Search variables..."
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    clearable
+                    class="mt-2 mb-1"
+                    prepend-inner-icon="mdi-magnify"
+                  />
+                  <VueDraggable
+                    v-model="dataLakeVarsForDisplay"
+                    tag="div"
+                    :sort="true"
+                    class="flex flex-col items-start w-full min-h-[50px] max-h-[200px] overflow-x-hidden py-2 overflow-y-auto"
+                    :animation="150"
+                    :group="{ name: 'availableDataElements', put: false }"
+                  >
+                    <div v-for="variable in dataLakeVarsForDisplay" :key="variable" class="w-full">
+                      <v-chip
+                        :size="
+                          interfaceStore.isOnSmallScreen
+                            ? 'x-small'
+                            : interfaceStore.isOnVeryLargeScreen
+                            ? 'large'
+                            : 'small'
+                        "
+                        :class="
+                          interfaceStore.isOnSmallScreen
+                            ? 'data-lake-variable-chip'
+                            : 'my-[2px] data-lake-variable-chip'
+                        "
+                        :title="variable"
+                        label
+                        class="cursor-grab elevation-1 w-full justify-start"
+                      >
+                        <span class="data-lake-variable-label">{{ resolveDisplayName(variable) }}</span>
+                      </v-chip>
+                    </div>
+                  </VueDraggable>
+                </template>
+              </ExpansiblePanel>
+              <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
+                <template #title>Custom Messages</template>
+                <template #content>
+                  <VueDraggable
+                    v-model="customMessageElements"
+                    tag="div"
+                    :sort="true"
+                    class="flex flex-col items-start w-full min-h-[50px] overflow-x-hidden py-2 overflow-y-auto grow"
+                    :animation="150"
+                    :group="{ name: 'availableDataElements', put: false }"
+                  >
+                    <div v-for="(element, index) in customMessageElements" :key="element" class="min-h-[50px]">
+                      <v-chip
+                        :size="
+                          interfaceStore.isOnSmallScreen
+                            ? 'x-small'
+                            : interfaceStore.isOnVeryLargeScreen
+                            ? 'large'
+                            : 'small'
+                        "
+                        :class="interfaceStore.isOnSmallScreen ? '' : 'my-[2px]'"
+                        close
+                        label
+                        class="cursor-grab max-w-[180px] elevation-1"
+                      >
+                        <span class="wrapclass">{{ element }}</span>
+                        <v-icon right class="ml-2" @click.stop="removeCustomMessageElement(index)">mdi-close</v-icon>
+                      </v-chip>
+                    </div>
+                    <v-menu
+                      :key="customMessageElements.length"
+                      v-model="customMessageMenuOpen"
+                      :close-on-content-click="false"
+                      offset-y
+                    >
+                      <template #activator="{ props }">
+                        <GlassButton
+                          v-bind="props"
+                          icon="mdi-plus-circle-outline"
+                          :icon-size="interfaceStore.isOnSmallScreen ? 16 : 20"
+                          variant="uncontained"
+                          no-effects
+                          @click="props.click"
+                        />
+                      </template>
+                      <div
+                        class="frosted-button backdrop-blur-md rounded-lg overflow-visible w-[400px] flex flex-col px-4 pt-2 pb-3 elevation-2"
+                      >
+                        <span class="text-sm font-bold text-white text-center w-full">Enter message</span>
+                        <span v-pre class="text-[10px] text-slate-400 text-center w-full mt-1"
+                          >Type {{ to autocomplete data lake variables</span
+                        >
+                        <div
+                          ref="messageEditorContainer"
+                          class="h-[60px] w-full mt-2 border border-[#FFFFFF33] rounded-lg"
+                          style="overflow: visible"
+                        />
+                        <v-btn
+                          size="small"
+                          variant="tonal"
+                          class="mt-2 self-end"
+                          prepend-icon="mdi-plus"
+                          @click="addCustomMessageElement()"
+                        >
+                          Add
+                        </v-btn>
+                      </div>
+                    </v-menu>
+                  </VueDraggable>
+                </template>
+              </ExpansiblePanel>
+              <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
+                <template #title>Settings</template>
+                <template #content>
+                  <p class="text-[12px] mt-2 ml-1">Telemetry frequency - 1 to 100 Hz (default 1 Hz)</p>
+                  <div class="flex mb-1 justify">
+                    <v-slider
+                      v-model="newFrequency"
+                      color="white"
+                      class="mt-1 scale-90 w-[100px]"
+                      min="1"
+                      step="1"
+                      max="100"
+                      hide-details
+                    />
+                    <v-text-field
+                      v-model="newFrequencyString"
+                      min="1"
+                      step="1"
+                      max="100"
+                      class="bg-transparent w-[40px] -mr-2"
+                      type="number"
+                      density="compact"
+                      variant="plain"
+                      hide-details
+                    />
+                  </div>
+                </template>
+              </ExpansiblePanel>
+              <div class="flex justify-end w-full mt-2">
+                <v-btn size="x-small" variant="text" class="mr-2" @click="resetAllChips">
+                  Reset Positions
+                  <v-icon size="18" class="ml-2">mdi-restore</v-icon>
+                </v-btn>
+              </div>
+            </div>
+          </div>
+          <div id="rightColumn" class="flex flex-col justify-center items-center relative w-full h-full ml-2">
+            <div
+              id="mocked-screen"
+              class="frosted-button flex flex-row flex-wrap justify-start align-start elevation-1 w-full h-full"
+              :class="interfaceStore.isOnSmallScreen ? 'rounded-lg' : 'rounded-2xl'"
+            >
+              <div
+                v-for="config in gridConfig"
+                :key="config.key"
+                class="flex flex-col w-[33.3%] h-[33.3%] border-[0px] border-[#ffffff22] border-dashed p-2"
+                :class="{
+                  'border-r-[1px]': !['RightTop', 'RightMid', 'RightBottom'].includes(config.key),
+                  'border-b-[0px]': !['LeftBottom', 'CenterBottom', 'RightBottom'].includes(config.key),
+                  'border-t-[1px]': !['LeftTop', 'CenterTop', 'RightTop'].includes(config.key),
+                  'justify-start align-start': ['LeftTop', 'CenterTop', 'LeftBottom'].includes(config.key),
+                  'rounded-tr-lg': ['RightTop'].includes(config.key),
+                  'rounded-tl-lg': ['LeftTop'].includes(config.key),
+                  'rounded-br-lg': ['RightBottom'].includes(config.key),
+                  'rounded-bl-lg': ['LeftBottom'].includes(config.key),
+                }"
+              >
+                <VueDraggable
+                  v-model="telemetryDisplayData[config.key]"
+                  group="availableDataElements"
+                  class="flex flex-col items-start h-full w-full"
+                  :class="getClassForConfig(config.key)"
+                >
+                  <div v-for="variable in telemetryDisplayData[config.key]" :key="variable">
+                    <v-chip
+                      close
+                      label
+                      :size="
+                        interfaceStore.isOnSmallScreen
+                          ? 'x-small'
+                          : interfaceStore.isOnVeryLargeScreen
+                          ? 'large'
+                          : 'small'
+                      "
+                      class="cursor-grab elevation-1"
+                      :class="interfaceStore.isOnSmallScreen ? '' : 'my-[2px]'"
+                      >{{ resolveDisplayName(variable) }}
+                      <v-icon right class="ml-2 -mr-1" @click="removeChipFromGrid(config.key, variable)">
+                        mdi-close
+                      </v-icon>
+                    </v-chip>
+                  </div>
+                </VueDraggable>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </BaseConfigurationView>
+  </div>
+</template>
+
+<script setup lang="ts">
+import type * as monacoTypes from 'monaco-editor'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { VueDraggable } from 'vue-draggable-plus'
+
+import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
+import GlassButton from '@/components/GlassButton.vue'
+import { useInteractionDialog } from '@/composables/interactionDialog'
+import {
+  getAllDataLakeVariablesInfo,
+  getDataLakeVariableInfo,
+  listenToDataLakeVariablesInfoChanges,
+} from '@/libs/actions/data-lake'
+import { createMonacoEditor } from '@/libs/monaco-manager'
+import { CurrentlyLoggedVariables, datalogger } from '@/libs/sensors-logging'
+import { useAppInterfaceStore } from '@/stores/appInterface'
+
+import BaseConfigurationView from './BaseConfigurationView.vue'
+
+const { showDialog } = useInteractionDialog()
+
+const interfaceStore = useAppInterfaceStore()
+
+const updateVariables = (): void => {
+  loggedVariables.value = Array.from(CurrentlyLoggedVariables.getAllVariables()).filter(
+    (variable) => !otherLoggingElements.value.includes(variable)
+  )
+  originalLoggedVariables.value = Array.from(CurrentlyLoggedVariables.getAllVariables()).filter(
+    (variable) => !otherLoggingElements.value.includes(variable)
+  )
+
+  const allTelemetryValues: Set<string> = new Set()
+
+  Object.values(telemetryDisplayData).forEach((displayGridArray) => {
+    displayGridArray.forEach((variable) => allTelemetryValues.add(variable))
+  })
+  // Filter variables that are already in the telemetry display grid
+  loggedVariables.value = loggedVariables.value.filter((variable) => !allTelemetryValues.has(variable))
+  otherLoggingElements.value = otherLoggingElements.value.filter((element) => !allTelemetryValues.has(element))
+  updateDataLakeVarsList()
+}
+
+const telemetryDisplayData = reactive(datalogger.telemetryDisplayData)
+
+watch(telemetryDisplayData, (newVal) => {
+  console.log(`Updating telemetry display data to ${JSON.stringify(newVal)}`)
+  datalogger.telemetryDisplayData = newVal
+  updateVariables()
+})
+
+const telemetryDisplayOptions = reactive(datalogger.telemetryDisplayOptions)
+
+watch(telemetryDisplayOptions, (newVal) => {
+  console.log(`Updating telemetry display options to ${JSON.stringify(newVal)}`)
+  datalogger.telemetryDisplayOptions = newVal
+  updateVariables()
+})
+
+onMounted(() => {
+  const initialVars = getAllDataLakeVariablesInfo()
+  allDataLakeVarIds.value = Object.keys(initialVars)
+  updateVariables()
+  listenToDataLakeVariablesInfoChanges((variables) => {
+    allDataLakeVarIds.value = Object.keys(variables)
+    updateDataLakeVarsList()
+  })
+})
+
+const otherAvailableLoggingElements = ['Mission name', 'Time', 'Date']
+
+const loggedVariables = ref<string[]>([])
+const originalLoggedVariables = ref<string[]>([])
+const otherLoggingElements = ref(otherAvailableLoggingElements)
+const originalOtherLoggingElements = ref(otherAvailableLoggingElements)
+const newFrequency = ref(datalogger.frequency)
+const customMessageElements = ref<string[]>([])
+const customMessageMenuOpen = ref(false)
+const messageEditorContainer = ref<HTMLElement | null>(null)
+let messageEditor: monacoTypes.editor.IStandaloneCodeEditor | null = null
+const dataLakeSearch = ref('')
+const allDataLakeVarIds = ref<string[]>([])
+const dataLakeVarsForDisplay = ref<string[]>([])
+const dragPosition = ref(0)
+
+const resolveDisplayName = (entry: string): string => {
+  const name = getDataLakeVariableInfo(entry)?.name ?? entry
+  if (entry.includes('mavlink/') && name.includes('(')) {
+    return name.substring(0, name.lastIndexOf('(')).trim()
+  }
+  return name
+}
+
+const updateDataLakeVarsList = (): void => {
+  const allTelemetryValues = new Set<string>()
+  Object.values(telemetryDisplayData).forEach((arr) => arr.forEach((v) => allTelemetryValues.add(v)))
+
+  let filtered = allDataLakeVarIds.value.filter((id) => {
+    if (allTelemetryValues.has(id)) return false
+    const name = getDataLakeVariableInfo(id)?.name ?? id
+    if (name.includes('(Legacy)')) return false
+    return true
+  })
+
+  if (dataLakeSearch.value.trim()) {
+    const search = dataLakeSearch.value.toLowerCase()
+    filtered = filtered.filter((id) => resolveDisplayName(id).toLowerCase().includes(search))
+  }
+
+  filtered.sort((a, b) => resolveDisplayName(a).localeCompare(resolveDisplayName(b)))
+  dataLakeVarsForDisplay.value = filtered
+}
+
+watch(dataLakeSearch, updateDataLakeVarsList)
+
+const initMessageEditor = (): void => {
+  if (!messageEditorContainer.value || messageEditor) return
+  messageEditor = createMonacoEditor(messageEditorContainer.value, {
+    language: 'plaintext',
+    value: '',
+    dataLakeCompletionType: 'use-bracket-parser',
+    editorOverrides: {
+      lineNumbers: 'off',
+      glyphMargin: false,
+      folding: false,
+      lineDecorationsWidth: 0,
+      lineNumbersMinChars: 0,
+      fontSize: 13,
+      padding: { top: 6, bottom: 6 },
+      renderLineHighlight: 'none',
+      overviewRulerLanes: 0,
+      scrollbar: { vertical: 'hidden', horizontal: 'auto' },
+      fixedOverflowWidgets: false,
+      quickSuggestions: false,
+      wordBasedSuggestions: 'off',
+      suggestOnTriggerCharacters: true,
+      autoClosingBrackets: 'never',
+    },
+  })
+}
+
+const disposeMessageEditor = (): void => {
+  if (messageEditor) {
+    messageEditor.dispose()
+    messageEditor = null
+  }
+}
+
+watch(customMessageMenuOpen, (open) => {
+  if (open) {
+    nextTick(initMessageEditor)
+  } else {
+    disposeMessageEditor()
+  }
+})
+
+onBeforeUnmount(disposeMessageEditor)
+
+type GridKey =
+  | 'LeftTop'
+  | 'CenterTop'
+  | 'RightTop'
+  | 'LeftMid'
+  | 'CenterMid'
+  | 'RightMid'
+  | 'LeftBottom'
+  | 'CenterBottom'
+  | 'RightBottom'
+
+/* eslint-disable jsdoc/require-jsdoc  */
+type GridConfig = {
+  key: GridKey
+  label: string
+}
+
+const gridConfig: GridConfig[] = [
+  { key: 'LeftTop', label: 'Left Top' },
+  { key: 'CenterTop', label: 'Center Top' },
+  { key: 'RightTop', label: 'Right Top' },
+  { key: 'LeftMid', label: 'Left Middle' },
+  { key: 'CenterMid', label: 'Center Middle' },
+  { key: 'RightMid', label: 'Right Middle' },
+  { key: 'LeftBottom', label: 'Left Bottom' },
+  { key: 'CenterBottom', label: 'Center Bottom' },
+  { key: 'RightBottom', label: 'Right Bottom' },
+]
+
+const getClassForConfig = computed(() => {
+  const alignments: Record<GridKey, string> = {
+    CenterMid: 'justify-center align-center',
+    LeftMid: 'justify-center align-start',
+    RightBottom: 'justify-end align-end',
+    RightMid: 'justify-center align-end',
+    RightTop: 'justify-start align-end',
+    LeftTop: 'justify-start align-start',
+    CenterBottom: 'justify-end align-center',
+    CenterTop: 'justify-start align-center',
+    LeftBottom: 'justify-end align-start',
+  }
+
+  return (key: GridKey) => alignments[key] || ''
+})
+
+const openHelpDialog = (): void => {
+  showDialog({
+    title: 'Video Configuration Help',
+    message: [
+      // eslint-disable-next-line vue/max-len
+      'On this screen, you can configure the telemetry data that will be displayed on the subtitle file for recorded videos. You can change the font size, color, and style, as well as the position of each variable on the screen. You can also add custom messages that will be displayed on the video player screen.',
+      'Drag and drop variables from the left panel to the desired position on the Telemetry Data Display.',
+      'For additional Help, refer to documentation or contact us.',
+    ],
+    variant: 'text-only',
+    maxWidth: interfaceStore.isOnSmallScreen ? '80vw' : '60vw',
+    persistent: false,
+  })
+}
+
+function handleDragOver(event: DragEvent): void {
+  const thresholdTop = window.innerHeight * 0.5
+  dragPosition.value = event.clientY
+
+  if (dragPosition.value < thresholdTop) {
+    document.getElementById('draggable-container')!.scrollIntoView({ behavior: 'smooth' })
+  }
+}
+
+const removeChipFromGrid = (quadrantKey: string, chip: string): void => {
+  const index = telemetryDisplayData[quadrantKey].indexOf(chip)
+  if (index !== -1) {
+    telemetryDisplayData[quadrantKey].splice(index, 1)
+
+    if (originalLoggedVariables.value.includes(chip)) {
+      loggedVariables.value.push(chip)
+    } else if (originalOtherLoggingElements.value.includes(chip)) {
+      otherLoggingElements.value.push(chip)
+    } else if (allDataLakeVarIds.value.includes(chip)) {
+      // Data lake variable - will reappear in the list via updateDataLakeVarsList
+    } else if (!CurrentlyLoggedVariables.getAllVariables().includes(chip)) {
+      customMessageElements.value.push(chip)
+    }
+  }
+}
+
+const addCustomMessageElement = (): void => {
+  if (!messageEditor) return
+  const value = messageEditor.getValue().trim()
+  if (value !== '') {
+    customMessageElements.value.push(value)
+    messageEditor.setValue('')
+  }
+}
+
+const removeCustomMessageElement = (index: number): void => {
+  customMessageElements.value.splice(index, 1)
+}
+
+const resetAllChips = (): void => {
+  loggedVariables.value = []
+  otherLoggingElements.value = []
+
+  const customMessageElementsBackup: string[] = []
+  Object.values(telemetryDisplayData).forEach((displayGridArray) => {
+    displayGridArray.forEach((variable) => {
+      if (CurrentlyLoggedVariables.getAllVariables().includes(variable)) return
+      if (allDataLakeVarIds.value.includes(variable)) return
+      customMessageElementsBackup.push(variable)
+    })
+  })
+
+  Object.assign(telemetryDisplayData, {
+    LeftTop: [],
+    CenterTop: [],
+    RightTop: [],
+    LeftMid: [],
+    CenterMid: [],
+    RightMid: [],
+    LeftBottom: [],
+    CenterBottom: [],
+    RightBottom: [],
+  })
+
+  otherLoggingElements.value = otherAvailableLoggingElements
+  customMessageElements.value = [...customMessageElementsBackup, ...customMessageElements.value]
+  updateVariables()
+}
+
+watch(newFrequency, (newVal) => {
+  datalogger.frequency = newVal
+})
+
+const newFrequencyString = computed({
+  get: () => newFrequency.value.toString(),
+  set: (value) => (newFrequency.value = parseFloat(value)),
+})
+</script>
+<style scoped>
+.wrapclass {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.data-lake-variable-chip {
+  height: auto !important;
+  min-height: 24px;
+}
+.data-lake-variable-label {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-wrap: wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+:deep(.data-lake-variable-chip .v-chip__content) {
+  display: block;
+  width: 100%;
+  line-height: 1.25;
+  padding: 4px 0;
+}
+.frosted-button {
+  background-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  color: white;
+  transition: all 0.3s;
+}
+.right-column {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.mock-screen {
+  position: absolute;
+}
+.input[type='number']::-webkit-inner-spin-button {
+  margin-left: 6px;
+}
+</style>
+<style>
+.monaco-editor .suggest-widget {
+  width: 600px !important;
+}
+</style>
