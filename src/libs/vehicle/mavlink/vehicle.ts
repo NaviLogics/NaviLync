@@ -327,7 +327,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       ])
       const isNamedValue = ['NAMED_VALUE_FLOAT', 'NAMED_VALUE_INT'].includes(mavlink_message.message.type)
       const namedValueName = isNamedValue
-        ? (mavlink_message.message.name as string[]).join('').replace(/\\0/g, '')
+        ? (mavlink_message.message.name as string[]).join('').replaceAll('\\x00', '')
         : ''
       const isNavisHealthMetric = isNamedValue && navisMetricNames.has(namedValueName)
 
