@@ -321,9 +321,28 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       // NAVIS Atlas usv_agent publishes operational health as NAMED_VALUE_* through the shared router.
       // Keep these read-only health metrics available even when the agent uses a non-autopilot component ID.
       const navisMetricNames = new Set([
-        'SHOREOK', 'RTCMOK', 'HDGOK', 'READY', 'GPOSOK', 'ESTOK', 'RTCMERR',
-        'RTKSTATE', 'RDYCODE', 'FIXTYPE', 'SATS', 'HACC_CM', 'RTCMAGE', 'RTKDWELL',
-        'RTK_BPS', 'GPSAGE', 'GPOSAGE', 'ESTAGE', 'HDGAGE', 'HDG_DEG', 'EKFHACC', 'SHOREAGE',
+        'SHOREOK',
+        'RTCMOK',
+        'HDGOK',
+        'READY',
+        'GPOSOK',
+        'ESTOK',
+        'RTCMERR',
+        'RTKSTATE',
+        'RDYCODE',
+        'FIXTYPE',
+        'SATS',
+        'HACC_CM',
+        'RTCMAGE',
+        'RTKDWELL',
+        'RTK_BPS',
+        'GPSAGE',
+        'GPOSAGE',
+        'ESTAGE',
+        'HDGAGE',
+        'HDG_DEG',
+        'EKFHACC',
+        'SHOREAGE',
       ])
       const isNamedValue = ['NAMED_VALUE_FLOAT', 'NAMED_VALUE_INT'].includes(mavlink_message.message.type)
       const namedValueName = isNamedValue
