@@ -1,10 +1,10 @@
 {
-  "name": "cockpit",
-  "author": "Blue Robotics",
+  "name": "navilync",
+  "author": "NaviLogics",
   "version": "0.0.0",
   "private": true,
   "main": "dist/electron/main.js",
-  "description": "An intuitive and customizable cross-platform ground control station for remote vehicles of all types.",
+  "description": "NaviLync ground control station for NAVIS ATLAS unmanned surface vehicles.",
   "scripts": {
     "build": "vite build",
     "build:serve": "vite build && vite preview",
@@ -15,7 +15,7 @@
     "deploy:electron:mac:arm64": "ELECTRON=true electron-builder --mac --arm64 --publish=never -c.extraMetadata.version=${COCKPIT_VERSION:-$(git describe --tags --abbrev=0 | sed 's/^v//')}",
     "deploy:electron:mac:x64:pr": "ELECTRON=true CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --x64 --publish=never -c.mac.identity=null -c.afterSign=scripts/notarize-noop.mjs -c.extraMetadata.version=${COCKPIT_VERSION:-$(git describe --tags --abbrev=0 | sed 's/^v//')}",
     "deploy:electron:mac:arm64:pr": "ELECTRON=true CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish=never -c.mac.identity=null -c.afterSign=scripts/notarize-noop.mjs -c.extraMetadata.version=${COCKPIT_VERSION:-$(git describe --tags --abbrev=0 | sed 's/^v//')}",
-    "deploy:electron:windows": "powershell -Command \"$v = if ($env:COCKPIT_VERSION) { $env:COCKPIT_VERSION } else { ((git describe --tags --abbrev=0) -replace '^v','').Trim() }; electron-builder --win --publish=never --config.extraMetadata.version=$v\"",
+    "deploy:electron:windows": "powershell -Command \"$v = if ($env:NAVILYNC_VERSION) { $env:NAVILYNC_VERSION } elseif ($env:COCKPIT_VERSION) { $env:COCKPIT_VERSION } else { '1.18.4' }; electron-builder --win --x64 --publish=never --config.extraMetadata.version=$v\"",
     "deploy:flatpak": "ELECTRON=true electron-builder --linux flatpak --publish=never -c.extraMetadata.version=${COCKPIT_VERSION:-$(git describe --tags --abbrev=0 | sed 's/^v//')}",
     "dev": "vite --host",
     "dev:electron": "cross-env ELECTRON=true vite --host",
@@ -171,11 +171,12 @@
         ]
       }
     ],
-    "appId": "org.bluerobotics.cockpit",
-    "productName": "Cockpit",
+    "appId": "ru.navilogics.navilync",
+    "productName": "NaviLync",
     "publish": {
       "provider": "github",
-      "owner": "bluerobotics"
+      "owner": "NaviLogics",
+      "repo": "NaviLync"
     },
     "artifactName": "${productName}-${os}-${arch}-${version}.${ext}",
     "mac": {
@@ -196,7 +197,9 @@
     },
     "linux": {
       "icon": "public/pwa-512x512.png",
-      "target": ["AppImage"]
+      "target": [
+        "AppImage"
+      ]
     },
     "flatpak": {
       "base": "org.electronjs.Electron2.BaseApp",
