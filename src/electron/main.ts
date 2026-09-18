@@ -48,7 +48,7 @@ function createWindow(): void {
     height: store.get('windowBounds')?.height ?? screen.getPrimaryDisplay().workAreaSize.height,
     x: store.get('windowBounds')?.x ?? screen.getPrimaryDisplay().bounds.x,
     y: store.get('windowBounds')?.y ?? screen.getPrimaryDisplay().bounds.y,
-    title: `Cockpit (${app.getVersion()})`,
+    title: `NaviLync (${app.getVersion()})`,
   })
 
   linkService.setMainWindow(mainWindow)
@@ -108,7 +108,7 @@ setupGo2RTCService()
 
 app.whenReady().then(async () => {
   console.log('Electron app is ready.')
-  console.log(`Cockpit version: ${app.getVersion()}`)
+  console.log(`NaviLync version: ${app.getVersion()}`)
 
   // Inject a Referer header for OSM tile requests before the first tile is fetched, so the
   // standalone build (loaded from file://) complies with the OSM tile usage policy.
