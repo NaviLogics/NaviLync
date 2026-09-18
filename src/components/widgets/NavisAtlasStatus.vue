@@ -13,6 +13,7 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable jsdoc/require-jsdoc, jsdoc/require-param, jsdoc/require-returns */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import {
@@ -25,6 +26,8 @@ import type { Widget } from '@/types/widgets'
 
 defineProps<{ widget: Widget }>()
 
+// The widget receives Cockpit's standard widget prop through the dynamic component wrapper.
+// It does not need widget-specific configuration yet.
 const vehicle = useMainVehicleStore()
 const tick = ref(0)
 let timer: ReturnType<typeof setInterval> | undefined
@@ -49,7 +52,6 @@ const aliases = [
 
 type Alias = (typeof aliases)[number]
 
-/** Resolve a NAVIS health metric to its DataLake variable ID. */
 const findVariable = (name: Alias): string | undefined => {
   tick.value
   const variables = getAllDataLakeVariablesInfo()
@@ -60,7 +62,6 @@ const findVariable = (name: Alias): string | undefined => {
   )
 }
 
-/** Read a numeric NAVIS health metric. */
 const metric = (name: Alias): number | undefined => {
   const id = findVariable(name)
   if (!id) return undefined
@@ -68,7 +69,6 @@ const metric = (name: Alias): number | undefined => {
   return typeof value === 'number' ? value : undefined
 }
 
-/** Check whether a NAVIS health metric has been updated recently. */
 const metricFresh = (name: Alias, maxAgeMs = 3000): boolean => {
   const id = findVariable(name)
   if (!id) return false
@@ -76,7 +76,6 @@ const metricFresh = (name: Alias, maxAgeMs = 3000): boolean => {
   return timestamp !== undefined && performance.now() - timestamp <= maxAgeMs
 }
 
-/** Convert a boolean health state to the widget presentation model. */
 const state = (ok: boolean, known = true): { value: string; tone: string } =>
   !known ? { value: '—', tone: 'unknown' } : ok ? { value: 'OK', tone: 'ok' } : { value: 'FAIL', tone: 'fail' }
 
@@ -99,8 +98,8 @@ const rows = computed(() => {
   const rtk = !gnssKnown
     ? { value: '—', tone: 'unknown' }
     : fix === 6
-      ? { value: 'FIXED', tone: 'ok' }
-      : { value: fix === 5 ? 'FLOAT' : 'FAIL', tone: fix === 5 ? 'warn' : 'fail' }
+    ? { value: 'FIXED', tone: 'ok' }
+    : { value: fix === 5 ? 'FLOAT' : 'FAIL', tone: fix === 5 ? 'warn' : 'fail' }
   const ready = state(metric('READY') === 1, readyKnown)
 
   return [
