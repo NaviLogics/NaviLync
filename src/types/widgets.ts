@@ -95,6 +95,7 @@ export enum WidgetType {
   Map = 'Map',
   MiniWidgetsBar = 'MiniWidgetsBar',
   MissionControlPanel = 'MissionControlPanel',
+  NavisAtlasStatus = 'NavisAtlasStatus',
   Plotter = 'Plotter',
   URLVideoPlayer = 'URLVideoPlayer',
   VideoPlayer = 'VideoPlayer',
@@ -867,6 +868,7 @@ export const isWidgetConfigurable: Record<WidgetType, boolean> = {
   [WidgetType.VideoPlayer]: true,
   [WidgetType.VirtualHorizon]: false,
   [WidgetType.MissionControlPanel]: false,
+  [WidgetType.NavisAtlasStatus]: false,
 }
 
 export const isMiniWidgetConfigurable: Record<MiniWidgetType, boolean> = {
@@ -909,6 +911,7 @@ export const widgetHasOwnContextMenu: Record<WidgetType, boolean> = {
   [WidgetType.VideoPlayer]: false,
   [WidgetType.VirtualHorizon]: false,
   [WidgetType.MissionControlPanel]: false,
+  [WidgetType.NavisAtlasStatus]: false,
 }
 
 /**
@@ -925,6 +928,7 @@ export const widgetDefaultSizes: Partial<Record<WidgetType, SizeRect2D>> = {
   [WidgetType.ImageView]: { width: 0.3, height: 0.3 },
   [WidgetType.Map]: { width: 1, height: 1 },
   [WidgetType.MiniWidgetsBar]: { width: 0.2, height: 0.1 },
+  [WidgetType.NavisAtlasStatus]: { width: 0.28, height: 0.34 },
   [WidgetType.Plotter]: { width: 0.4, height: 0.3 },
   [WidgetType.URLVideoPlayer]: { width: 0.5, height: 0.4 },
   [WidgetType.VideoPlayer]: { width: 1, height: 1 },
