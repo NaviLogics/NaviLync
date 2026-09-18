@@ -47,14 +47,7 @@
               target="_blank"
               href="https://github.com/NaviLogics/NaviLync"
             />
-            <v-btn
-              class="mx-3"
-              variant="text"
-              icon="mdi-web"
-              size="xs"
-              target="_blank"
-              href="https://navilogics.ru"
-            />
+            <v-btn class="mx-3" variant="text" icon="mdi-web" size="xs" target="_blank" href="https://navilogics.ru" />
             <v-btn
               class="mx-3"
               variant="text"
