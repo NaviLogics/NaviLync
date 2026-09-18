@@ -12,16 +12,19 @@ jobs:
   import:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout bootstrap branch
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Import exact Cockpit v1.18.4 commit
+      - name: Import Cockpit v1.18.4 tree without workflow files
         shell: bash
         run: |
           set -euo pipefail
           git remote add cockpit-upstream https://github.com/bluerobotics/cockpit.git
           git fetch --no-tags cockpit-upstream refs/tags/v1.18.4
           test "$(git rev-parse FETCH_HEAD)" = "48ccf4af021d90456c67844272d4817975ea5f0d"
-          git push origin FETCH_HEAD:refs/heads/upstream/cockpit-v1.18.4 --force
+          git checkout --detach FETCH_HEAD
+          rm -rf .github/workflows
+          git add -A
+          tree="$(git write-tree)"
+          commit="$(printf '%s\n' 'Import Cockpit v1.18.4 base tree' | git commit-tree "$tree")"
+          git push origin "$commit":refs/heads/upstream/cockpit-v1.18.4 --force
