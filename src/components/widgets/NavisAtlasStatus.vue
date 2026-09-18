@@ -22,12 +22,6 @@ import {
   getDataLakeVariableLastUpdateTimestamp,
 } from '@/libs/actions/data-lake'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
-import type { Widget } from '@/types/widgets'
-
-defineProps<{ widget: Widget }>()
-
-// The widget receives Cockpit's standard widget prop through the dynamic component wrapper.
-// It does not need widget-specific configuration yet.
 const vehicle = useMainVehicleStore()
 const tick = ref(0)
 let timer: ReturnType<typeof setInterval> | undefined
