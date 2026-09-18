@@ -49,7 +49,7 @@ const aliases = [
 
 type Alias = (typeof aliases)[number]
 
-const findVariable = (name: Alias): string | undefined => {
+/** Resolve a NAVIS health metric to its DataLake variable ID. */\nconst findVariable = (name: Alias): string | undefined => {
   tick.value
   const variables = getAllDataLakeVariablesInfo()
   const canonicalSuffix = `/NAMED_VALUE_FLOAT/${name}`
@@ -59,21 +59,21 @@ const findVariable = (name: Alias): string | undefined => {
   )
 }
 
-const metric = (name: Alias): number | undefined => {
+/** Read a numeric NAVIS health metric. */\nconst metric = (name: Alias): number | undefined => {
   const id = findVariable(name)
   if (!id) return undefined
   const value = getDataLakeVariableData(id)
   return typeof value === 'number' ? value : undefined
 }
 
-const metricFresh = (name: Alias, maxAgeMs = 3000): boolean => {
+/** Check whether a NAVIS health metric has been updated recently. */\nconst metricFresh = (name: Alias, maxAgeMs = 3000): boolean => {
   const id = findVariable(name)
   if (!id) return false
   const timestamp = getDataLakeVariableLastUpdateTimestamp(id)
   return timestamp !== undefined && performance.now() - timestamp <= maxAgeMs
 }
 
-const state = (ok: boolean, known = true): { value: string; tone: string } =>
+/** Convert a boolean health state to the widget presentation model. */\nconst state = (ok: boolean, known = true): { value: string; tone: string } =>
   !known ? { value: '—', tone: 'unknown' } : ok ? { value: 'OK', tone: 'ok' } : { value: 'FAIL', tone: 'fail' }
 
 const rows = computed(() => {
@@ -129,7 +129,7 @@ const reasonMap: Record<number, string> = {
 const reasonText = computed(() => {
   tick.value
   const code = metric('RDYCODE')
-  return code === undefined ? 'NO DATA' : (reasonMap[Math.trunc(code)] ?? `CODE ${code}`)
+  return code === undefined ? 'NO DATA' : reasonMap[Math.trunc(code)] ?? `CODE ${code}`
 })
 
 onMounted(() => {
@@ -152,15 +152,55 @@ onBeforeUnmount(() => {
   font-variant-numeric: tabular-nums;
   overflow: hidden;
 }
-.header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-weight: 700; }
-.subtitle { font-size: 11px; opacity: 0.55; letter-spacing: 0.08em; }
-.row { display: flex; justify-content: space-between; gap: 18px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
-.label { opacity: 0.78; white-space: nowrap; }
-.value { font-weight: 700; text-align: right; white-space: nowrap; }
-.ok { color: #6ee7a8; }
-.fail { color: #ff6b6b; }
-.warn { color: #ffd166; }
-.unknown { color: #94a3b8; }
-.mode { color: #7dd3fc; }
-.reason { margin-top: 9px; font-size: 11px; color: #ffd166; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.subtitle {
+  font-size: 11px;
+  opacity: 0.55;
+  letter-spacing: 0.08em;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.label {
+  opacity: 0.78;
+  white-space: nowrap;
+}
+.value {
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+.ok {
+  color: #6ee7a8;
+}
+.fail {
+  color: #ff6b6b;
+}
+.warn {
+  color: #ffd166;
+}
+.unknown {
+  color: #94a3b8;
+}
+.mode {
+  color: #7dd3fc;
+}
+.reason {
+  margin-top: 9px;
+  font-size: 11px;
+  color: #ffd166;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>
