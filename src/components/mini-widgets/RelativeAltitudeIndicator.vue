@@ -6,17 +6,21 @@
         <span class="font-mono text-xl font-semibold leading-6 w-fit">{{ round(altitude, 2).toFixed(2) }}</span>
         <span class="text-xl font-semibold leading-6 w-fit"> m</span>
       </div>
-      <span class="w-full text-sm font-semibold leading-4 whitespace-nowrap">Alt (Rel)</span>
+      <span class="w-full text-sm font-semibold leading-4 whitespace-nowrap">{{
+        $t('miniWidgets.altitudeIndicator.relativeAlt')
+      }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { round } from '@/libs/utils'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 
+useI18n()
 const store = useMainVehicleStore()
 
 const altitude = ref(0)

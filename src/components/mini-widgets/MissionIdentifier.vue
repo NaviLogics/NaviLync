@@ -18,7 +18,7 @@
       <v-card class="pa-2 bg-[#20202022] backdrop-blur-2xl text-white rounded-lg">
         <v-card-title class="flex justify-between">
           <div />
-          <div>Mission configuration</div>
+          <div>{{ $t('missionConfig.title') }}</div>
           <v-btn
             icon
             :width="38"
@@ -36,7 +36,7 @@
         </v-card-title>
         <v-card-text>
           <div class="flex flex-col">
-            <p>Mission Name</p>
+            <p>{{ $t('missionConfig.missionName') }}</p>
             <v-text-field
               v-model="store.missionName"
               append-inner-icon="mdi-restore"

@@ -16,18 +16,18 @@
           class="bg-[#FFFFFF11] hover:bg-[#FFFFFF22] cursor-pointer text-sm"
           @click="handleOpenSnapshotLibrary"
           ><template #title>
-            <span class="text-white text-[16px] font-bold">Open snapshot library</span>
+            <span class="text-white text-[16px] font-bold">{{ $t('snapshotTool.openLibrary') }}</span>
           </template>
         </v-list-item>
         <v-divider />
-        <v-list-item title="Single capture" @click="handleSelectSnapshotTriggerType('single')">
+        <v-list-item :title="$t('snapshotTool.singleCapture')" @click="handleSelectSnapshotTriggerType('single')">
           <template #append>
             <v-icon size="22" icon="mdi-video-image" />
           </template>
         </v-list-item>
         <v-divider />
         <v-divider />
-        <v-list-item title="Timed multi-capture" @click="handleSelectSnapshotTriggerType('timed')">
+        <v-list-item :title="$t('snapshotTool.timedMultiCapture')" @click="handleSelectSnapshotTriggerType('timed')">
           <template #append> <v-icon size="20" icon="mdi-timer-outline" /> </template>
         </v-list-item>
       </v-list>
@@ -53,12 +53,12 @@
       @click="isTakingTimedSnapshot = !isTakingTimedSnapshot"
     />
   </div>
-  <v-dialog v-model="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen" width="500">
+  <v-dialog v-model="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen" width="450">
     <div
       class="flex flex-col items-center p-2 px-4 pt-1 m-5 rounded-md gap-y-4"
       :style="interfaceStore.globalGlassMenuStyles"
     >
-      <p class="text-xl font-semibold mt-2 mb-4">Snapshot settings</p>
+      <p class="text-xl font-semibold mt-2 mb-4">{{ $t('snapshotTool.settings') }}</p>
       <div class="absolute top-0 right-0">
         <v-tooltip
           location="bottom"
@@ -77,71 +77,22 @@
             />
           </template>
 
-          <span> Some features like “Capturing Cockpit work area” are only available in the Electron version. </span>
+          <span> {{ $t('snapshotTool.electronOnlyInfo') }} </span>
         </v-tooltip>
-      </div>
-      <div class="flex items-center justify-start w-[90%] -mb-2">
-        <v-checkbox
-          v-model="miniWidget.options.snapshotAllAvailableSources"
-          density="compact"
-          hide-details
-          theme="dark"
-        />
-        <p class="ml-[4px] -mb-[2px] text-sm">Snapshot all available sources</p>
       </div>
       <v-select
         v-model="miniWidget.options.selectedStreams"
-        :items="enrichedStreamItems"
-        item-value="internalName"
-        :disabled="miniWidget.options.snapshotAllAvailableSources"
+        :items="videoStore.namesAvailableStreams || []"
         density="compact"
         multiple
         clearable
-        label="Streams to capture"
+        :label="$t('snapshotTool.streamsToCapture')"
         variant="outlined"
-        no-data-text="No streams available."
+        :no-data-text="$t('snapshotTool.noStreamsAvailable')"
         hide-details
         theme="dark"
         class="w-[90%]"
-      >
-        <template #selection="{ item }">
-          <v-chip size="small" class="mr-1 pa-3">
-            <span class="text-xs">{{ item.raw.internalName }}</span>
-            <v-chip
-              size="x-small"
-              :color="item.raw.protocolLabel === 'RTSP' ? '#e67e22' : '#3498db'"
-              variant="flat"
-              label
-              class="text-white ml-1 pa-1"
-            >
-              {{ item.raw.protocolLabel }}
-            </v-chip>
-          </v-chip>
-        </template>
-        <template #item="{ item, props: itemProps }">
-          <v-list-item v-bind="itemProps" :title="undefined">
-            <div class="flex items-center justify-between w-full py-1">
-              <div class="flex flex-col min-w-0 mr-3">
-                <span class="text-sm font-medium text-white">{{ item.raw.internalName }}</span>
-                <span class="text-xs text-gray-400 truncate">{{ item.raw.externalName }}</span>
-                <span v-if="item.raw.resolution !== 'Unknown'" class="text-xs text-gray-500">
-                  {{ item.raw.resolution }}
-                  <template v-if="item.raw.fps"> @ {{ item.raw.fps }}</template>
-                </span>
-              </div>
-              <v-chip
-                size="x-small"
-                :color="item.raw.protocolLabel === 'RTSP' ? '#e67e22' : '#3498db'"
-                variant="flat"
-                label
-                class="text-white shrink-0"
-              >
-                {{ item.raw.protocolLabel }}
-              </v-chip>
-            </div>
-          </v-list-item>
-        </template>
-      </v-select>
+      />
       <div class="flex items-center justify-start w-[90%] -mt-3 mb-2">
         <v-checkbox
           v-model="miniWidget.options.captureWorkspace"
@@ -154,12 +105,12 @@
           @update:model-value="(val) => (miniWidget.options.captureWorkspace = val)"
         />
         <p class="ml-[4px] -mb-[2px] text-sm" :class="{ 'opacity-20 pointer-events-none': !isElectronEnv }">
-          Capture Cockpit work area (Desktop-only feature)
+          {{ $t('snapshotTool.captureWorkArea') }}
         </p>
       </div>
       <v-text-field
         v-model.number="timedSnapshotInterval"
-        label="Timed snapshot interval (seconds)"
+        :label="$t('snapshotTool.timedInterval')"
         type="number"
         density="compact"
         variant="outlined"
@@ -176,7 +127,7 @@
           variant="text"
           @click="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen = false"
         >
-          Close
+          {{ $t('snapshotTool.close') }}
         </v-btn>
       </div>
     </div>
@@ -184,19 +135,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeMount, onMounted, ref, toRefs, watch } from 'vue'
+import { onBeforeMount, onMounted, ref, toRefs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useInteractionDialog } from '@/composables/interactionDialog'
+import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { openSnackbar } from '@/composables/snackbar'
 import { isElectron } from '@/libs/utils'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useSnapshotStore } from '@/stores/snapshot'
 import { useVideoStore } from '@/stores/video'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
-import type { SnapshotResult } from '@/types/snapshot'
 import type { MiniWidget } from '@/types/widgets'
 
 const { showDialog } = useInteractionDialog()
+const { t } = useI18n()
 const snapshotStore = useSnapshotStore()
 const interfaceStore = useAppInterfaceStore()
 const widgetStore = useWidgetManagerStore()
@@ -211,34 +164,12 @@ const props = defineProps<{
 const miniWidget = toRefs(props).miniWidget
 const isElectronEnv = isElectron()
 
-const enrichedStreamItems = computed(() => {
-  return videoStore.streamsCorrespondency.map((corr) => {
-    const displayInfo = videoStore.getStreamDisplayInfo(corr.externalId)
-    return {
-      internalName: corr.name,
-      externalName: corr.externalId,
-      resolution: displayInfo.resolution,
-      fps: displayInfo.fps,
-      source: displayInfo.source,
-      protocolLabel: displayInfo.protocolLabel,
-    }
-  })
-})
-
 const recorderWidget = ref()
-const snapshotTriggerType = ref<'single' | 'timed'>(miniWidget.value.options.snapshotTriggerType ?? 'single')
-const snapshotTypeIcon = ref<'mdi-video-image' | 'mdi-timer-outline'>(
-  snapshotTriggerType.value === 'timed' ? 'mdi-timer-outline' : 'mdi-video-image'
-)
+const snapshotTypeIcon = ref<'mdi-video-image' | 'mdi-timer-outline'>('mdi-video-image')
+const snapshotTriggerType = ref<'single' | 'timed'>('single')
 const isSnapshotMenuOpen = ref<boolean>(false)
-const timedSnapshotInterval = computed({
-  get: () => miniWidget.value.options.timedSnapshotInterval ?? 5,
-  set: (val: number) => {
-    miniWidget.value.options.timedSnapshotInterval = val
-  },
-})
+const timedSnapshotInterval = useBlueOsStorage('cockpit-snapshot-timed-interval', 5)
 const isTakingTimedSnapshot = ref<boolean>(false)
-const isFailureDialogOpen = ref(false)
 const timerProgress = ref<number>(50)
 
 const flashEffect = async (): Promise<void> => {
@@ -266,63 +197,33 @@ const flashEffect = async (): Promise<void> => {
   document.body.removeChild(flashOverlay)
 }
 
-const captureSnapshot = async (): Promise<SnapshotResult> => {
-  const allExternalIds = miniWidget.value.options.snapshotAllAvailableSources
-    ? videoStore.namesAvailableStreams
-    : ((miniWidget.value.options.selectedStreams as string[]) ?? [])
-        .map((name: string) => videoStore.externalStreamId(name))
-        .filter((id): id is string => !!id)
-  const streamNames = allExternalIds.filter((id) => !videoStore.ignoredStreamExternalIds.includes(id))
-  return snapshotStore.takeSnapshot(streamNames, miniWidget.value.options.captureWorkspace)
-}
-
-const toInternalName = (externalId: string): string => {
-  return videoStore.internalStreamNameFromExternal(externalId) ?? externalId
-}
-
-const handleSnapshotResult = (result: SnapshotResult): void => {
-  const { succeeded, failed } = result
-
-  if (succeeded.length > 0 && failed.length === 0) {
-    flashEffect()
-    openSnackbar({ message: 'Snapshot recorded successfully.', variant: 'success', duration: 2000 })
-    return
-  }
-
-  const failedNames = failed.map(toInternalName).join(', ')
-
-  if (succeeded.length > 0 && failed.length > 0) {
-    flashEffect()
-    openSnackbar({
-      message: `Snapshot captured, but failed for: ${failedNames}.`,
-      variant: 'warning',
-      duration: 4000,
-    })
-    return
-  }
-
-  if (isFailureDialogOpen.value) return
-
-  isFailureDialogOpen.value = true
-  showDialog({
-    title: 'Error taking snapshot',
-    message:
-      failed.length > 0
-        ? `Failed to capture: ${failedNames}. Make sure the streams have finished loading.`
-        : 'No sources available for capture. Make sure streams are connected or select specific ones in the widget settings.',
-    variant: 'error',
-    persistent: false,
-    maxWidth: '550px',
-  }).finally(() => {
-    isFailureDialogOpen.value = false
-  })
-}
-
 const handleTakeSnapshot = async (): Promise<void> => {
+  if (!areSelectedStreamsAreAvailable()) return
   isSnapshotMenuOpen.value = false
-  if (snapshotTriggerType.value === 'timed') return
-  const result = await captureSnapshot()
-  handleSnapshotResult(result)
+
+  try {
+    if (snapshotTriggerType.value !== 'timed') {
+      await snapshotStore.takeSnapshot(
+        miniWidget.value.options.nameSelectedStreams,
+        miniWidget.value.options.captureWorkspace
+      )
+
+      flashEffect()
+      openSnackbar({
+        message: t('snapshotTool.snapshotSuccess'),
+        variant: 'success',
+        duration: 2000,
+      })
+    }
+  } catch (error) {
+    showDialog({
+      title: t('snapshotTool.errorTitle'),
+      message: t('snapshotTool.errorMessage'),
+      variant: 'error',
+      persistent: false,
+      maxWidth: '550px',
+    })
+  }
 }
 
 const handleOpenSnapshotLibrary = (): void => {
@@ -332,32 +233,36 @@ const handleOpenSnapshotLibrary = (): void => {
 }
 
 const handleSelectSnapshotTriggerType = (type: 'single' | 'timed'): void => {
-  snapshotTriggerType.value = type
-  snapshotTypeIcon.value = type === 'timed' ? 'mdi-timer-outline' : 'mdi-video-image'
-  miniWidget.value.options.snapshotTriggerType = type
+  if (type === 'single') {
+    snapshotTriggerType.value = 'single'
+    snapshotTypeIcon.value = 'mdi-video-image'
+  } else if (type === 'timed') {
+    snapshotTriggerType.value = 'timed'
+    snapshotTypeIcon.value = 'mdi-timer-outline'
+  }
   isSnapshotMenuOpen.value = false
 }
 
 let progressInterval: ReturnType<typeof setInterval> | null = null
 let shotInterval: ReturnType<typeof setInterval> | null = null
 
-const fireTimedSnapshot = async (): Promise<void> => {
-  const result = await captureSnapshot()
-  handleSnapshotResult(result)
-}
-
 watch(isTakingTimedSnapshot, (newValue) => {
   if (newValue) {
-    fireTimedSnapshot()
+    // Capture a initial snapshot
+    snapshotStore.takeSnapshot(miniWidget.value.options.nameSelectedStreams, miniWidget.value.options.captureWorkspace)
+    flashEffect()
     openSnackbar({
-      message: `Timed snapshot started. This will capture the selected interfaces every ${timedSnapshotInterval.value} seconds until you press the camera button again.`,
+      message: t('snapshotTool.timedStarted', { interval: timedSnapshotInterval.value }),
       variant: 'info',
       duration: 4000,
     })
 
     // Capture subsequent timed snapshots
-    shotInterval = setInterval(() => {
-      fireTimedSnapshot()
+    shotInterval = setInterval(async () => {
+      await snapshotStore.takeSnapshot(
+        miniWidget.value.options.nameSelectedStreams,
+        miniWidget.value.options.captureWorkspace
+      )
       timerProgress.value = 0
     }, timedSnapshotInterval.value * 1000)
 
@@ -370,7 +275,7 @@ watch(isTakingTimedSnapshot, (newValue) => {
     }, PROGRESS_TICK)
     return
   }
-  openSnackbar({ message: 'Timed snapshot stopped.', variant: 'info', duration: 2000 })
+  openSnackbar({ message: t('snapshotTool.timedStopped'), variant: 'info', duration: 2000 })
   if (shotInterval) {
     clearInterval(shotInterval)
     shotInterval = null
@@ -382,24 +287,31 @@ watch(isTakingTimedSnapshot, (newValue) => {
   timerProgress.value = 0
 })
 
-const migrateSelectedStreamsToInternalNames = (): void => {
-  const streams = miniWidget.value.options.selectedStreams as string[] | undefined
-  if (!streams || streams.length === 0) return
-  miniWidget.value.options.selectedStreams = streams.map((name: string) => {
-    return videoStore.internalStreamNameFromExternal(name) ?? name
+const areSelectedStreamsAreAvailable = (): boolean => {
+  if (
+    miniWidget.value.options.selectedStreams.every((stream: string) =>
+      videoStore.namesAvailableStreams.includes(stream)
+    )
+  ) {
+    miniWidget.value.options.nameSelectedStreams = miniWidget.value.options.selectedStreams
+    return true
+  }
+
+  showDialog({
+    message: t('snapshotTool.streamsNotAvailable'),
+    variant: 'warning',
   })
+  return false
 }
 
-onBeforeMount(() => {
-  const defaultOptions = {
-    snapshotAllAvailableSources: true,
-    selectedStreams: [] as string[],
-    captureWorkspace: true,
-    snapshotTriggerType: 'single' as 'single' | 'timed',
-    timedSnapshotInterval: 5,
+onBeforeMount(async () => {
+  // Set initial widget options if they don't exist
+  if (Object.keys(miniWidget.value.options).length === 0) {
+    miniWidget.value.options = {
+      selectedStreams: undefined as string[] | undefined,
+      captureWorkspace: false,
+    }
   }
-  miniWidget.value.options = { ...defaultOptions, ...miniWidget.value.options }
-  migrateSelectedStreamsToInternalNames()
 })
 
 onMounted(() => {

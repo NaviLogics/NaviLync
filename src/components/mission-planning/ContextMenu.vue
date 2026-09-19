@@ -1,9 +1,8 @@
 <template>
   <div
     v-if="visible"
-    ref="menuEl"
-    :style="{ top: `${clampedPosition.y}px`, left: `${clampedPosition.x}px` }"
-    class="context-menu absolute flex justify-center items-center z-[1000] text-white rounded-lg w-max"
+    :style="{ top: `${position.y}px`, left: `${position.x}px` }"
+    class="context-menu absolute flex justify-center items-center z-[1000] text-white rounded-lg w-auto h-auto"
   >
     <div v-if="menuType === 'survey'" class="relative orbit-container">
       <div class="central-element flex justify-start items-start">
@@ -17,7 +16,7 @@
       </div>
 
       <div id="button-1" class="orbit-button orbit-button-1">
-        <v-tooltip :text="'Create survey'">
+        <v-tooltip :text="$t('missionPlanning.createSurvey')">
           <template #activator="{ props: tooltipProps0 }">
             <v-btn
               v-bind="tooltipProps0"
@@ -36,7 +35,7 @@
       </div>
 
       <div id="button-2" class="orbit-button orbit-button-2">
-        <v-tooltip :text="'Add simple path'">
+        <v-tooltip :text="$t('missionPlanning.addSimplePath')">
           <template #activator="{ props: tooltipProps1 }">
             <v-btn
               v-bind="tooltipProps1"
@@ -52,28 +51,11 @@
           </template>
         </v-tooltip>
       </div>
-      <div id="button-3" class="orbit-button orbit-button-3">
-        <v-tooltip text="Swap start and end point of the survey">
+      <div v-if="enableUndo" id="button-3" class="orbit-button orbit-button-3">
+        <v-tooltip :text="$t('missionPlanning.editSurveyPolygon')">
           <template #activator="{ props: tooltipProps2 }">
             <v-btn
               v-bind="tooltipProps2"
-              variant="elevated"
-              icon="mdi-swap-horizontal"
-              :style="{ backgroundColor: '#333333EE' }"
-              rounded="full"
-              size="x-small"
-              color="#FFFFFF22"
-              class="text-[13px] rotate-[200deg]"
-              @click="handleSwapSurveyEntryExit"
-            ></v-btn>
-          </template>
-        </v-tooltip>
-      </div>
-      <div v-if="enableUndo" id="button-4" class="orbit-button orbit-button-4">
-        <v-tooltip text="Edit survey's polygon">
-          <template #activator="{ props: tooltipProps3 }">
-            <v-btn
-              v-bind="tooltipProps3"
               variant="elevated"
               icon="mdi-pencil"
               :style="{ backgroundColor: '#333333EE' }"
@@ -81,17 +63,17 @@
               :disabled="undoIsInProgress"
               size="x-small"
               color="#FFFFFF22"
-              class="text-[13px] rotate-[230deg]"
+              class="text-[13px] rotate-[220deg]"
               @click="handleUndoGenerateWaypoints"
             ></v-btn>
           </template>
         </v-tooltip>
       </div>
-      <v-tooltip text="Delete survey">
+      <v-tooltip :text="$t('missionPlanning.deleteSurvey')">
         <template #activator="{ props: tooltipProps3 }">
           <div
             v-bind="tooltipProps3"
-            class="absolute text-[14px] mt-[10px] ml-[85px] bg-transparent rounded-full cursor-pointer elevation-4 drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
+            class="absolute text-[14px] mt-[10px] ml-[85px] bg-transparent rounded-full cursor-pointer elevation-4"
             variant="text"
             @click="handleDeleteSelectedSurvey"
           >
@@ -124,7 +106,7 @@
             color="white"
             class="text-[18px]"
           ></v-icon>
-          <span class="text-white text-sm ml-4">Add waypoint here</span>
+          <span class="text-white text-sm ml-4">{{ $t('missionPlanning.addWaypointHere') }}</span>
         </v-list-item>
         <v-divider />
         <v-list-item class="flex items-center gap-x-2 pb-2" @click="handleToggleSurvey">
@@ -160,7 +142,7 @@
             color="white"
             class="text-[16px]"
           ></v-icon>
-          <span class="text-white text-sm ml-4">Place point of interest</span>
+          <span class="text-white text-sm ml-4">{{ $t('missionPlanning.placePointOfInterest') }}</span>
         </v-list-item>
         <v-divider />
         <v-list-item class="flex items-center gap-x-2 pb-2" @click="handleSetHomePosition">
@@ -172,19 +154,7 @@
             color="white"
             class="text-[16px]"
           ></v-icon>
-          <span class="text-white text-sm ml-4">Set home waypoint</span>
-        </v-list-item>
-        <v-divider />
-        <v-list-item class="flex items-center gap-x-2 pb-2" @click="handleClearVehiclePathHistory">
-          <v-icon
-            variant="text"
-            icon="mdi-map-marker-path"
-            rounded="full"
-            size="x-small"
-            color="white"
-            class="text-[16px]"
-          ></v-icon>
-          <span class="text-white text-sm ml-4">Clear vehicle path history</span>
+          <span class="text-white text-sm ml-4">{{ $t('missionPlanning.setHomeWaypoint') }}</span>
         </v-list-item>
       </div>
     </div>
@@ -195,10 +165,12 @@
       :style="[interfaceStore.globalGlassMenuStyles, { background: '#333333EE', border: '1px solid #FFFFFF44' }]"
     >
       <div class="flex justify-between items-center pt-1 pb-2 px-2">
-        <p class="text-[14px]">Waypoint {{ missionStore.getWaypointNumber(selectedWaypoint?.id as string) }}</p>
+        <p class="text-[14px]">
+          {{ $t('missionPlanning.waypoint') }} {{ missionStore.getWaypointNumber(selectedWaypoint?.id as string) }}
+        </p>
         <div>
           <v-icon
-            v-tooltip="'Set home waypoint'"
+            v-tooltip="$t('missionPlanning.setHomeWaypoint')"
             variant="text"
             icon="mdi-home-map-marker"
             rounded="full"
@@ -208,7 +180,7 @@
             @click="handleSetHomePosition"
           ></v-icon>
           <v-icon
-            v-tooltip="'Delete waypoint'"
+            v-tooltip="$t('missionPlanning.deleteWaypoint')"
             variant="text"
             icon="mdi-trash-can"
             rounded="full"
@@ -218,7 +190,7 @@
             @click="handleRemoveWaypoint"
           ></v-icon>
           <v-icon
-            v-tooltip="'Edit waypoint'"
+            v-tooltip="$t('missionPlanning.editWaypoint')"
             :disabled="interfaceStore.isConfigPanelVisible"
             variant="text"
             icon="mdi-pencil"
@@ -238,12 +210,12 @@
         class="flex flex-col justify-center w-full items-center py-1 px-2 bg-[#EEEEEE] text-black rounded-bl-md rounded-br-md"
       >
         <div class="flex w-full gap-x-4 justify-between text-[10px] py-[1px] text-center mb-[2px]">
-          <p>Lat.:</p>
+          <p>{{ $t('missionPlanning.lat') }}</p>
           <p>{{ waypointOnMissionStore?.coordinates[0].toFixed(7) }}</p>
         </div>
         <v-divider class="border-black w-full" />
         <div class="flex w-full gap-x-4 justify-between text-[10px] py-[1px] text-center">
-          <p>Long.:</p>
+          <p>{{ $t('missionPlanning.long') }}</p>
           <p>{{ waypointOnMissionStore?.coordinates[1].toFixed(7) }}</p>
         </div>
         <v-divider class="border-black w-full" />
@@ -257,16 +229,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineEmits, defineProps, nextTick, ref, watch } from 'vue'
+import { computed, defineEmits, defineProps } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ScanDirectionDial from '@/components/mission-planning/ScanDirectionDial.vue'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMissionStore } from '@/stores/mission'
 import { ContextMenuTypes, Survey, Waypoint } from '@/types/mission'
 
+const { t } = useI18n()
 const missionStore = useMissionStore()
 const interfaceStore = useAppInterfaceStore()
-const menuEl = ref<HTMLElement | null>(null)
 
 /* eslint-disable jsdoc/require-jsdoc */
 const props = defineProps<{
@@ -295,11 +268,9 @@ const emit = defineEmits<{
   (event: 'undoGeneratedWaypoints'): void
   (event: 'surveyLinesAngle', angle: number): void
   (event: 'regenerateSurveyWaypoints', angle: number): void
-  (event: 'swapSurveyEntryExit'): void
   (event: 'removeWaypoint'): void
   (event: 'placePointOfInterest'): void
   (event: 'setHomePosition'): void
-  (event: 'clearVehiclePathHistory'): void
 }>()
 
 const menuType = computed(() => props.menuType)
@@ -307,44 +278,18 @@ const selectedWaypoint = computed<Waypoint | undefined>(() => props.selectedWayp
 const visible = computed(() => props.visible)
 const angle = computed(() => props.surveys.find((survey) => survey.id === props.selectedSurveyId)?.surveyLinesAngle)
 
-const clampedPosition = ref({ x: 0, y: 0 })
-
-watch(
-  () => [props.visible, props.position] as const,
-  ([isVisible, pos]) => {
-    clampedPosition.value = { ...pos }
-    if (!isVisible) return
-    nextTick(() => {
-      const el = menuEl.value
-      if (!el) return
-      const margin = 8
-      const elW = el.offsetWidth
-      const elH = el.offsetHeight
-      const vw = window.innerWidth
-      const vh = window.innerHeight
-      let { x, y } = pos
-      if (x + elW > vw - margin) x = vw - elW - margin
-      if (y + elH > vh - margin) y = vh - elH - margin
-      if (x < margin) x = margin
-      if (y < margin) y = margin
-      clampedPosition.value = { x, y }
-    })
-  },
-  { immediate: true }
-)
-
 const waypointOnMissionStore = computed(() =>
   missionStore.currentPlanningWaypoints.find((waypoint) => waypoint.id === selectedWaypoint.value?.id)
 )
 
 const surveyCreationButtonText = computed(() => {
   if (props.isCreatingSurvey) {
-    return 'Close survey creation'
+    return t('missionPlanning.closeSurveyCreation')
   }
   if (props.surveys.length === 0) {
-    return 'Create survey'
+    return t('missionPlanning.createSurvey')
   }
-  return 'Add survey'
+  return t('missionPlanning.addSurvey')
 })
 
 const handleAddWaypointAtCursor = (): void => {
@@ -354,12 +299,12 @@ const handleAddWaypointAtCursor = (): void => {
 
 const pathCreationButtonText = computed(() => {
   if (props.isCreatingSimplePath) {
-    return 'Close simple path creation'
+    return t('missionPlanning.closeSimplePathCreation')
   }
   if (props.surveys.length === 0) {
-    return 'Create simple path'
+    return t('missionPlanning.createSimplePath')
   }
-  return 'Add simple path'
+  return t('missionPlanning.addSimplePath')
 })
 
 const handleClose = (): void => {
@@ -385,10 +330,6 @@ const handleUndoGenerateWaypoints = (): void => {
   emit('undoGeneratedWaypoints')
 }
 
-const handleSwapSurveyEntryExit = (): void => {
-  emit('swapSurveyEntryExit')
-}
-
 const handleDeleteSelectedSurvey = (): void => {
   emit('deleteSelectedSurvey')
 }
@@ -399,11 +340,6 @@ const handleRemoveWaypoint = (): void => {
 
 const handleSetHomePosition = (): void => {
   emit('setHomePosition')
-  emit('close')
-}
-
-const handleClearVehiclePathHistory = (): void => {
-  emit('clearVehiclePathHistory')
   emit('close')
 }
 
@@ -422,7 +358,7 @@ const handleOpenPanel = (): void => {
 </script>
 <style scoped>
 .context-menu {
-  transform-origin: top left;
+  transform-origin: center;
   opacity: 0;
   animation: bloom 0.3s ease-out forwards;
 }
@@ -449,7 +385,6 @@ const handleOpenPanel = (): void => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
 }
 
 .orbit-button {
@@ -458,7 +393,6 @@ const handleOpenPanel = (): void => {
   left: 50%;
   transform-origin: center;
   opacity: 0;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
 }
 
 .orbit-button-1 {
@@ -472,11 +406,6 @@ const handleOpenPanel = (): void => {
 
 .orbit-button-3 {
   animation: orbit-3 0.05s ease-out forwards;
-  animation-delay: 0.05s;
-}
-
-.orbit-button-4 {
-  animation: orbit-4 0.05s ease-out forwards;
   animation-delay: 0.05s;
 }
 
@@ -497,7 +426,7 @@ const handleOpenPanel = (): void => {
     opacity: 0;
   }
   100% {
-    transform: translate(-50%, -50%) rotate(-530deg) translateX(90px);
+    transform: translate(-50%, -50%) rotate(-541deg) translateX(90px);
     opacity: 1;
   }
 }
@@ -508,18 +437,7 @@ const handleOpenPanel = (): void => {
     opacity: 0;
   }
   100% {
-    transform: translate(-50%, -50%) rotate(-560deg) translateX(90px);
-    opacity: 1;
-  }
-}
-
-@keyframes orbit-4 {
-  0% {
-    transform: translate(-50%, -50%) rotate(0deg) translateX(0);
-    opacity: 0;
-  }
-  100% {
-    transform: translate(-50%, -50%) rotate(-590deg) translateX(90px);
+    transform: translate(-50%, -50%) rotate(-580deg) translateX(90px);
     opacity: 1;
   }
 }

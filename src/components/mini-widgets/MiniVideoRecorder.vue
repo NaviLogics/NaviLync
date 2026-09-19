@@ -46,65 +46,28 @@
       class="flex flex-col items-center p-2 pt-1 m-5 rounded-md gap-y-4"
       :style="interfaceStore.globalGlassMenuStyles"
     >
-      <p class="text-xl font-semibold m-4">Choose a stream to record</p>
+      <p class="text-xl font-semibold m-4">{{ $t('miniVideoRecorder.chooseStream') }}</p>
       <v-select
         :model-value="nameSelectedStream"
-        label="Stream"
-        :items="enrichedStreamItems"
-        item-value="internalName"
+        :label="$t('miniVideoRecorder.streamName')"
+        :items="namesAvailableStreams"
+        item-title="name"
         density="compact"
         variant="outlined"
-        no-data-text="No streams available."
+        :no-data-text="$t('miniVideoRecorder.noStreamsAvailable')"
         hide-details
+        return-object
         theme="dark"
         class="w-[90%]"
         @update:model-value="updateCurrentStream"
-      >
-        <template #selection="{ item }">
-          <div class="flex items-center gap-2">
-            <span class="text-sm">{{ item.raw.internalName }}</span>
-            <v-chip
-              size="x-small"
-              :color="item.raw.protocolLabel === 'RTSP' ? '#e67e22' : '#3498db'"
-              variant="flat"
-              label
-              class="text-white"
-            >
-              {{ item.raw.protocolLabel }}
-            </v-chip>
-          </div>
-        </template>
-        <template #item="{ item, props: itemProps }">
-          <v-list-item v-bind="itemProps" :title="undefined">
-            <div class="flex items-center justify-between w-full py-1">
-              <div class="flex flex-col min-w-0 mr-3">
-                <span class="text-sm font-medium text-white">{{ item.raw.internalName }}</span>
-                <span class="text-xs text-gray-400 truncate">{{ item.raw.externalName }}</span>
-                <span v-if="item.raw.resolution !== 'Unknown'" class="text-xs text-gray-500">
-                  {{ item.raw.resolution }}
-                  <template v-if="item.raw.fps"> @ {{ item.raw.fps }}</template>
-                </span>
-              </div>
-              <v-chip
-                size="x-small"
-                :color="item.raw.protocolLabel === 'RTSP' ? '#e67e22' : '#3498db'"
-                variant="flat"
-                label
-                class="text-white shrink-0"
-              >
-                {{ item.raw.protocolLabel }}
-              </v-chip>
-            </div>
-          </v-list-item>
-        </template>
-      </v-select>
+      />
       <div class="flex w-full justify-between items-center mt-4">
         <v-btn
           class="w-auto text-uppercase"
           variant="text"
           @click="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen = false"
         >
-          Close
+          {{ $t('miniVideoRecorder.close') }}
         </v-btn>
         <v-btn
           class="bg-[#FFFFFF11] hover:bg-[#FFFFFF33]"
@@ -112,7 +75,7 @@
           :class="{ 'opacity-30 pointer-events-none': isLoadingStream }"
           @click="startRecording"
         >
-          <span>Record</span>
+          <span>{{ $t('miniVideoRecorder.record') }}</span>
           <v-icon v-if="isLoadingStream" class="m-2 animate-spin">mdi-loading</v-icon>
           <div v-else class="w-5 h-5 ml-2 rounded-full bg-red" />
         </v-btn>
@@ -126,16 +89,17 @@ import { useMouseInElement, useTimestamp } from '@vueuse/core'
 import { intervalToDuration } from 'date-fns'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref, toRefs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useInteractionDialog } from '@/composables/interactionDialog'
-import { openSnackbar } from '@/composables/snackbar'
-import { isEqual } from '@/libs/utils'
+import { isEqual, sleep } from '@/libs/utils'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useVideoStore } from '@/stores/video'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
 import type { MiniWidget } from '@/types/widgets'
 
 const { showDialog } = useInteractionDialog()
+const { t } = useI18n()
 const interfaceStore = useAppInterfaceStore()
 const widgetStore = useWidgetManagerStore()
 const videoStore = useVideoStore()
@@ -150,20 +114,6 @@ const miniWidget = toRefs(props).miniWidget
 
 const nameSelectedStream = ref<string | undefined>()
 const { namessAvailableAbstractedStreams: namesAvailableStreams } = storeToRefs(videoStore)
-
-const enrichedStreamItems = computed(() => {
-  return videoStore.streamsCorrespondency.map((corr) => {
-    const displayInfo = videoStore.getStreamDisplayInfo(corr.externalId)
-    return {
-      internalName: corr.name,
-      externalName: corr.externalId,
-      resolution: displayInfo.resolution,
-      fps: displayInfo.fps,
-      source: displayInfo.source,
-      protocolLabel: displayInfo.protocolLabel,
-    }
-  })
-})
 const recorderWidget = ref()
 const { isOutside } = useMouseInElement(recorderWidget)
 const isVideoLibraryDialogOpen = ref(false)
@@ -174,17 +124,6 @@ const numberOfVideosOnDB = ref(0)
 const selectedExternalId = ref<string | undefined>()
 
 const externalStreamId = computed(() => selectedExternalId.value)
-
-// Register/unregister this widget as a consumer of the stream, so the video store can tear down streams that no
-// widget points to anymore instead of leaking their WebRTC session.
-watch(
-  externalStreamId,
-  (newId, oldId) => {
-    if (oldId) videoStore.unregisterStreamConsumer(oldId, miniWidget.value.hash)
-    if (newId) videoStore.registerStreamConsumer(newId, miniWidget.value.hash)
-  },
-  { immediate: true }
-)
 
 const openVideoLibraryModal = (): void => {
   interfaceStore.videoLibraryMode = 'videos'
@@ -219,15 +158,6 @@ watch(nameSelectedStream, () => {
   miniWidget.value.options.internalStreamName = nameSelectedStream.value
   mediaStream.value = undefined
 })
-
-watch(
-  () => miniWidget.value.options.internalStreamName,
-  (newName) => {
-    if (newName !== nameSelectedStream.value) {
-      nameSelectedStream.value = newName
-    }
-  }
-)
 
 watch(
   () => videoStore.streamsCorrespondency,
@@ -321,13 +251,13 @@ function assertStreamIsSelectedAndAvailable(
   nameSelectedStream.value = selectedStream
 
   if (nameSelectedStream.value === undefined) {
-    showDialog({ message: 'No stream selected.', variant: 'error' })
+    showDialog({ message: t('miniVideoRecorder.noStreamSelected'), variant: 'error' })
     return
   }
 
   if (namesAvailableStreams.value.includes(nameSelectedStream.value)) return
 
-  const errorMsg = `The selected stream is not available. Please check its source or select another stream.`
+  const errorMsg = t('miniVideoRecorder.streamNotAvailable')
   showDialog({ message: errorMsg, variant: 'error' })
   throw new Error(errorMsg)
 }
@@ -350,12 +280,20 @@ const toggleRecording = async (): Promise<void> => {
 
 const startRecording = (): void => {
   if (!selectedExternalId.value) {
-    showDialog({ title: 'Cannot start recording.', message: 'No stream selected.', variant: 'error' })
+    showDialog({
+      title: t('miniVideoRecorder.cannotStartRecording'),
+      message: t('miniVideoRecorder.noStreamSelected'),
+      variant: 'error',
+    })
     return
   }
 
   if (!videoStore.getStreamData(selectedExternalId.value)?.connected) {
-    showDialog({ title: 'Cannot start recording.', message: 'Stream is not connected.', variant: 'error' })
+    showDialog({
+      title: t('miniVideoRecorder.cannotStartRecording'),
+      message: t('miniVideoRecorder.streamNotConnected'),
+      variant: 'error',
+    })
     return
   }
 
@@ -381,40 +319,34 @@ const timePassedString = computed(() => {
   return `${durationHours}:${durationMinutes}:${durationSeconds}`
 })
 
-// Generous ceiling for how long we show the connecting state before warning; well above typical WebRTC
-// negotiation so merely-slow streams aren't cut off, unlike the old 3s hard timeout.
-const streamLoadingTimeoutMs = 20000
-let streamLoadingTimeout: ReturnType<typeof setTimeout> | undefined = undefined
-
-const updateCurrentStream = (internalStreamName: string | undefined): void => {
-  logUserAction(`Selected recording stream '${internalStreamName}'`)
+const updateCurrentStream = async (internalStreamName: string | undefined): Promise<void> => {
   assertStreamIsSelectedAndAvailable(internalStreamName)
 
   mediaStream.value = undefined
   isLoadingStream.value = true
-  miniWidget.value.options.internalStreamName = internalStreamName
 
-  // streamConnectionRoutine clears isLoadingStream once media is flowing; if it never connects, stop spinning
-  // and surface a non-blocking warning so the record button becomes usable again instead of staying disabled.
-  clearTimeout(streamLoadingTimeout)
-  streamLoadingTimeout = setTimeout(() => {
-    if (!isLoadingStream.value) return
-    isLoadingStream.value = false
-    openSnackbar({
-      message: `Could not load media stream '${internalStreamName}'. Check the stream source and try again.`,
-      variant: 'error',
-    })
-  }, streamLoadingTimeoutMs)
+  let millisPassed = 0
+  const timeStep = 100
+  const waitingTime = 3000
+  while (isLoadingStream.value && millisPassed < waitingTime) {
+    // @ts-ignore: The media stream can (and probably will) get defined as we selected a stream
+    isLoadingStream.value = mediaStream.value === undefined || !mediaStream.value.active
+    await sleep(timeStep)
+    millisPassed += timeStep
+  }
+
+  if (isLoadingStream.value) {
+    showDialog({ message: t('miniVideoRecorder.couldNotLoadStream'), variant: 'error' })
+    return
+  }
+
+  miniWidget.value.options.internalStreamName = internalStreamName
 }
 
 let streamConnectionRoutine: ReturnType<typeof setInterval> | undefined = undefined
 
 if (widgetStore.isRealMiniWidget(miniWidget.value.hash)) {
   streamConnectionRoutine = setInterval(() => {
-    if (miniWidget.value.options.internalStreamName !== nameSelectedStream.value) {
-      nameSelectedStream.value = miniWidget.value.options.internalStreamName
-    }
-
     // If the video recording widget is cold booted, assign the first stream to it
     if (miniWidget.value.options.internalStreamName === undefined && !namesAvailableStreams.value.isEmpty()) {
       miniWidget.value.options.internalStreamName = namesAvailableStreams.value[0]
@@ -428,26 +360,10 @@ if (widgetStore.isRealMiniWidget(miniWidget.value.hash)) {
       if (!isEqual(updatedMediaStream, mediaStream.value)) {
         mediaStream.value = updatedMediaStream
       }
-      if (isLoadingStream.value && mediaStream.value?.active) {
-        isLoadingStream.value = false
-        clearTimeout(streamLoadingTimeout)
-      }
-    }
-
-    if (!namesAvailableStreams.value.isEmpty() && !namesAvailableStreams.value.includes(nameSelectedStream.value!)) {
-      if (videoStore.lastRenamedStreamName !== '') {
-        nameSelectedStream.value = videoStore.lastRenamedStreamName
-        return
-      }
-      nameSelectedStream.value = namesAvailableStreams.value[0]
     }
   }, 1000)
 }
-onBeforeUnmount(() => {
-  clearInterval(streamConnectionRoutine)
-  clearTimeout(streamLoadingTimeout)
-  if (externalStreamId.value) videoStore.unregisterStreamConsumer(externalStreamId.value, miniWidget.value.hash)
-})
+onBeforeUnmount(() => clearInterval(streamConnectionRoutine))
 
 watch(
   () => isVideoLibraryDialogOpen.value,
@@ -465,10 +381,7 @@ watch(isRecording, () => {
     return
   }
   window.onbeforeunload = () => {
-    const alertMsg = `
-      You have a video recording ongoing.
-      Remember to stop it before closing Cockpit, or the record will be lost.
-    `
+    const alertMsg = t('miniVideoRecorder.recordingOngoing')
     showDialog({ message: alertMsg, variant: 'warning' })
     return 'I hope the user does not click on the leave button.'
   }
