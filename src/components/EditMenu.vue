@@ -5,95 +5,223 @@
     @click="() => emit('update:editMode', false)"
   >
     <v-btn icon="mdi-close" size="54" class="bg-[#334a5755] text-[#FFFFFFCC] text-[28px] rounded-full elevation-5" />
-    <div class="ml-2 mt-[7px] text-[26px]">Exit</div>
+    <div class="ml-2 mt-[7px] text-[26px]">{{ $t('editMenu.exit') }}</div>
   </div>
   <div v-if="editMode" class="flex fixed top-0 left-0 h-[100vh] w-[22vw] bg-[#031C2B]" />
   <div
     class="relative flex flex-col justify-start overflow-y-auto text-white edit-panel left-panel h-full"
     :class="{ active: editMode }"
   >
-    <div :key="forceUpdate" class="bg-[#041e2e99]">
-      <div class="pt-1 bg-[#041e2e99] pb-2">
-        <div class="flex justify-center w-full bg-[#CBCBCB09] relative">
-          <div class="flex 2xl:max-w-[400px] xl:max-w-[330px] lg:max-w-[260px] justify-center 2xl:py-2 py-1 text-md">
-            <p class="overflow-hidden 2xl:text-sm text-xs text-ellipsis whitespace-nowrap opacity-60">Views</p>
-          </div>
-          <v-menu offset-y theme="dark">
-            <template #activator="{ props: buttonProps }">
-              <v-btn
-                icon="mdi-dots-vertical"
-                size="xs"
-                variant="text"
-                class="text-sm absolute right-1 top-1/2 -translate-y-1/2"
-                v-bind="buttonProps"
-              />
-            </template>
-            <v-list>
-              <v-list-item class="hover:bg-white/[0.04]">
-                <label class="flex w-full h-full cursor-pointer justify-between">
-                  <v-list-item-title>Import views</v-list-item-title>
-                  <input
-                    type="file"
-                    accept="application/json"
-                    hidden
-                    @change="(e: Event) => store.importViewsGroup(e)"
-                  />
-                  <v-icon size="20">mdi-upload</v-icon>
-                </label>
-              </v-list-item>
-              <v-list-item @click="store.exportViewsGroup(store.currentProfile)">
-                <div class="flex w-full justify-between">
-                  <v-list-item-title>Export views</v-list-item-title>
-                  <v-icon size="20">mdi-download</v-icon>
-                </div>
-              </v-list-item>
-              <v-list-item @click="openVehicleDefaultsImportModal">
-                <div class="flex w-full justify-between">
-                  <v-list-item-title class="mr-6">Import vehicle defaults</v-list-item-title>
-                  <v-icon size="20">mdi-import</v-icon>
-                </div>
-              </v-list-item>
-              <v-list-item @click="store.snapToGrid = !store.snapToGrid">
-                <div class="flex w-full justify-between mt-[6px]">
-                  <v-list-item-title>{{ store.snapToGrid ? 'Disable grid' : 'Enable grid' }}</v-list-item-title>
-                  <v-icon size="22">{{ store.snapToGrid ? 'mdi-grid' : 'mdi-grid-off' }}</v-icon>
-                </div>
-              </v-list-item>
-              <v-list-item @click="resetViewsGroup">
-                <div class="flex w-full justify-between mt-[6px]">
-                  <v-list-item-title class="mr-6">Reset to default</v-list-item-title>
-                  <v-icon size="20" class="mt-[2px]">mdi-reload</v-icon>
-                </div>
-              </v-list-item>
-            </v-list>
-          </v-menu>
-        </div>
-        <VueDraggable v-model="store.currentProfile.views" :animation="150" handle=".view-drag-handle">
-          <div
-            v-for="view in store.currentProfile.views"
-            :key="view.hash"
-            class="flex items-center justify-center border-[1px] border-[#FFFFFF24] rounded-md mx-2 my-[6px] 2xl:p-1 pl-1 pr-[2px] py-[2px] cursor-pointer"
-            :class="view === store.currentView ? 'bg-[#CBCBCB64]' : 'bg-[#CBCBCB2A]'"
-            @click="store.selectView(view)"
+    <div class="flex justify-between items-center w-full bg-[#CBCBCB2A] relative">
+      <img
+        :src="pickVehicleImage(store.currentProfile.name)"
+        alt="current-vehicle"
+        class="ml-2 my-1 p-1 mr-2 2xl:w-[60px] xl:w-[50px] w-[40px] aspect-square"
+      />
+      <div ref="dropdownMenuRef" class="flex justify-between items-center relative">
+        <div class="flex text-start 2xl:w-[260px] xl:w-[220px] w-[170px]">
+          <v-btn
+            id="profile"
+            variant="text"
+            :size="interfaceStore.is2xl ? 'x-large' : 'large'"
+            class="2xl:w-[260px] xl:w-[220px] w-[170px]"
+            :class="isDialOpen ? 'bg-[#49697c] p-3 border-b-2 border-[#041e2e55]' : 'bg-[#273842]'"
+            @click="toggleDial"
           >
-            <v-icon
-              icon="mdi-drag"
-              class="view-drag-handle cursor-grab mr-1 -ml-[1px] opacity-40 2xl:text-[24px] xl:text-[22px] text-[18px]"
-            />
-            <v-divider vertical />
-            <p class="overflow-hidden text-sm text-ellipsis ml-3 whitespace-nowrap">{{ view.name }}</p>
-            <div class="grow" />
-            <div
-              class="icon-btn mdi mdi-eye"
-              :class="{ 'mdi-eye-closed': !view.visible }"
-              @click.stop="toggleViewVisibility(view)"
-            />
-            <div class="icon-btn mdi mdi-download" @click.stop="store.exportView(view)" />
-            <div class="icon-btn mdi mdi-content-copy" @click.stop="store.duplicateView(view)" />
-            <div class="icon-btn mdi mdi-cog" @click.stop="renameView(view)" />
-            <div class="icon-btn mdi mdi-trash-can" @click.stop="store.deleteView(view)" />
+            <span
+              class="wrapclass text-none 2xl:text-xl xl:text-[16px] lg:text-md text-sm 2xl:max-w-[230px] xl:max-w-[180px] max-w-[160px]"
+              >{{ store.currentProfile.name }}
+              {{ store.currentProfile.name.endsWith('profile') ? '' : $t('editMenu.profile') }}
+            </span>
+          </v-btn>
+        </div>
+        <div
+          v-if="isDialOpen"
+          class="absolute flex justify-start flex-col top-full -mt-[1px] bg-transparent backdrop-blur-2xl z-10"
+        >
+          <div
+            v-for="profile in store.savedProfiles.filter((p) => p.hash !== store.currentProfile.hash)"
+            :key="profile.hash"
+            variant="text"
+            size="x-large"
+            class="bg-[#FFFFFF33] 2xl:w-[280px] xl:w-[240px] w-[210px] p-3 text-white mb-[1px] border-[1px] border-[#FFFFFF11] text-none flex-nowrap rounded-sm hover:brightness-90 cursor-pointer"
+            @click="
+              () => {
+                store.loadProfile(profile)
+                toggleDial()
+                isViewsPanelExpanded = false
+              }
+            "
+          >
+            <div class="flex">
+              <img
+                :src="pickVehicleImage(profile.name)"
+                alt="current-vehicle"
+                class="mr-3 2xl:w-[30px] w-[25px] 2xl:h-[30px] h-[25px] aspect-square"
+              />
+              <span
+                class="text-nowrap wrapclass text-left 2xl:max-w-[270px] xl:max-w-[240px] lg:max-w-[150px] max-w-[120px] mt-[1px] 2xl:text-[18px] xl:text-[18px] text-[16px]"
+                >{{ profile.name }} {{ profile.name.endsWith('profile') ? '' : $t('editMenu.profile') }}
+              </span>
+            </div>
           </div>
-        </VueDraggable>
+        </div>
+        <v-btn
+          id="select-profile"
+          size="20px"
+          class="bg-transparent 2xl:text-xl xl:text-md text-sm"
+          variant="text"
+          @click="toggleDial"
+          ><v-icon class="-mt-[1px]">mdi-menu-down</v-icon></v-btn
+        >
+      </div>
+      <div class="flex justify-end items-center 2xl:w-[75px] xl:w-[60px] w-[55px]">
+        <v-menu offset-y theme="dark">
+          <template #activator="{ props: buttonProps }">
+            <v-btn
+              icon="mdi-dots-vertical"
+              size="xs"
+              variant="text"
+              class="2xl:text-lg xl:text-md text-sm 2xl:mr-[6px] xl:mr-[5px] mr-[2px] 2xl:mb-[5px] xl:mb-[2px] mb-[2px]"
+              v-bind="buttonProps"
+            />
+          </template>
+          <v-list>
+            <div class="flex justify-center max-w-[250px] px-2 gap-x-[5px] pb-2">
+              <p class="whitespace-nowrap">{{ $t('editMenu.settings') }} -</p>
+              <p class="overflow-hidden text-ellipsis whitespace-nowrap">{{ store.currentProfile.name }}</p>
+            </div>
+
+            <v-divider />
+            <v-list-item class="hover:bg-white/[0.04]">
+              <label class="flex w-full h-full cursor-pointer justify-between">
+                <v-list-item-title>{{ $t('editMenu.import') }}</v-list-item-title>
+                <input type="file" accept="application/json" hidden @change="(e: Event) => store.importProfile(e)" />
+                <v-icon size="20">mdi-upload</v-icon>
+              </label>
+            </v-list-item>
+            <v-list-item @click="store.exportProfile(store.currentProfile)">
+              <div class="flex w-full justify-between">
+                <v-list-item-title>{{ $t('editMenu.export') }}</v-list-item-title>
+                <v-icon size="20">mdi-download</v-icon>
+              </div>
+            </v-list-item>
+            <v-list-item @click="store.duplicateProfile(store.currentProfile)">
+              <div class="flex w-full justify-between">
+                <v-list-item-title>{{ $t('editMenu.duplicate') }}</v-list-item-title>
+                <v-icon size="20">mdi-content-copy</v-icon>
+              </div>
+            </v-list-item>
+            <v-list-item @click="renameProfile(store.currentProfile)">
+              <div class="flex w-full justify-between">
+                <v-list-item-title>{{ $t('editMenu.configAndRename') }}</v-list-item-title>
+                <v-icon size="20">mdi-cog</v-icon>
+              </div>
+            </v-list-item>
+            <v-list-item @click="confirmDelete">
+              <div class="flex w-full justify-between">
+                <v-list-item-title>{{ $t('editMenu.delete') }}</v-list-item-title>
+                <v-icon size="20">mdi-trash-can</v-icon>
+              </div>
+            </v-list-item>
+            <v-divider class="mb-1" />
+            <div class="flex justify-center max-w-[250px] px-2 gap-x-[5px] pb-2 pt-1">
+              <p class="whitespace-nowrap">{{ $t('editMenu.generalProfileSettings') }}</p>
+            </div>
+            <v-divider class="mb-1" />
+            <v-list-item @click="addNewProfile">
+              <div class="flex w-full justify-between mt-[6px]">
+                <v-list-item-title>{{ $t('editMenu.addNewProfile') }}</v-list-item-title>
+                <v-icon size="22">mdi-plus</v-icon>
+              </div>
+            </v-list-item>
+            <v-list-item @click="store.snapToGrid = !store.snapToGrid">
+              <div class="flex w-full justify-between mt-[6px]">
+                <v-list-item-title>{{
+                  store.snapToGrid ? $t('editMenu.disableGrid') : $t('editMenu.enableGrid')
+                }}</v-list-item-title>
+                <v-icon size="22">{{ store.snapToGrid ? 'mdi-grid' : 'mdi-grid-off' }}</v-icon>
+              </div>
+            </v-list-item>
+            <v-list-item @click="resetSavedProfiles">
+              <div class="flex w-full justify-between mt-[6px]">
+                <v-list-item-title class="mr-6">{{ $t('editMenu.resetSavedProfiles') }}</v-list-item-title>
+                <v-icon size="20" class="mt-[2px]">mdi-reload</v-icon>
+              </div>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </div>
+    </div>
+    <v-divider class="opacity-20" />
+    <div
+      class="flex flex-row max-h-[48px] justify-start relative items-center bg-[#CBCBCB2A] elevation-5 2xl:h-full xl:h-[45px] h-[35px] overflow-hidden"
+    >
+      <v-icon
+        size="sm"
+        :icon="isViewsPanelExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+        class="ml-1 mr-[6px] 2xl:text-[26px] xl:text-[24px] text-[20px]"
+        @click="toggleViewsPanel"
+      />
+      <v-divider vertical />
+      <v-btn-toggle theme="dark" tile divided>
+        <v-btn
+          v-for="view in store.currentProfile.views"
+          :key="view.hash"
+          size="sm"
+          :class="view === store.currentView ? 'bg-[#4FA483]' : 'bg-transparent'"
+          class="wrapclass 2xl:w-[129px] xl:w-[108px] lg:w-[84px] 2xl:h-[85px] xl:h-[75px] lg:h-[65px] 2xl:text-[16px] xl:text-[14px] text-[11px] text-none overflow-x-hidden"
+          @click="selectView(view)"
+        >
+          <span class="wrapclass 2xl:max-w-[119px] xl:max-w-[100px] lg:max-w-[80px]">{{
+            getLocalizedViewName(view.name)
+          }}</span>
+        </v-btn>
+      </v-btn-toggle>
+      <v-badge
+        v-if="store.currentProfile.views.length > 3"
+        :content="`+${store.currentProfile.views.length - 3}`"
+        color="#ad1f83"
+        overlap
+        class="absolute right-4 top-[9px] mr-0 elevation-4 cursor-pointer elevation-3 scale-[85%]"
+        @click="toggleViewsPanel"
+      />
+    </div>
+    <div
+      :key="forceUpdate"
+      ref="content"
+      class="bg-[#041e2e99] h-full"
+      :class="['content-expand-collapse', { expanding: isViewsPanelExpanded, collapsing: !isViewsPanelExpanded }]"
+    >
+      <div class="h-full pt-1 bg-[#041e2e99]">
+        <div class="flex justify-center w-full bg-[#CBCBCB09]">
+          <div class="flex w-[350px] justify-center py-[2px]">
+            <p class="overflow-hidden text-[12px] text-ellipsis whitespace-nowrap opacity-60">
+              {{ $t('editMenu.viewsOn', { profileName: store.currentProfile.name }) }}
+            </p>
+          </div>
+        </div>
+        <div
+          v-for="view in store.currentProfile.views"
+          :key="view.hash"
+          class="flex items-center justify-center border-[1px] border-[#FFFFFF24] rounded-md mx-2 my-[3px] 2xl:p-1 pl-1 pr-[2px] py-[2px] cursor-pointer"
+          :class="view === store.currentView ? 'bg-[#CBCBCB64]' : 'bg-[#CBCBCB2A]'"
+          @click="store.selectView(view)"
+        >
+          <p class="overflow-hidden text-sm text-ellipsis ml-3 whitespace-nowrap">
+            {{ getLocalizedViewName(view.name) }}
+          </p>
+          <div class="grow" />
+          <div
+            class="icon-btn mdi mdi-eye"
+            :class="{ 'mdi-eye-closed': !view.visible }"
+            @click.stop="toggleViewVisibility(view)"
+          />
+          <div class="icon-btn mdi mdi-download" @click.stop="store.exportView(view)" />
+          <div class="icon-btn mdi mdi-content-copy" @click.stop="store.duplicateView(view)" />
+          <div class="icon-btn mdi mdi-cog" @click.stop="renameView(view)" />
+          <div class="icon-btn mdi mdi-trash-can" @click.stop="store.deleteView(view)" />
+        </div>
         <div ref="managementContainer" class="flex items-end justify-end w-full gap-x-2 mt-2 mb-2 -ml-3 opacity-80">
           <v-icon size="18" icon="mdi-plus-circle" @click="addNewView" />
           <div>
@@ -106,14 +234,14 @@
       </div>
     </div>
     <v-divider />
-    <div class="flex justify-center w-full bg-[#CBCBCB09] shrink-0">
-      <div class="flex 2xl:max-w-[400px] xl:max-w-[330px] lg:max-w-[260px] justify-center 2xl:py-2 py-1 text-md">
-        <p class="overflow-hidden 2xl:text-sm text-xs text-ellipsis whitespace-nowrap opacity-60">
-          Widgets in {{ store.currentView.name }}
-        </p>
-      </div>
-    </div>
     <div id="view-widgets-list" class="overflow-y-scroll h-full">
+      <div class="flex justify-center w-full bg-[#CBCBCB09]">
+        <div class="flex 2xl:max-w-[400px] xl:max-w-[330px] lg:max-w-[260px] justify-center 2xl:py-2 py-1 text-md">
+          <p class="overflow-hidden 2xl:text-sm text-xs text-ellipsis whitespace-nowrap opacity-60">
+            {{ $t('editMenu.widgetsIn', { viewName: store.currentView.name }) }}
+          </p>
+        </div>
+      </div>
       <ExpansiblePanel
         :key="forceUpdate"
         :compact="interfaceStore.isLg || interfaceStore.isOnSmallScreen ? true : false"
@@ -127,7 +255,7 @@
           <div
             class="flex w-[90%] justify-between items-center 2xl:text-[18px] xl:text-[16px] lg:text-[14px] -mb-3 font-normal ml-2"
           >
-            Main view area
+            {{ $t('editMenu.mainViewArea') }}
             <v-badge
               :content="store.currentView.widgets.length"
               color="#4FA483"
@@ -162,7 +290,7 @@
                   />
                   <v-divider vertical />
                   <p class="ml-3 overflow-hidden 2xl:text-sm text-xs text-ellipsis whitespace-nowrap">
-                    {{ widget.name }}
+                    {{ getLocalizedWidgetName(widget.component) }}
                   </p>
                   <div class="grow" />
                   <v-divider vertical class="opacity-10 mr-[2px]" />
@@ -195,7 +323,7 @@
           <div
             class="flex w-[90%] justify-between items-center 2xl:text-[18px] xl:text-[16px] lg:text-[14px] -mb-3 font-normal ml-2"
           >
-            Top Bar
+            {{ $t('editMenu.topBar') }}
             <v-badge
               :content="
                 store.miniWidgetContainersInCurrentView.reduce((count, container) => {
@@ -217,7 +345,7 @@
           >
             <div v-if="miniWidgetContainer.name.startsWith('Top')">
               <span class="w-full px-1 2xl:text-sm text-xs text-left select-none text-slate-400">{{
-                miniWidgetContainer.name
+                getLocalizedContainerName(miniWidgetContainer.name)
               }}</span>
               <div class="flex flex-col items-center w-full 2xl:px-3 overflow-x-hidden grow">
                 <TransitionGroup name="fade">
@@ -234,7 +362,7 @@
                   >
                     <div class="flex items-center justify-start w-full overflow-auto">
                       <p class="overflow-hidden select-none text-ellipsis whitespace-nowrap 2xl:text-sm text-xs ml-3">
-                        {{ widget.name || widget.component }}
+                        {{ getLocalizedMiniWidgetName(widget.component) }}
                       </p>
                     </div>
                     <v-divider vertical class="opacity-10 mr-1" />
@@ -262,7 +390,7 @@
           <div
             class="flex w-[90%] justify-between items-center 2xl:text-[18px] xl:text-[16px] lg:text-[14px] -mb-3 font-normal ml-2"
           >
-            Bottom Bar
+            {{ $t('editMenu.bottomBar') }}
             <v-badge
               :content="
                 store.miniWidgetContainersInCurrentView.reduce((count, container) => {
@@ -284,7 +412,7 @@
           >
             <div v-if="miniWidgetContainer.name.startsWith('Bottom')">
               <span class="w-full px-1 2xl:text-sm text-xs text-left select-none text-slate-400">{{
-                miniWidgetContainer.name
+                getLocalizedContainerName(miniWidgetContainer.name)
               }}</span>
               <div class="flex flex-col items-center w-full 2xl:px-3 overflow-x-hidden grow">
                 <TransitionGroup name="fade">
@@ -304,7 +432,7 @@
                   >
                     <div class="flex items-center justify-start w-full overflow-auto">
                       <p class="overflow-hidden select-none text-ellipsis whitespace-nowrap 2xl:text-sm text-xs ml-3">
-                        {{ widget.name || widget.component }}
+                        {{ getLocalizedMiniWidgetName(widget.component) }}
                       </p>
                     </div>
                     <v-divider vertical class="opacity-10 mr-1" />
@@ -335,7 +463,7 @@
           <div
             class="flex w-[90%] justify-between items-center 2xl:text-[18px] xl:text-[16px] lg:text-[14px] -mb-3 font-normal ml-2"
           >
-            {{ miniWidgetContainer.name }}
+            {{ getLocalizedContainerName(miniWidgetContainer.name) }}
             <v-badge
               :content="miniWidgetContainer.widgets?.length"
               color="#4FA483"
@@ -362,7 +490,7 @@
                 >
                   <div class="flex items-center justify-start w-full overflow-auto">
                     <p class="overflow-hidden select-none text-ellipsis whitespace-nowrap 2xl:text-sm text-xs ml-3">
-                      {{ widget.name || widget.component }}
+                      {{ getLocalizedMiniWidgetName(widget.component) }}
                     </p>
                   </div>
                   <v-divider vertical class="opacity-10 mr-1" />
@@ -386,33 +514,45 @@
       class="flex flex-col justify-around items-center 2xl:w-[30%] w-[25%] max-w-[240px] h-full text-white 2xl:pr-2 px-1 2xl:py-5 xl:py-4 lg:py-1"
     >
       <div>
-        <p class="2xl:text-md text-xs ml-1">Widget type:</p>
+        <p class="2xl:text-md text-xs ml-1">{{ $t('editMenu.widgetType') }}</p>
         <v-select
           v-model="widgetMode"
           theme="dark"
           variant="filled"
           density="compact"
-          :items="['Regular', 'Mini', 'Input']"
+          :items="widgetModeItems"
           class="bg-[#27384255] 2xl:scale-100 scale-[80%]"
           hide-details
           @change="widgetMode = $event"
         />
       </div>
       <div class="flex flex-col items-center justify-start w-full pl-2">
-        <div v-show="widgetMode === 'Regular'" class="w-[90%] 2xl:text-[16px] text-xs text-center mt-6">
-          To be placed on the main view area
+        <div
+          v-if="interfaceStore.isAdminMode"
+          v-show="widgetMode === 'Regular'"
+          class="w-[90%] 2xl:text-[16px] text-xs text-center mt-6"
+        >
+          {{ $t('editMenu.toBeplacedOnMainView') }}
         </div>
-        <div v-show="widgetMode === 'Regular'" class="text-xs mt-3 2xl:px-3 px-2 rounded-lg">(Drag card to add)</div>
+        <div
+          v-if="interfaceStore.isAdminMode"
+          v-show="widgetMode === 'Regular'"
+          class="text-xs mt-3 2xl:px-3 px-2 rounded-lg"
+        >
+          {{ $t('editMenu.dragCardToAdd') }}
+        </div>
         <div v-show="widgetMode === 'Mini'" class="w-[90%] 2xl:text-[16px] text-xs text-center mt-6">
-          To be placed on the top and bottom bars
+          {{ $t('editMenu.toBeplacedOnBars') }}
         </div>
-        <div v-show="widgetMode === 'Mini'" class="text-xs mt-3 2xl:px-3 px-2 rounded-lg">(Drag card to add)</div>
+        <div v-show="widgetMode === 'Mini'" class="text-xs mt-3 2xl:px-3 px-2 rounded-lg">
+          {{ $t('editMenu.dragCardToAdd') }}
+        </div>
         <div v-show="widgetMode === 'Input'">
           <v-btn
             type="flat"
             class="bg-[#FFFFFF33] text-white w-[95%]"
             @click="store.addWidget(makeNewWidget(WidgetType.CollapsibleContainer), store.currentView)"
-            >Add new container
+            >{{ $t('editMenu.addNewContainer') }}
           </v-btn>
         </div>
       </div>
@@ -438,26 +578,20 @@
           v-if="widget.isExternal"
           class="absolute top-0 left-0 bg-[#135da3] text-white text-xs px-1 py-0.5 rounded-tl-md rounded-br-md"
         >
-          External
+          {{ $t('editMenu.external') }}
         </div>
 
-        <v-tooltip location="top" theme="light">
+        <v-tooltip :text="$t('editMenu.dragToAdd')" location="top" theme="light">
           <template #activator="{ props: tooltipProps }">
             <div />
             <img v-bind="tooltipProps" :src="widget.icon" alt="widget-icon" class="p-4 max-h-[75%] max-w-[95%]" />
             <div
-              class="flex items-center justify-center w-full p-1 transition-all rounded-b-md text-white overflow-hidden"
+              class="flex items-center justify-center w-full p-1 transition-all rounded-b-md text-white"
               :class="{ 'bg-[#135da3]': widget.isExternal, 'bg-[#4fa483]': !widget.isExternal }"
             >
-              <span class="whitespace-normal text-center break-words leading-tight 2xl:text-sm text-xs px-1">{{
-                widget.name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (str) => str.toUpperCase())
-              }}</span>
+              <span class="whitespace-normal text-center">{{ getLocalizedWidgetName(widget.name) }}</span>
             </div>
           </template>
-          <div class="text-center">
-            <div v-if="widget.isExternal">{{ widget.name }}</div>
-            <div>Drag to add</div>
-          </div>
         </v-tooltip>
       </div>
     </div>
@@ -483,10 +617,7 @@
         <div
           class="flex items-center justify-center w-full py-1 px-2 transition-all bg-[#4FA483] rounded-b-md text-white"
         >
-          <span class="whitespace-normal text-center">{{
-            miniWidget.name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (str) => str.toUpperCase()) ||
-            'Very generic indicator'
-          }}</span>
+          <span class="whitespace-normal text-center">{{ getLocalizedMiniWidgetName(miniWidget.component) }}</span>
         </div>
       </div>
     </div>
@@ -511,10 +642,7 @@
         <div
           class="flex items-center justify-center w-full py-1 px-2 transition-all bg-[#4FA483] rounded-b-md text-white"
         >
-          <span class="whitespace-normal text-center">{{
-            miniWidget.name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (str) => str.toUpperCase()) ||
-            'Very generic indicator'
-          }}</span>
+          <span class="whitespace-normal text-center">{{ getLocalizedMiniWidgetName(miniWidget.component) }}</span>
         </div>
       </div>
     </div>
@@ -523,19 +651,45 @@
     <GlassModal :is-visible="viewRenameDialogRevealed" class="rounded-lg">
       <v-card class="bg-transparent text-white w-[36rem] pt-6 px-4 pb-2">
         <v-card-text>
-          <p>New view name</p>
+          <p>{{ $t('editMenu.newViewName') }}</p>
           <v-text-field v-model="newViewName" counter="25" variant="filled" />
           <v-switch
             v-model="store.currentView.showBottomBarOnBoot"
-            label="Show bottom bar on boot"
+            :label="$t('editMenu.showBottomBarOnBoot')"
             class="mt-2 mx-2"
             :color="store.currentView.showBottomBarOnBoot ? 'white' : undefined"
           />
         </v-card-text>
         <v-divider />
         <v-card-actions class="flex justify-between pt-3">
-          <v-btn @click="viewRenameDialog.cancel">Cancel</v-btn>
-          <v-btn @click="viewRenameDialog.confirm">Save</v-btn>
+          <v-btn @click="viewRenameDialog.cancel">{{ $t('editMenu.cancel') }}</v-btn>
+          <v-btn @click="viewRenameDialog.confirm">{{ $t('editMenu.save') }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </GlassModal>
+  </teleport>
+  <teleport to="body">
+    <GlassModal :is-visible="profileConfigDialogRevealed" class="rounded-lg">
+      <v-card class="bg-transparent text-white w-[36rem] pt-6 px-4 pb-2">
+        <v-card-text>
+          <p>{{ $t('editMenu.newProfileName') }}</p>
+          <v-text-field v-model="newProfileName" counter="25" variant="filled" density="compact" />
+          <p>{{ $t('editMenu.vehicleTypesDefault') }}</p>
+          <v-combobox
+            v-model="vehicleTypesAssignedToCurrentProfile"
+            :items="availableVehicleTypes"
+            chips
+            density="compact"
+            multiple
+            theme="dark"
+            variant="filled"
+            class="w-3/4"
+          />
+        </v-card-text>
+        <v-divider />
+        <v-card-actions class="flex justify-between pt-3">
+          <v-btn @click="profileConfigDialog.cancel">{{ $t('editMenu.cancel') }}</v-btn>
+          <v-btn @click="profileConfigDialog.confirm">{{ $t('editMenu.save') }}</v-btn>
         </v-card-actions>
       </v-card>
     </GlassModal>
@@ -547,13 +701,17 @@
 </template>
 
 <script setup lang="ts">
-import { useConfirmDialog } from '@vueuse/core'
+import { onClickOutside, useConfirmDialog } from '@vueuse/core'
 import { v4 as uuid } from 'uuid'
 import { computed, onMounted, ref, toRefs, watch } from 'vue'
 import { nextTick } from 'vue'
 import { type UseDraggableOptions, useDraggable, VueDraggable } from 'vue-draggable-plus'
+import { useI18n } from 'vue-i18n'
 
 import { defaultMiniWidgetManagerVars } from '@/assets/defaults'
+import BoatThumb from '@/assets/vehicles/BlueBoat_thumb.png'
+import BlueRoboticsLogo from '@/assets/vehicles/BlueRoboticsLogo.png'
+import RovThumb from '@/assets/vehicles/BlueROV_thumb.png'
 import AttitudeImg from '@/assets/widgets/Attitude.png'
 import CollapsibleContainerImg from '@/assets/widgets/CollapsibleContainer.png'
 import CompassImg from '@/assets/widgets/Compass.png'
@@ -564,7 +722,6 @@ import IFrameImg from '@/assets/widgets/IFrame.png'
 import ImageViewImg from '@/assets/widgets/ImageView.png'
 import MapImg from '@/assets/widgets/Map.png'
 import MiniWidgetsBarImg from '@/assets/widgets/MiniWidgetsBar.png'
-import MissionControlPanelImg from '@/assets/widgets/MissionControlPanel.png'
 import PlotterImg from '@/assets/widgets/Plotter.png'
 import URLVideoPlayerImg from '@/assets/widgets/URLVideoPlayer.png'
 import VideoPlayerImg from '@/assets/widgets/VideoPlayer.png'
@@ -572,12 +729,14 @@ import VirtualHorizonImg from '@/assets/widgets/VirtualHorizon.png'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { openSnackbar } from '@/composables/snackbar'
 import { getWidgetsFromBlueOS } from '@/libs/blueos'
+import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { isHorizontalScroll } from '@/libs/utils'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
-import type { Point2D, SizeRect2D } from '@/types/general'
+import { Point2D } from '@/types/general'
 import {
+  type Profile,
   type View,
   type Widget,
   CustomWidgetElementContainer,
@@ -600,14 +759,11 @@ import MiniWidgetInstantiator from './MiniWidgetInstantiator.vue'
 import SideConfigPanel from './SideConfigPanel.vue'
 
 const { showDialog, closeDialog } = useInteractionDialog()
+const { t } = useI18n()
 
 const interfaceStore = useAppInterfaceStore()
 const store = useWidgetManagerStore()
 const mainVehicleStore = useMainVehicleStore()
-
-const openVehicleDefaultsImportModal = (): void => {
-  interfaceStore.openVehicleDefaultsViewsImport()
-}
 
 const miniWidgetsBars = computed(() => {
   let regularContainers = store.miniWidgetContainersInCurrentView.filter(
@@ -639,6 +795,12 @@ const trashList = ref<Widget[]>([])
 watch(trashList, () => {
   nextTick(() => (trashList.value = []))
 })
+
+const isDialOpen = ref(false)
+
+const toggleDial = (): void => {
+  isDialOpen.value = !isDialOpen.value
+}
 
 const forceUpdate = ref(0)
 
@@ -709,31 +871,36 @@ const makeWidgetUnique = (widget: InternalWidgetSetupInfo): InternalWidgetSetupI
   }
 }
 
-const availableInternalWidgets = computed(() =>
-  Object.values(WidgetType).map((widgetType) => {
-    return {
-      component: widgetType,
-      name: widgetType,
-      icon: widgetImages[widgetType] as string,
-      options: {},
-      defaultSize: widgetDefaultSizes[widgetType],
-    }
-  })
-)
+const availableInternalWidgets = computed(() => {
+  const hiddenWidgetsForOperator = [
+    WidgetType.CollapsibleContainer,
+    WidgetType.DepthHUD,
+    WidgetType.DoItYourself,
+    WidgetType.IFrame,
+  ]
+
+  return Object.values(WidgetType)
+    .filter((widgetType) => interfaceStore.isAdminMode || !hiddenWidgetsForOperator.includes(widgetType))
+    .map((widgetType) => {
+      return {
+        component: widgetType,
+        name: widgetType,
+        icon: widgetImages[widgetType] as string,
+        options: {},
+        defaultSize: widgetDefaultSizes[widgetType],
+      }
+    })
+})
 
 const allAvailableWidgets = computed(() => {
   return [
     ...ExternalWidgetSetupInfos.value.map((widget) => ({
       component: WidgetType.IFrame,
-      icon: widget.iframeIcon,
+      icon: widget.iframe_icon,
       name: widget.name,
       isExternal: true,
       options: {
-        source: widget.iframeUrl,
-        isCollapsible: widget.collapsibleContainerName !== undefined,
-        containerName: widget.collapsibleContainerName,
-        startCollapsed: widget.startCollapsed ?? false,
-        useVehicleAddressAsBase: widget.useExtensionPathAsBaseUrl ?? false,
+        source: widget.iframe_url,
       },
       defaultSize: widgetDefaultSizes[WidgetType.IFrame],
     })),
@@ -765,22 +932,94 @@ const availableCustomWidgetElementsTypes = computed(() =>
 )
 const widgetImages = {
   Attitude: AttitudeImg,
-  CollapsibleContainer: CollapsibleContainerImg,
   Compass: CompassImg,
   CompassHUD: CompassHUDImg,
+  CollapsibleContainer: CollapsibleContainerImg,
   DepthHUD: DepthHUDImg,
   DoItYourself: DoItYourselfImg,
   IFrame: IFrameImg,
   ImageView: ImageViewImg,
   Map: MapImg,
   MiniWidgetsBar: MiniWidgetsBarImg,
-  MissionControlPanel: MissionControlPanelImg,
-  NavisAtlasStatus: MissionControlPanelImg,
   Plotter: PlotterImg,
   URLVideoPlayer: URLVideoPlayerImg,
   VideoPlayer: VideoPlayerImg,
   VirtualHorizon: VirtualHorizonImg,
 }
+
+const selectView = (view: View): void => {
+  if (view === store.currentView) {
+    toggleViewsPanel()
+    return
+  }
+  store.selectView(view)
+}
+
+const confirmDelete = async (): Promise<void> => {
+  showDialog({
+    maxWidth: '500px',
+    message: t('editMenu.permanentlyDeleteProfile'),
+    actions: [
+      {
+        text: t('editMenu.cancel'),
+        action: () => closeDialog(),
+      },
+      {
+        text: t('editMenu.delete'),
+        action: () => {
+          store.deleteProfile(store.currentProfile)
+          closeDialog()
+        },
+      },
+    ],
+    variant: 'warning',
+  }).then((result) => {
+    if (result.isConfirmed) store.deleteProfile(store.currentProfile)
+  })
+}
+
+const pickVehicleImage = (profileName: string): string => {
+  const name = profileName.toLowerCase()
+  if (name.includes('rov')) return RovThumb
+  if (name.includes('boat')) return BoatThumb
+  return BlueRoboticsLogo
+}
+
+const currentImage = ref('')
+
+watch(
+  () => store.currentProfile.name,
+  (newName) => {
+    currentImage.value = pickVehicleImage(newName)
+  },
+  { immediate: true }
+)
+
+const isViewsPanelExpanded = ref(false)
+const toggleViewsPanel = (): void => {
+  isViewsPanelExpanded.value = !isViewsPanelExpanded.value
+}
+
+const content = ref<HTMLElement | null>(null)
+
+watch(isViewsPanelExpanded, (newValue) => {
+  if (content.value) {
+    if (newValue) {
+      content.value.style.maxHeight = content.value.scrollHeight + 'px'
+    } else {
+      content.value.style.maxHeight = content.value.scrollHeight + 'px'
+      setTimeout(() => {
+        content.value!.style.maxHeight = '0px'
+      }, 0)
+    }
+  }
+})
+
+onMounted(() => {
+  if (content.value && !isViewsPanelExpanded.value) {
+    content.value.style.maxHeight = '0px'
+  }
+})
 
 const widgetAddMenuGroupOptions = {
   name: 'generalGroup',
@@ -791,6 +1030,7 @@ const widgetAddMenuGroupOptions = {
 
 const editMode = toRefs(props).editMode
 
+const dropdownMenuRef = ref(null)
 const viewBeingRenamed = ref(store.currentView)
 const newViewName = ref('')
 const viewRenameDialogRevealed = ref(false)
@@ -800,12 +1040,30 @@ viewRenameDialog.onConfirm(() => {
   newViewName.value = ''
 })
 
+const profileBeingConfigured = ref(store.currentProfile)
+const newProfileName = ref('')
+const profileConfigDialogRevealed = ref(false)
+const profileConfigDialog = useConfirmDialog(profileConfigDialogRevealed)
+profileConfigDialog.onConfirm(() => {
+  profileBeingConfigured.value.name = newProfileName.value
+  newProfileName.value = ''
+})
+
+onClickOutside(dropdownMenuRef, () => {
+  isDialOpen.value = false
+})
+
 const addNewView = (): void => {
   if (!viewRenameDialogRevealed.value) {
     store.addView()
     forceUpdate.value++
     renameView(store.currentView)
   }
+}
+
+const addNewProfile = (): void => {
+  store.addProfile()
+  renameProfile(store.currentProfile)
 }
 
 const renameView = (view: View): void => {
@@ -817,7 +1075,7 @@ const renameView = (view: View): void => {
 const toggleViewVisibility = (view: View): void => {
   if (view.visible && view === store.currentView) {
     showDialog({
-      message: 'You cannot hide the current view.',
+      message: t('editMenu.cannotHideCurrentView'),
       variant: 'error',
       maxWidth: 400,
     })
@@ -826,20 +1084,26 @@ const toggleViewVisibility = (view: View): void => {
   view.visible = !view.visible
 }
 
-const resetViewsGroup = (): void => {
+const renameProfile = (profile: Profile): void => {
+  profileBeingConfigured.value = profile
+  newProfileName.value = profile.name
+  profileConfigDialogRevealed.value = true
+}
+
+const resetSavedProfiles = (): void => {
   showDialog({
-    message: 'Are you sure you want to reset your views to the defaults?',
+    message: t('editMenu.resetProfilesConfirm'),
     actions: [
       {
-        text: 'cancel',
+        text: t('editMenu.cancel'),
         action: () => {
           closeDialog()
         },
       },
       {
-        text: 'reset',
+        text: t('editMenu.resetProfiles'),
         action: () => {
-          store.resetViewsGroup()
+          store.resetSavedProfiles()
           closeDialog()
         },
       },
@@ -865,23 +1129,9 @@ const getExternalWidgetSetupInfos = async (): Promise<void> => {
     const vehicleAddress = await mainVehicleStore.getVehicleAddress()
     ExternalWidgetSetupInfos.value = await getWidgetsFromBlueOS(vehicleAddress)
   } catch (error) {
-    console.error('Could not fetch external widgets from BlueOS:', error)
-    // Only surface the error to the user when the vehicle is reachable; while it is offline we
-    // expect the fetch to fail and a retry will run automatically once it comes online (issue #2650).
-    if (mainVehicleStore.isVehicleOnline) {
-      const errorMessage = 'Error getting info around external widgets from BlueOS.'
-      openSnackbar({ message: errorMessage, variant: 'error', closeButton: true })
-    }
+    openSnackbar({ message: t('editMenu.errorExternalWidgets'), variant: 'error', closeButton: true })
   }
 }
-
-watch(
-  () => mainVehicleStore.isVehicleOnline,
-  (isOnline) => {
-    if (!isOnline) return
-    getExternalWidgetSetupInfos()
-  }
-)
 
 // @ts-ignore: Documentation is not clear on what generic should be passed to 'UseDraggableOptions'
 const customWidgetElementContainerOptions = ref<UseDraggableOptions>({
@@ -923,6 +1173,66 @@ onMounted(() => {
 
 const widgetMode = ref('Regular')
 
+const widgetModeItems = computed(() => [
+  { title: t('editMenu.regular'), value: 'Regular' },
+  { title: t('editMenu.mini'), value: 'Mini' },
+  { title: t('editMenu.input'), value: 'Input' },
+])
+
+/**
+ * Get localized widget name
+ * @param {string} widgetName - Original widget name
+ * @returns {string} Localized widget name
+ */
+const getLocalizedWidgetName = (widgetName: string): string => {
+  const key = `widgets.${widgetName}`
+  const translated = t(key)
+  // If translation not found, return formatted original name
+  if (translated === key) {
+    return widgetName.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (str) => str.toUpperCase())
+  }
+  return translated
+}
+
+/**
+ * Get localized mini-widget name
+ * @param {string} widgetName - Original mini-widget name
+ * @returns {string} Localized mini-widget name
+ */
+const getLocalizedMiniWidgetName = (widgetName: string): string => {
+  const key = `miniWidgetTypes.${widgetName}`
+  const translated = t(key)
+  // If translation not found, return formatted original name
+  if (translated === key) {
+    return widgetName.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (str) => str.toUpperCase())
+  }
+  return translated
+}
+
+/**
+ * Get localized container name
+ * @param {string} containerName - Original container name
+ * @returns {string} Localized container name
+ */
+const getLocalizedContainerName = (containerName: string): string => {
+  const key = `containers.${containerName}`
+  const translated = t(key)
+  if (translated === key) return containerName
+  return translated
+}
+
+/**
+ * Get localized view name
+ * @param {string} viewName - Original view name
+ * @returns {string} Localized view name
+ */
+const getLocalizedViewName = (viewName: string): string => {
+  const key = `views.${viewName}`
+  const translated = t(key)
+  if (translated === key) return viewName
+  return translated
+}
+
 // Resize mini widgets so they fit the layout when the widget mode is set to mini widgets
 const miniWidgetContainers = ref<Record<string, HTMLElement>>({})
 watch(widgetMode, async (newValue: string): Promise<void> => {
@@ -937,118 +1247,64 @@ watch(widgetMode, async (newValue: string): Promise<void> => {
   })
 })
 
-// Cached references for performance
-let cachedMainViewElement: HTMLElement | null = null
-let cachedMainViewRect: DOMRect | null = null
-let cachedWidgetSize: SizeRect2D | null = null
-let rafId: number | null = null
-let pendingPosition: Point2D | null = null
-
 // Get the coordinates of the widget being dragged and update the drag state
 const onRegularWidgetDragStart = (event: Event, widget: InternalWidgetSetupInfo): void => {
   const target = event.target as HTMLElement
   if (target) {
     target.style.opacity = '0.5'
   }
-
-  // Cache references for performance
-  cachedMainViewElement = document.querySelector('.main-view') as HTMLElement
-  if (cachedMainViewElement) {
-    cachedMainViewRect = cachedMainViewElement.getBoundingClientRect()
-  }
-  cachedWidgetSize = widget.defaultSize ?? { width: 0.2, height: 0.36 }
-
   store.widgetDragState = {
     widget,
     position: null,
   }
-
-  document.addEventListener('dragover', onDragOver, { passive: false })
+  document.addEventListener('dragover', onDragOver)
   document.addEventListener('touchmove', onTouchMove, { passive: true })
 }
 
 // Track drag position for ghost preview
 const onDragOver = (event: DragEvent): void => {
   event.preventDefault()
-  // Store position but don't update state yet - will be updated in RAF
-  if (cachedMainViewElement && cachedMainViewRect) {
-    pendingPosition = calculatePosition(event.clientX, event.clientY)
-    scheduleUpdate()
-  }
+  updateDragPosition(event.clientX, event.clientY)
 }
 
 // Track touch move for ghost preview
 const onTouchMove = (event: TouchEvent): void => {
-  if (store.widgetDragState.widget && event.touches.length > 0 && cachedMainViewElement && cachedMainViewRect) {
+  if (store.widgetDragState.widget && event.touches.length > 0) {
     const touch = event.touches[0]
-    pendingPosition = calculatePosition(touch.clientX, touch.clientY)
-    scheduleUpdate()
+    updateDragPosition(touch.clientX, touch.clientY)
   }
-}
-
-// Schedule position update using requestAnimationFrame for smooth 60fps updates
-const scheduleUpdate = (): void => {
-  if (rafId !== null) {
-    return // Already scheduled
-  }
-  rafId = requestAnimationFrame(() => {
-    if (pendingPosition !== null) {
-      store.widgetDragState.position = pendingPosition
-      pendingPosition = null
-    }
-    rafId = null
-  })
 }
 
 // Update the drag position for ghost preview
-const calculatePosition = (clientX: number, clientY: number): Point2D | null => {
-  if (!cachedMainViewElement || !cachedMainViewRect || !cachedWidgetSize || !store.widgetDragState.widget) {
-    return null
+const updateDragPosition = (clientX: number, clientY: number): void => {
+  const mainViewElement = document.querySelector('.main-view') as HTMLElement
+  if (!mainViewElement || !store.widgetDragState.widget) {
+    return
   }
 
-  // Will now only recalculate if significantly different to avoid constant recalculation
-  const currentRect = cachedMainViewElement.getBoundingClientRect()
-  if (
-    Math.abs(currentRect.left - (cachedMainViewRect?.left ?? 0)) > 1 ||
-    Math.abs(currentRect.top - (cachedMainViewRect?.top ?? 0)) > 1 ||
-    Math.abs(currentRect.width - (cachedMainViewRect?.width ?? 0)) > 1 ||
-    Math.abs(currentRect.height - (cachedMainViewRect?.height ?? 0)) > 1
-  ) {
-    cachedMainViewRect = currentRect
-  }
-
+  const mainViewRect = mainViewElement.getBoundingClientRect()
   const isWithinMainView =
-    clientX >= cachedMainViewRect.left &&
-    clientX <= cachedMainViewRect.right &&
-    clientY >= cachedMainViewRect.top &&
-    clientY <= cachedMainViewRect.bottom
+    clientX >= mainViewRect.left &&
+    clientX <= mainViewRect.right &&
+    clientY >= mainViewRect.top &&
+    clientY <= mainViewRect.bottom
 
   if (isWithinMainView) {
     // Calculate position relative to main-view
-    const dropX = (clientX - cachedMainViewRect.left) / cachedMainViewRect.width
-    const dropY = (clientY - cachedMainViewRect.top) / cachedMainViewRect.height
+    const dropX = (clientX - mainViewRect.left) / mainViewRect.width
+    const dropY = (clientY - mainViewRect.top) / mainViewRect.height
+    const widgetSize = store.widgetDragState.widget.defaultSize ?? { width: 0.2, height: 0.36 }
     // Center the widget on the drop position
-    const x = Math.max(0, Math.min(1 - cachedWidgetSize.width, dropX - cachedWidgetSize.width / 2))
-    const y = Math.max(0, Math.min(1 - cachedWidgetSize.height, dropY - cachedWidgetSize.height / 2))
-    return { x, y }
+    const x = Math.max(0, Math.min(1 - widgetSize.width, dropX - widgetSize.width / 2))
+    const y = Math.max(0, Math.min(1 - widgetSize.height, dropY - widgetSize.height / 2))
+    store.widgetDragState.position = { x, y }
+  } else {
+    store.widgetDragState.position = null
   }
-
-  return null
 }
 
 // Places the widget if it is within the main-view
 const onRegularWidgetDragEnd = (widget: InternalWidgetSetupInfo, event: DragEvent | TouchEvent): void => {
-  // Cancel any pending RAF updates
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId)
-    rafId = null
-  }
-
-  if (pendingPosition !== null) {
-    store.widgetDragState.position = pendingPosition
-    pendingPosition = null
-  }
-
   // Remove global event listeners added in onRegularWidgetDragStart
   document.removeEventListener('dragover', onDragOver)
   document.removeEventListener('touchmove', onTouchMove)
@@ -1067,24 +1323,18 @@ const onRegularWidgetDragEnd = (widget: InternalWidgetSetupInfo, event: DragEven
   }
 
   // If the main-view element is not found, return the opacity of the dragged widget card to 1 (previously set to 0.5 on onRegularWidgetDragStart)
-  const mainViewElement = cachedMainViewElement || (document.querySelector('.main-view') as HTMLElement)
+  const mainViewElement = document.querySelector('.main-view') as HTMLElement
   if (!mainViewElement) {
     const widgetCards = document.querySelectorAll('[draggable="true"]')
     widgetCards.forEach((card) => {
       ;(card as HTMLElement).style.opacity = '1'
     })
-    // Clear drag and other cached references
     store.widgetDragState = { widget: null, position: null }
-    cachedMainViewElement = null
-    cachedMainViewRect = null
-    cachedWidgetSize = null
     return
   }
 
-  // Use cached rect if available, otherwise get it fresh
-  const mainViewRect = cachedMainViewRect || mainViewElement.getBoundingClientRect()
-
   // Checks if the final dragged widget coordinates are within the main-view's bounding rectangle
+  const mainViewRect = mainViewElement.getBoundingClientRect()
   const isWithinMainView =
     clientX >= mainViewRect.left &&
     clientX <= mainViewRect.right &&
@@ -1093,13 +1343,13 @@ const onRegularWidgetDragEnd = (widget: InternalWidgetSetupInfo, event: DragEven
 
   if (isWithinMainView) {
     // Use the last tracked position if available, otherwise calculate from event
-    let dropPosition: Point2D
+    let dropPosition: Point2D = { x: 0, y: 0 }
     if (store.widgetDragState.position) {
       dropPosition = store.widgetDragState.position
     } else {
       const dropX = (clientX - mainViewRect.left) / mainViewRect.width
       const dropY = (clientY - mainViewRect.top) / mainViewRect.height
-      const widgetSize = cachedWidgetSize || widget.defaultSize || { width: 0.2, height: 0.36 }
+      const widgetSize = widget.defaultSize ?? { width: 0.2, height: 0.36 }
       dropPosition = {
         x: Math.max(0, Math.min(1 - widgetSize.width, dropX - widgetSize.width / 2)),
         y: Math.max(0, Math.min(1 - widgetSize.height, dropY - widgetSize.height / 2)),
@@ -1113,12 +1363,32 @@ const onRegularWidgetDragEnd = (widget: InternalWidgetSetupInfo, event: DragEven
     ;(card as HTMLElement).style.opacity = '1'
   })
 
-  // Again, clear drag state and cached references
   store.widgetDragState = { widget: null, position: null }
-  cachedMainViewElement = null
-  cachedMainViewRect = null
-  cachedWidgetSize = null
 }
+
+const availableVehicleTypes = computed(() => Object.keys(MavType))
+
+const vehicleTypesAssignedToCurrentProfile = computed({
+  get() {
+    return Object.keys(store.vehicleTypeProfileCorrespondency).filter((vType) => {
+      // @ts-ignore: Enums in TS such
+      return store.vehicleTypeProfileCorrespondency[vType] === profileBeingConfigured.value.hash
+    })
+  },
+  set(selectedVehicleTypes: string[]) {
+    availableVehicleTypes.value.forEach((vType) => {
+      // @ts-ignore: Enums in TS such
+      if (store.vehicleTypeProfileCorrespondency[vType] === profileBeingConfigured.value.hash) {
+        // @ts-ignore: Enums in TS such
+        store.vehicleTypeProfileCorrespondency[vType] = undefined
+      }
+      if (selectedVehicleTypes.includes(vType)) {
+        // @ts-ignore: Enums in TS such
+        store.vehicleTypeProfileCorrespondency[vType] = profileBeingConfigured.value.hash
+      }
+    })
+  },
+})
 </script>
 
 <style scoped>
@@ -1173,6 +1443,21 @@ const onRegularWidgetDragEnd = (widget: InternalWidgetSetupInfo, event: DragEven
   border-radius: 0.125rem;
   cursor: pointer;
   opacity: 0.8;
+}
+
+.content-expand-collapse {
+  width: 100%;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.content-expand-collapse.expanding {
+  max-height: 10000px; /* Set a large enough value to cover the content */
+}
+
+.content-expand-collapse.collapsing {
+  max-height: 0;
 }
 
 .wrapclass {
