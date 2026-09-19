@@ -17,7 +17,13 @@
         <v-text-field v-model="newPoiDescription" :label="t('poi.description')" variant="outlined"></v-text-field>
 
         <div class="grid grid-cols-2 gap-x-4">
-          <v-text-field v-model.number="newPoiLat" :label="t('poi.latitude')" variant="outlined" type="number" step="0.0000001" />
+          <v-text-field
+            v-model.number="newPoiLat"
+            :label="t('poi.latitude')"
+            variant="outlined"
+            type="number"
+            step="0.0000001"
+          />
           <v-text-field
             v-model.number="newPoiLng"
             :label="t('poi.longitude')"
@@ -38,7 +44,13 @@
                 <v-icon>mdi-palette</v-icon>
               </v-btn>
             </div>
-            <v-text-field v-model="newPoiColor" :label="t('poi.hexColor')" hide-details variant="outlined" class="flex-grow" />
+            <v-text-field
+              v-model="newPoiColor"
+              :label="t('poi.hexColor')"
+              hide-details
+              variant="outlined"
+              class="flex-grow"
+            />
             <v-spacer />
             <div
               class="cursor-pointer hover:opacity-80 flex flex-col items-center"
