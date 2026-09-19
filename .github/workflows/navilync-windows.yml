@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: '22.13.0'
       - name: Install dependencies
-        run: yarn install --frozen-lockfile --network-timeout 600000
+        run: yarn install --network-timeout 600000
       - name: Lint
         run: yarn lint
       - name: Typecheck
@@ -47,22 +47,22 @@ jobs:
         with:
           node-version: '22.13.0'
       - name: Install dependencies
-        run: yarn install --frozen-lockfile --network-timeout 600000
+        run: yarn install --network-timeout 600000
       - name: Build renderer and Electron entrypoints
         run: yarn build
-      - name: Build NaviLync NSIS installer
-        run: yarn deploy:electron:windows
-      - name: Verify exact installer
+      - name: Build NaviLync portable
+        run: yarn deploy:electron:windows:portable
+      - name: Verify exact portable executable
         shell: pwsh
         run: |
-          $expected = "dist/NaviLync-win-x64-${{ env.NAVILYNC_VERSION }}.exe"
+          $expected = "dist/NaviLync-${{ env.NAVILYNC_VERSION }}-portable-x64.exe"
           if (-not (Test-Path $expected)) {
             Get-ChildItem dist | Select-Object Name, Length
-            throw "Expected installer was not produced: $expected"
+            throw "Expected portable executable was not produced: $expected"
           }
-      - name: Upload NaviLync Windows x64 installer
+      - name: Upload NaviLync Windows x64 portable
         uses: actions/upload-artifact@v4
         with:
-          name: NaviLync-win-x64-${{ env.NAVILYNC_VERSION }}
-          path: dist/NaviLync-win-x64-${{ env.NAVILYNC_VERSION }}.exe
+          name: NaviLync-${{ env.NAVILYNC_VERSION }}-portable-win-x64
+          path: dist/NaviLync-${{ env.NAVILYNC_VERSION }}-portable-x64.exe
           if-no-files-found: error

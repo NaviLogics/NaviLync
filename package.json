@@ -27,7 +27,8 @@
     "test:ci": "vitest --coverage --run",
     "test:unit": "vitest",
     "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "build:lib": "cross-env BUILD_MODE=library vite build"
+    "build:lib": "cross-env BUILD_MODE=library vite build",
+    "deploy:electron:windows:portable": "powershell -Command \"$v = if ($env:NAVILYNC_VERSION) { $env:NAVILYNC_VERSION } elseif ($env:COCKPIT_VERSION) { $env:COCKPIT_VERSION } else { '1.18.4' }; electron-builder --win portable --x64 --publish=never --config.extraMetadata.version=$v\""
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.4.0",
@@ -96,7 +97,8 @@
     "webrtc-adapter": "^8.2.0",
     "yauzl": "^3.2.0",
     "yazl": "^3.3.1",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "vue-i18n": "9"
   },
   "devDependencies": {
     "@electron/notarize": "^3.0.1",
@@ -178,7 +180,7 @@
       "owner": "NaviLogics",
       "repo": "NaviLync"
     },
-    "artifactName": "${productName}-${os}-${arch}-${version}.${ext}",
+    "artifactName": "${productName}-${version}-portable-${arch}.${ext}",
     "mac": {
       "category": "public.app-category.utilities",
       "icon": "public/icon-mac-512x512.png",
@@ -188,7 +190,7 @@
     },
     "afterSign": "scripts/notarize.mjs",
     "win": {
-      "target": "nsis",
+      "target": "portable",
       "icon": "public/pwa-512x512.png"
     },
     "nsis": {
