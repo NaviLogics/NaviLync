@@ -14,7 +14,7 @@
     >
       <template #title>
         <p class="ml-10 text-center text-[13px] font-normal">
-          {{ selectedWaypoint.id === 'home' ? 'Home' : `Waypoint parameters` }}
+          {{ selectedWaypoint.id === 'home' ? $t('missionPlanning.home') : $t('missionPlanning.waypointParameters') }}
         </p>
       </template>
       <template #content>
@@ -23,7 +23,7 @@
           class="flex flex-col justify-center w-full items-center py-1 px-2 my-2 bg-[#EEEEEE22] text-white rounded-bl-md rounded-br-md"
         >
           <div class="flex w-full gap-x-4 my-[4px] justify-between text-[12px] text-center mb-[2px]">
-            <p class="w-[50px] text-start">Latitude:</p>
+            <p class="w-[50px] text-start">{{ $t('missionPlanning.latitude') }}:</p>
             <input
               :value="editableLat"
               class="text-right w-[130px] mt-[2px] bg-transparent h-[15px] border-transparent focus:outline-none text-xs"
@@ -33,7 +33,7 @@
           </div>
           <v-divider class="border-black w-full" />
           <div class="flex w-full gap-x-4 my-[4px] justify-between text-[12px] text-center pt-[1px]">
-            <p class="w-[50px] text-start">Longitude:</p>
+            <p class="w-[50px] text-start">{{ $t('missionPlanning.longitude') }}:</p>
             <input
               :value="editableLng"
               class="text-right w-[130px] mt-[2px] bg-transparent h-[15px] border-transparent focus:outline-none text-xs"
@@ -89,7 +89,7 @@
     >
       <template #title>
         <p class="ml-4 text-center text-[13px] font-normal">
-          Waypoint Commands ({{ waypointOnMissionStore?.commands?.length || 0 }})
+          {{ $t('missionPlanning.waypointCommands') }} ({{ waypointOnMissionStore?.commands?.length || 0 }})
         </p>
       </template>
       <template #content>
@@ -149,7 +149,7 @@
             prepend-icon="mdi-plus"
             @click="showCommandForm = true"
           >
-            Append New Command
+            {{ $t('missionPlanning.appendNewCommand') }}
           </v-btn>
 
           <!-- Command Input Form -->
@@ -172,7 +172,7 @@
         prepend-icon="mdi-delete"
         @click="handleRemoveWaypoint(selectedWaypoint)"
       >
-        Delete waypoint
+        {{ $t('missionPlanning.deleteWaypoint') }}
       </v-btn>
     </div>
   </div>
