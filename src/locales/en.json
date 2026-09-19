@@ -1438,5 +1438,28 @@
       "remapped": "Axis input remapped.",
       "noAxis": "No axis detected."
     }
+  },
+  "armSafety": {
+    "title": "Be careful",
+    "warning": "The vehicle is currently armed, and the main menu contains configurations and tools that can cause unsafe situations.",
+    "options": "Come back later, or proceed carefully with one of the following options:",
+    "neverWarn": "Continue and never warn again",
+    "sessionWarn": "Continue and don't warn again during this session",
+    "continue": "Continue anyway",
+    "disarm": "Disarm vehicle and continue",
+    "disabledMessage": "Armed menu warning disabled. You can re-enable it in Settings > Alerts."
+  },
+  "miniMission": {
+    "skipPrevious": "Skip to previous waypoint",
+    "pause": "Pause mission",
+    "startResume": "Start / resume mission",
+    "skipNext": "Skip to next waypoint",
+    "returnHome": "Return to home",
+    "currentWp": "Current WP",
+    "returnConfirm": "Are you sure you want to send the vehicle home?",
+    "returnFailed": "Failed to return home: {error}",
+    "controlFailed": "Failed to {action} mission: {error}",
+    "pauseVerb": "pause",
+    "startVerb": "start"
   }
 }

@@ -7,7 +7,7 @@
       class="flex gap-1 items-center overflow-hidden"
       :class="!vehicleStore.isVehicleOnline ? 'active-events-on-disabled' : ''"
     >
-      <v-tooltip location="top" open-delay="800" text="Skip to previous waypoint">
+      <v-tooltip location="top" open-delay="800" :text="t('miniMission.skipPrevious')">
         <template #activator="{ props: skipPrevProps }">
           <v-btn
             v-bind="skipPrevProps"
@@ -23,7 +23,7 @@
       <v-tooltip
         location="top"
         open-delay="800"
-        :text="missionStore.isMissionRunning ? 'Pause mission' : 'Start / resume mission'"
+        :text="missionStore.isMissionRunning ? t('miniMission.pause') : t('miniMission.startResume')"
       >
         <template #activator="{ props: playPauseProps }">
           <v-btn
@@ -37,7 +37,7 @@
           />
         </template>
       </v-tooltip>
-      <v-tooltip location="top" open-delay="800" text="Skip to next waypoint">
+      <v-tooltip location="top" open-delay="800" :text="t('miniMission.skipNext')">
         <template #activator="{ props: skipNextProps }">
           <v-btn
             v-bind="skipNextProps"
@@ -50,7 +50,7 @@
           />
         </template>
       </v-tooltip>
-      <v-tooltip location="top" open-delay="800" text="Return to home">
+      <v-tooltip location="top" open-delay="800" :text="t('miniMission.returnHome')">
         <template #activator="{ props: homeProps }">
           <v-btn
             v-bind="homeProps"
@@ -65,7 +65,7 @@
       </v-tooltip>
       <v-divider vertical class="h-[25px] mt-[5px]" />
       <div class="flex flex-col justify-between w-[46px] h-[33px] text-[8px] ml-1 mt-[4px]">
-        <div class="w-full text-nowrap text-center">Current WP</div>
+        <div class="w-full text-nowrap text-center">{{ t('miniMission.currentWp') }}</div>
         <div class="mb-1 text-[12px] font-bold">{{ currentWaypointOnMission }}</div>
       </div>
     </div>
@@ -74,6 +74,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { openSnackbar } from '@/composables/snackbar'
@@ -81,6 +82,7 @@ import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
 
 const { showDialog, closeDialog } = useInteractionDialog()
+const { t } = useI18n()
 const missionStore = useMissionStore()
 const vehicleStore = useMainVehicleStore()
 
@@ -91,23 +93,23 @@ const currentWaypointOnMission = computed<string>((): string => {
 
 const handleReturnHome = (): void => {
   showDialog({
-    title: 'Return to home',
-    message: 'Are you sure you want to send the vehicle home?',
+    title: t('miniMission.returnHome'),
+    message: t('miniMission.returnConfirm'),
     variant: 'warning',
     actions: [
       {
-        text: 'Cancel',
+        text: t('common.cancel'),
         size: 'small',
         action: closeDialog,
       },
       {
-        text: 'Confirm',
+        text: t('common.confirm'),
         size: 'small',
         action: () => {
           closeDialog()
           vehicleStore.returnHome().catch((err) => {
             openSnackbar({
-              message: `Failed to return home: ${(err as Error).message}`,
+              message: t('miniMission.returnFailed', { error: (err as Error).message }),
               variant: 'error',
             })
           })
@@ -126,7 +128,7 @@ const handlePlayAndPause = async (): Promise<void> => {
     }
   } catch (err) {
     openSnackbar({
-      message: `Failed to ${missionStore.isMissionRunning ? 'pause' : 'start'} mission: ${(err as Error).message}`,
+      message: t('miniMission.controlFailed', { action: missionStore.isMissionRunning ? t('miniMission.pauseVerb') : t('miniMission.startVerb'), error: (err as Error).message }),
       variant: 'error',
     })
   }
