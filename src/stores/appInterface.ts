@@ -38,6 +38,8 @@ export enum SubMenuComponentName {
 export const useAppInterfaceStore = defineStore('responsive', {
   state: () => ({
     pirateMode: useBlueOsStorage('cockpit-pirate-mode', false),
+    /** NaviLync operator/admin mode: advanced configuration stays hidden for operators. */
+    isAdminMode: useBlueOsStorage('cockpit-admin-mode', false),
     showSkullAnimation: false,
     width: windowWidth.value,
     height: windowHeight.value,

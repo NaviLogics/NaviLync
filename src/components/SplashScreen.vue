@@ -88,7 +88,7 @@
         style="container-type: size"
       >
         <p class="max-w-full whitespace-nowrap text-ellipsis overflow-hidden" style="font-size: 30cqh">
-          {{ randomLightHeartedMessage }}
+          {{ loadingMessage() }}
         </p>
       </div>
     </div>
@@ -126,17 +126,17 @@ import { getMonth } from 'date-fns'
 
 import { useAppInterfaceStore } from '@/stores/appInterface'
 
-import blueRoboticsWhiteNameLogo from '../assets/blue-robotics-white-name-logo.avif'
-import blueROV from '../assets/blueROV-front.avif'
-import blueROVXmas from '../assets/blueROV-front-santa-hat.avif'
-import rovSide from '../assets/blueROV-side-dark.avif'
-import cockpitLogoName from '../assets/cockpit-name-logo.avif'
-import fish from '../assets/fish-transparent.avif'
-import lite from '../assets/lite.avif'
+import blueRoboticsWhiteNameLogo from '../assets/blue-robotics-white-name-logo.png'
+import blueROV from '../assets/blueROV-front.png'
+import blueROVXmas from '../assets/blueROV-front-santa-hat.png'
+import rovSide from '../assets/blueROV-side-dark.png'
+import cockpitLogoName from '../assets/cockpit-name-logo.png'
+import fish from '../assets/fish-transparent.png'
+import lite from '../assets/lite.png'
 import xmasTree from '../assets/pulling-xmas-tree.gif'
-import splashBackground from '../assets/splash-background.avif'
-import tether from '../assets/tether.avif'
-import tetherXmas from '../assets/tether-xmas.avif'
+import splashBackground from '../assets/splash-background.png'
+import tether from '../assets/tether.png'
+import tetherXmas from '../assets/tether-xmas.png'
 
 const interfaceStore = useAppInterfaceStore()
 const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
@@ -144,59 +144,14 @@ const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
 const isDecember = (): boolean => getMonth(new Date()) === 11
 
 import { useFullscreen } from '@vueuse/core'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { isElectron } from '@/libs/utils'
 
-const randomLightHeartedMessage = ref<string>('')
-let timerId: ReturnType<typeof setTimeout>
+const { t } = useI18n()
 
-const startupLightHeartedMessages: string[] = [
-  'Distributing dolphins for sonar translations...',
-  'Observing octopuses to optimize dark mode...',
-  'Persuading Poseidon to trade us his trident...',
-  'Sailing the seas, in sync with the breeze...',
-  'Jiggling jellyfish to frost up the UI...',
-  'Corralling coral for calibration...',
-  'Languishing in life-jackets...',
-  'Salvaging shipwrecks...',
-  'Searching for Nemo...',
-  'Singing with whales...',
-  'Tuning harps for carp...',
-  'Stargazing with starfish...',
-  'Recharging electric eels...',
-  'Swaying at the seaweed disco...',
-  'Fencing in the swordfish showdown...',
-  'Assembling AUVs into a single-file line...',
-  'Polishing portholes for crystal-clear viewports...',
-  'Convincing crabs to stop double-clicking everything...',
-  'Syncing compass with the stars (hold still, Orion)...',
-  'Kowtowing to kelp for a greener UI theme...',
-  'Warming up thrusters — and the coffee machine...',
-  'Updating barnacle firmware — this might tickle...',
-  'Deploying rubber ducks for safety certification...',
-  'Filling ballast tanks with fresh ideas...',
-  'Mapping ocean puns… depth-level humor detected...',
-  'Rendering waves pixel by pixel — surf’s almost up...',
-  'Teaching seagulls the latest hover gestures...',
-  'Checking tide tables to schedule snack breaks...',
-  'Swapping batteries in the sea turtles (just kidding)...',
-  'Dusting off code gremlins  —  please keep arms inside the Cockpit...',
-  'Aligning gyros — because spin is only fun on dance floors...',
-]
-
-const remainingMessages = ref<string[]>([...startupLightHeartedMessages])
-
-const scheduleNextMessage = (): void => {
-  const randomIndex = Math.floor(Math.random() * remainingMessages.value.length)
-  const delay = Math.random() * 5000 + 3000
-
-  if (remainingMessages.value.length === 0) {
-    remainingMessages.value = [...startupLightHeartedMessages]
-  }
-  randomLightHeartedMessage.value = remainingMessages.value.splice(randomIndex, 1)[0]
-  timerId = setTimeout(scheduleNextMessage, delay)
-}
+const loadingMessage = (): string => t('splashScreen.loading')
 
 const handleKeydown = (event: KeyboardEvent): void => {
   if (event.key === 'Escape') {
@@ -206,12 +161,10 @@ const handleKeydown = (event: KeyboardEvent): void => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
-  scheduleNextMessage()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
-  clearTimeout(timerId)
 })
 </script>
 <style scoped>
