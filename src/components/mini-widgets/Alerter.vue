@@ -1,7 +1,7 @@
 <template>
   <div ref="currentAlertBar" class="flex" :class="{ 'pointer-events-none': widgetStore.editingMode }">
     <div
-      class="relative mx-1 my-1.5 w-[500px] rounded-md"
+      class="mx-1 my-1.5 w-[500px] rounded-md"
       :class="{ 'alert-border-blink': shouldBlinkBorder }"
       :style="miniWidget.options.enableColorCoding ? colorCodeBorderStyle : 'border: none;'"
     >
@@ -13,67 +13,44 @@
       </div>
       <div
         ref="expandedAlertsBar"
-        class="expanded-alerts-bar absolute left-0 right-0 transition-all rounded bg-slate-800/75 select-none flex max-h-[30vh]"
-        style="border: 1px solid #94a3b866"
-        :class="{
-          'opacity-0 invisible': !isShowingExpandedAlerts || widgetStore.editingMode,
-          'flex-col': shouldExpandUpward,
-          'flex-col-reverse': !shouldExpandUpward,
-          'top-[46px]': !shouldExpandUpward,
-          'bottom-[46px]': shouldExpandUpward,
-        }"
+        class="expanded-alerts-bar absolute w-full p-2 transition-all rounded top-12 max-h-[30vh] overflow-y-auto text-slate-50 scrollbar-hide bg-slate-800/75 select-none flex flex-col"
+        :class="{ 'opacity-0 invisible': !isShowingExpandedAlerts }"
       >
-        <div class="p-2 overflow-y-auto text-slate-50 scrollbar-hide flex flex-col">
-          <div v-for="(alert, i) in sortedAlertsReversed" :key="alert.time_created.toISOString()">
+        <div v-for="(alert, i) in sortedAlertsReversed" :key="alert.time_created.toISOString()">
+          <div
+            :title="alert.message"
+            class="flex items-center justify-between whitespace-nowrap"
+            :class="{
+              'border-[1px] border-[#dc262699] bg-[#dc262622] pa-1':
+                (alert.level === AlertLevel.Critical || alert.level === AlertLevel.Error) &&
+                miniWidget.options.enableColorCoding,
+            }"
+          >
+            <p class="mx-1 overflow-hidden text-lg font-medium leading-none text-ellipsis">{{ alert.message }}</p>
             <div
-              :title="alert.message"
-              class="flex items-center justify-between whitespace-nowrap"
-              :style="alertRowHighlightStyle(alert.level)"
+              class="flex flex-col justify-center mx-1 font-mono text-xs font-semibold leading-3 text-right text-gray-100"
             >
-              <p class="mx-1 overflow-hidden text-lg font-medium leading-none text-ellipsis">{{ alert.message }}</p>
-              <div
-                class="flex flex-col justify-center mx-1 font-mono text-xs font-semibold leading-3 text-right text-gray-100"
-              >
-                <p>{{ formattedDate(alert.time_created || new Date()) }}</p>
-                <p>{{ alert.level.toUpperCase() }}</p>
-              </div>
+              <p>{{ formattedDate(alert.time_created || new Date()) }}</p>
+              <p>{{ alert.level.toUpperCase() }}</p>
             </div>
-            <div
-              v-if="i !== alertStore.alerts.length - 1"
-              class="h-px mx-1 mb-2"
-              :style="{
-                backgroundColor: isHighlightedLevel(alert.level) ? `${alertLevelColors[alert.level]}99` : undefined,
-              }"
-              :class="{ 'bg-slate-50/30': !isHighlightedLevel(alert.level) }"
-            />
           </div>
-        </div>
-        <div
-          class="flex items-center justify-center py-0.5 cursor-pointer hover:brightness-125 transition-all"
-          :style="{
-            [shouldExpandUpward ? 'borderTop' : 'borderBottom']: '1px solid #94a3b866',
-            backgroundColor: '#94a3b866',
-          }"
-          @click="toggleExpandedAlertLock()"
-        >
-          <v-icon
-            icon="mdi-arrow-vertical-lock"
-            size="x-small"
-            class="lock-icon transition-colors"
-            :class="
-              miniWidget.options.lockExpansion
-                ? 'text-slate-200 hover:text-slate-100'
-                : 'text-slate-400 hover:text-slate-200'
-            "
-          />
+          <div v-if="i !== alertStore.alerts.length - 1" class="h-px mx-1 mb-2 bg-slate-50/30" />
         </div>
       </div>
     </div>
+    <v-btn
+      v-if="isShowingExpandedAlerts || lockAlertsOpened"
+      icon="mdi-arrow-vertical-lock"
+      variant="text"
+      :color="lockAlertsOpened ? 'orange ' : 'white'"
+      class="-mr-8 -ml-4 mt-[2px] bg-transparent"
+      @click="toggleExpandedAlertLock()"
+    ></v-btn>
   </div>
 
   <InteractionDialog
     v-model="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen"
-    title="Alerter options"
+    :title="$t('alerter.optionsTitle')"
     max-width="400px"
     variant="text-only"
   >
@@ -82,10 +59,15 @@
         <v-switch
           v-model="miniWidget.options.enableColorCoding"
           hide-details
-          label="Enable color coded alerts"
+          :label="$t('alerter.enableColorCoding')"
           color="white"
         />
-        <v-switch v-model="alertStore.enableVoiceAlerts" hide-details label="Enable voice alerts" color="white" />
+        <v-switch
+          v-model="alertStore.enableVoiceAlerts"
+          hide-details
+          :label="$t('alerter.enableVoiceAlerts')"
+          color="white"
+        />
         <v-slider
           v-model="alertStore.alertVolume"
           min="0"
@@ -93,7 +75,7 @@
           step="0.05"
           hide-details
           thumb-label
-          label="Alert volume"
+          :label="$t('alerter.alertVolume')"
           color="white"
           class="w-[250px] mt-2"
           :disabled="!alertStore.enableVoiceAlerts"
@@ -101,20 +83,23 @@
       </div>
     </template>
     <template #actions>
-      <v-btn @click="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen = false">Close</v-btn>
+      <v-btn @click="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen = false">{{
+        $t('alerter.close')
+      }}</v-btn>
     </template>
   </InteractionDialog>
 </template>
 
 <script setup lang="ts">
-import { useElementBounding, useElementHover, useTimestamp, useToggle, useWindowSize } from '@vueuse/core'
+import { useElementHover, useTimestamp, useToggle } from '@vueuse/core'
 import { differenceInSeconds, format } from 'date-fns'
 import { computed, onMounted, onUnmounted, ref, toRefs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useAlertStore } from '@/stores/alert'
 import { useVehicleAlerterStore } from '@/stores/vehicleAlerter'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
-import { Alert, AlertLevel, alertLevelColors } from '@/types/alert'
+import { Alert, AlertLevel } from '@/types/alert'
 import { MiniWidget } from '@/types/widgets'
 
 import InteractionDialog from '../InteractionDialog.vue'
@@ -131,8 +116,8 @@ const props = defineProps<{
 const miniWidget = toRefs(props).miniWidget
 
 miniWidget.value.options.enableColorCoding ??= true
-miniWidget.value.options.lockExpansion ??= false
 
+const { t } = useI18n()
 useVehicleAlerterStore()
 const alertStore = useAlertStore()
 const widgetStore = useWidgetManagerStore()
@@ -143,38 +128,25 @@ const alertPersistencyInterval = 10 // in seconds
 const formattedDate = (datetime: Date): string => format(datetime, 'HH:mm:ss')
 
 const currentAlert = ref(alertStore.alerts[0])
+const lockAlertsOpened = ref(false)
 const currentDisplayedAlertIndex = ref(alertStore.alerts.length - 1)
 
 const colorCodeBorderStyle = computed(() => {
-  if (currentAlert.value.level === AlertLevel.Critical) return 'border: 2px solid transparent'
-  const color = alertLevelColors[currentAlert.value.level]
-  return color ? `border: 2px solid ${color};` : 'border: none;'
-})
-
-const highlightedAlertLevels = [AlertLevel.Critical, AlertLevel.Error, AlertLevel.Warning]
-
-/**
- * Returns inline styles for highlighting an alert row based on its level
- * @param {AlertLevel} level - The alert level to style
- * @returns {Record<string, string>} CSS style object with border and background tint
- */
-const isHighlightedLevel = (level: AlertLevel): boolean => {
-  return miniWidget.value.options.enableColorCoding && highlightedAlertLevels.includes(level)
-}
-
-/**
- * Returns inline styles for highlighting an alert row based on its level
- * @param {AlertLevel} level - The alert level to style
- * @returns {Record<string, string>} CSS style object with border and background tint
- */
-const alertRowHighlightStyle = (level: AlertLevel): Record<string, string> => {
-  if (!isHighlightedLevel(level)) return {}
-  const color = alertLevelColors[level]
-  return {
-    backgroundColor: `${color}22`,
-    padding: '2px',
+  switch (currentAlert.value.level) {
+    case AlertLevel.Critical:
+      return 'border: 2px solid transparent'
+    case AlertLevel.Error:
+      return 'border: 2px solid #dc2626;'
+    case AlertLevel.Warning:
+      return 'border: 2px solid #db9340;'
+    case AlertLevel.Info:
+      return 'border: 2px solid #3b82f655;'
+    case AlertLevel.Success:
+      return 'border: 2px solid #308013;'
+    default:
+      return 'border: none;'
   }
-}
+})
 
 const shouldBlinkBorder = computed<boolean>(() => {
   return miniWidget.value.options.enableColorCoding && currentAlert.value.level === AlertLevel.Critical
@@ -193,7 +165,7 @@ onMounted(() => {
       // We're showing the latest alert, check if it's too old
       const secsSinceLastAlert = differenceInSeconds(dateNow, lastAlert?.time_created || dateNow)
       if (secsSinceLastAlert > alertPersistencyInterval) {
-        currentAlert.value = new Alert(AlertLevel.Info, 'No recent alerts.')
+        currentAlert.value = new Alert(AlertLevel.Info, t('alerter.noRecentAlerts'))
         return
       }
       currentAlert.value = lastAlert!
@@ -219,34 +191,26 @@ watch(
   (newLength, oldLength) => {
     // If this is a new alert and we're currently showing the "no recent alerts" message,
     // jump to the new alert immediately
-    if (newLength > oldLength && currentAlert.value.message === 'No recent alerts.') {
+    if (newLength > oldLength && currentAlert.value.message === t('alerter.noRecentAlerts')) {
       currentDisplayedAlertIndex.value = newLength - 1
       currentAlert.value = alertStore.alerts[currentDisplayedAlertIndex.value]
     }
   }
 )
 
-const [isShowingExpandedAlerts, toggleExpandedAlerts] = useToggle(miniWidget.value.options.lockExpansion)
+const [isShowingExpandedAlerts, toggleExpandedAlerts] = useToggle()
 const showExpandedAlerts = (): boolean => toggleExpandedAlerts(true)
 const hideExpandedAlerts = (): boolean => toggleExpandedAlerts(false)
 
-const currentAlertBar = ref<HTMLElement>()
-const { top: barTop } = useElementBounding(currentAlertBar)
-const { height: windowHeight } = useWindowSize()
-const shouldExpandUpward = computed(() => barTop.value > windowHeight.value / 2)
-
+const currentAlertBar = ref()
 const isCurrentAlertBarHovered = useElementHover(currentAlertBar)
 const expandedAlertsBar = ref()
 const isExpandedAlertsBarHovered = useElementHover(expandedAlertsBar)
 watch(isCurrentAlertBarHovered, (isHovered, wasHovered) => {
-  if (miniWidget.value.options.lockExpansion) return
+  if (lockAlertsOpened.value) return
   if (wasHovered && !isHovered) {
     setTimeout(() => {
-      if (
-        !miniWidget.value.options.lockExpansion &&
-        !isExpandedAlertsBarHovered.value &&
-        !isCurrentAlertBarHovered.value
-      ) {
+      if (!lockAlertsOpened.value && !isExpandedAlertsBarHovered.value && !isCurrentAlertBarHovered.value) {
         hideExpandedAlerts()
       }
     }, 250)
@@ -255,15 +219,16 @@ watch(isCurrentAlertBarHovered, (isHovered, wasHovered) => {
   showExpandedAlerts()
 })
 watch(isExpandedAlertsBarHovered, (isHovering, wasHovering) => {
-  if (miniWidget.value.options.lockExpansion) return
+  if (lockAlertsOpened.value) return
   if (!(wasHovering && !isHovering)) return
   hideExpandedAlerts()
 })
 
 const toggleExpandedAlertLock = (): void => {
-  miniWidget.value.options.lockExpansion = !miniWidget.value.options.lockExpansion
+  const shouldLock = !lockAlertsOpened.value
+  lockAlertsOpened.value = shouldLock
 
-  if (miniWidget.value.options.lockExpansion) {
+  if (shouldLock) {
     showExpandedAlerts()
     return
   }

@@ -9,7 +9,7 @@
         </span>
       </div>
       <span class="w-full text-sm absolute bottom-[0.5rem] whitespace-nowrap text-ellipsis overflow-x-hidden">
-        Depth
+        {{ $t('miniWidgets.depthIndicator.depth') }}
       </span>
     </div>
   </div>
@@ -18,11 +18,14 @@
 <script setup lang="ts">
 import { unit } from 'mathjs'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { unitAbbreviation } from '@/libs/units'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
+
+useI18n()
 
 const vehicleStore = useMainVehicleStore()
 const { displayUnitPreferences } = useAppInterfaceStore()

@@ -21,11 +21,13 @@
       <v-card min-width="420" min-height="280" class="rounded-lg" :style="interfaceStore.globalGlassMenuStyles">
         <v-card-text class="pa-3">
           <div v-if="dataStatus === 'error'" class="text-center mb-3">
-            <v-alert type="warning" density="compact" class="text-sm"> No EKF data - Check vehicle connection </v-alert>
+            <v-alert type="warning" density="compact" class="text-sm">
+              {{ $t('miniWidgets.ekfIndicator.noData') }}
+            </v-alert>
           </div>
           <div v-else-if="dataStatus === 'loading'" class="text-center mb-3">
             <v-progress-circular indeterminate size="20" width="2" class="mr-2" />
-            <span class="text-sm text-white opacity-70">Waiting for EKF data...</span>
+            <span class="text-sm text-white opacity-70">{{ $t('miniWidgets.ekfIndicator.waiting') }}</span>
           </div>
           <div class="d-flex">
             <!-- EKF Bars Section -->
@@ -82,23 +84,33 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { listenDataLakeVariable, unlistenDataLakeVariable } from '@/libs/actions/data-lake'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 
+const { t } = useI18n()
 const interfaceStore = useAppInterfaceStore()
 const menu = ref(false)
 const listeners = ref<Map<string, string>>(new Map())
 const dataStatus = ref<'loading' | 'connected' | 'error'>('loading')
 
 // EKF bar data
-const ekfBars = reactive([
-  { label: 'Velocity', value: 0.0 },
-  { label: 'Position (Horiz)', value: 0.0 },
-  { label: 'Position (Vert)', value: 0.0 },
-  { label: 'Compass', value: 0.0 },
-  { label: 'Terrain', value: 0.0 },
+const ekfBars = computed(() => [
+  { label: t('miniWidgets.ekfIndicator.velocity'), value: ekfBarValues.velocity },
+  { label: t('miniWidgets.ekfIndicator.positionHoriz'), value: ekfBarValues.posHoriz },
+  { label: t('miniWidgets.ekfIndicator.positionVert'), value: ekfBarValues.posVert },
+  { label: t('miniWidgets.ekfIndicator.compass'), value: ekfBarValues.compass },
+  { label: t('miniWidgets.ekfIndicator.terrain'), value: ekfBarValues.terrain },
 ])
+
+const ekfBarValues = reactive({
+  velocity: 0.0,
+  posHoriz: 0.0,
+  posVert: 0.0,
+  compass: 0.0,
+  terrain: 0.0,
+})
 
 // EKF flags data
 const ekfFlags = reactive({
@@ -155,10 +167,10 @@ const getFlagTooltip = (key: string): string => {
 }
 
 const worstStatusBackgroundColor = computed(() => {
-  const hasRedBar = ekfBars.some((bar) => bar.value > 0.8)
+  const hasRedBar = ekfBars.value.some((bar) => bar.value > 0.8)
   if (hasRedBar) return 'rgba(255, 51, 51, 0.7)'
 
-  const hasOrangeBar = ekfBars.some((bar) => bar.value > 0.5 && bar.value <= 0.8)
+  const hasOrangeBar = ekfBars.value.some((bar) => bar.value > 0.5 && bar.value <= 0.8)
   if (hasOrangeBar) return 'rgba(251, 146, 60, 0.7)'
 
   return 'rgba(74, 222, 128, 0.7)'
@@ -168,10 +180,10 @@ const statusIcon = computed(() => {
   if (dataStatus.value === 'loading') return 'mdi-dots-horizontal'
   if (dataStatus.value === 'error') return 'mdi-alert-circle'
 
-  const hasRedBar = ekfBars.some((bar) => bar.value > 0.8)
+  const hasRedBar = ekfBars.value.some((bar) => bar.value > 0.8)
   if (hasRedBar) return 'mdi-alert'
 
-  const hasOrangeBar = ekfBars.some((bar) => bar.value > 0.5 && bar.value <= 0.8)
+  const hasOrangeBar = ekfBars.value.some((bar) => bar.value > 0.5 && bar.value <= 0.8)
   if (hasOrangeBar) return 'mdi-alert'
 
   return 'mdi-check-bold'

@@ -21,7 +21,11 @@
 
     <InteractionDialog
       v-model="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen"
-      :title="joystickConnected ? 'Joystick connected' : 'Joystick disconnected'"
+      :title="
+        joystickConnected
+          ? $t('miniWidgets.joystickIndicator.connected')
+          : $t('miniWidgets.joystickIndicator.disconnected')
+      "
       max-width="400px"
       variant="text-only"
     >
@@ -38,7 +42,9 @@
         </div>
       </template>
       <template #actions>
-        <v-btn @click="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen = false">Close</v-btn>
+        <v-btn @click="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen = false">{{
+          $t('miniWidgets.joystickIndicator.close')
+        }}</v-btn>
       </template>
     </InteractionDialog>
   </div>
@@ -46,12 +52,15 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, toRefs } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import { joystickManager } from '@/libs/joystick/manager'
 import { useControllerStore } from '@/stores/controller'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
 import type { MiniWidget } from '@/types/widgets'
+
+const { t } = useI18n()
 
 /**
  * Props for the JoystickCommIndicator component
@@ -79,13 +88,13 @@ const indicatorClass = computed(() => {
 })
 
 const tooltipText = computed(() => {
-  if (!joystickConnected.value) return 'Joystick disconnected'
-  if (!controllerStore.enableForwarding) return 'Joystick connected but disabled'
-  return 'Joystick connected and enabled'
+  if (!joystickConnected.value) return t('miniWidgets.joystickIndicator.disconnected')
+  if (!controllerStore.enableForwarding) return t('miniWidgets.joystickIndicator.connectedDisabled')
+  return t('miniWidgets.joystickIndicator.connectedEnabled')
 })
 
 const switchLabel = computed(() => {
-  if (controllerStore.enableForwarding) return 'Joystick commands enabled'
-  return 'Joystick commands paused'
+  if (controllerStore.enableForwarding) return t('miniWidgets.joystickIndicator.commandsEnabled')
+  return t('miniWidgets.joystickIndicator.commandsPaused')
 })
 </script>
