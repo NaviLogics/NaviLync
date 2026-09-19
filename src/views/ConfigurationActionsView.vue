@@ -1,20 +1,19 @@
 <template>
   <BaseConfigurationView>
-    <template #title>Cockpit actions configuration</template>
+    <template #title>{{ t('configActions.title') }}</template>
     <template #content>
       <div class="flex-col h-full overflow-y-auto ml-[10px] pr-3 -mr-[10px] -mb-[10px]">
         <ExpansiblePanel no-top-divider no-bottom-divider :is-expanded="!interfaceStore.isOnPhoneScreen">
-          <template #title>Actions</template>
+          <template #title>{{ t('configActions.actions') }}</template>
           <template #info>
-            <li>View, manage, and create different types of actions.</li>
-            <li>HTTP Request actions can be used to call external APIs, like servers, vehicles, cameras, etc.</li>
-            <li>MAVLink Message actions allow you to send specific MAVLink messages to vehicles.</li>
-            <li>JavaScript actions give you full flexibility by allowing you to write custom code.</li>
+            <li>{{ t('configActions.info1') }}</li>
+            <li>{{ t('configActions.info2') }}</li>
+            <li>{{ t('configActions.info3') }}</li>
+            <li>{{ t('configActions.info4') }}</li>
             <li>
-              The link button can be used to link Actions to Data Lake variables, so that changes to the variable value
-              will automatically trigger the linked action.
+              {{ t('configActions.info5') }}
             </li>
-            <li>Actions can also be tested/run manually, using the play button.</li>
+            <li>{{ t('configActions.info6') }}</li>
           </template>
           <template #content>
             <div class="flex justify-center flex-col ml-2 pr-4 mb-8 mt-2 w-full">
@@ -100,11 +99,11 @@
                     <td colspan="3" class="text-center flex items-center justify-center h-[50px] mb-3 w-full gap-2">
                       <v-btn variant="outlined" class="rounded-lg" @click="actionTypeDialog.show = true">
                         <v-icon start>mdi-plus</v-icon>
-                        New action
+                        {{ t('configActions.newAction') }}
                       </v-btn>
                       <v-btn variant="outlined" class="rounded-lg" @click="importAction">
                         <v-icon start>mdi-import</v-icon>
-                        Import action
+                        {{ t('configActions.importAction') }}
                       </v-btn>
                     </td>
                   </tr>
@@ -112,7 +111,7 @@
                 <template #no-data>
                   <tr>
                     <td colspan="3" class="text-center flex items-center justify-center h-[50px] w-full">
-                      <p class="text-[16px] ml-[170px] w-full">No actions found</p>
+                      <p class="text-[16px] ml-[170px] w-full">{{ t('configActions.noActionsFound') }}</p>
                     </td>
                   </tr>
                 </template>
@@ -124,7 +123,9 @@
         <!-- Action Type Selection Dialog -->
         <v-dialog v-model="actionTypeDialog.show" max-width="400px">
           <v-card class="rounded-lg" :style="interfaceStore.globalGlassMenuStyles">
-            <v-card-title class="text-h6 font-weight-bold py-4 text-center">Select Action Type</v-card-title>
+            <v-card-title class="text-h6 font-weight-bold py-4 text-center">{{
+              t('configActions.selectActionType')
+            }}</v-card-title>
             <v-card-text class="px-8">
               <v-list bg-color="transparent">
                 <v-list-item
@@ -144,7 +145,9 @@
             <v-divider class="mt-2 mx-10" />
             <v-card-actions>
               <div class="flex justify-between items-center pa-2 w-full h-full">
-                <v-btn color="white" variant="text" @click="actionTypeDialog.show = false">Cancel</v-btn>
+                <v-btn color="white" variant="text" @click="actionTypeDialog.show = false">{{
+                  t('configActions.cancel')
+                }}</v-btn>
               </div>
             </v-card-actions>
           </v-card>
@@ -175,6 +178,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ActionLinkConfig from '@/components/configuration/ActionLinkConfig.vue'
 import HttpRequestActionConfig from '@/components/configuration/HttpRequestActionConfig.vue'
@@ -194,6 +198,7 @@ import { ActionConfig, customActionTypes, customActionTypesNames } from '@/types
 
 import BaseConfigurationView from './BaseConfigurationView.vue'
 
+const { t } = useI18n()
 const interfaceStore = useAppInterfaceStore()
 
 const httpRequestConfig = ref()
@@ -247,11 +252,11 @@ const allActionConfigs = computed<LinkedActionConfig[]>(() => {
 })
 
 const headers = [
-  { title: 'Name', key: 'name', sortable: true, align: 'start' },
-  { title: 'Type', key: 'type', sortable: true, align: 'center' },
-  { title: 'Min Interval', key: 'minInterval', sortable: false, align: 'center' },
-  { title: 'Linked Variables', key: 'linkedVariables', sortable: false, align: 'center' },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
+  { title: t('configActions.headers.name'), key: 'name', sortable: true, align: 'start' },
+  { title: t('configActions.headers.type'), key: 'type', sortable: true, align: 'center' },
+  { title: t('configActions.headers.minInterval'), key: 'minInterval', sortable: false, align: 'center' },
+  { title: t('configActions.headers.linkedVariables'), key: 'linkedVariables', sortable: false, align: 'center' },
+  { title: t('configActions.headers.actions'), key: 'actions', sortable: false, align: 'end' },
 ]
 
 const loadAllActions = (): void => {
@@ -337,20 +342,20 @@ const actionTypeDialog = ref({ show: false })
 
 const actionTypes = [
   {
-    title: 'HTTP Request Action',
-    description: 'Create an action to make HTTP requests to external APIs and services',
+    title: t('configActions.actionTypes.httpRequest.title'),
+    description: t('configActions.actionTypes.httpRequest.description'),
     value: customActionTypes.httpRequest,
     icon: 'mdi-web',
   },
   {
-    title: 'MAVLink Message Action',
-    description: 'Create an action to send MAVLink messages to vehicles',
+    title: t('configActions.actionTypes.mavlinkMessage.title'),
+    description: t('configActions.actionTypes.mavlinkMessage.description'),
     value: customActionTypes.mavlinkMessage,
     icon: 'mdi-drone',
   },
   {
-    title: 'JavaScript Action',
-    description: 'Create a custom action using JavaScript code',
+    title: t('configActions.actionTypes.javascript.title'),
+    description: t('configActions.actionTypes.javascript.description'),
     value: customActionTypes.javascript,
     icon: 'mdi-code-braces',
   },
@@ -393,7 +398,7 @@ const importAction = (): void => {
             const id = Object.keys(configs).find((key) => configs[key].name === json.name)
             if (id) javascriptConfig.value?.openEditDialog(id)
           } else {
-            throw new Error('Unknown action type')
+            throw new Error(t('configActions.unknownActionType'))
           }
         } catch (error) {
           console.error('Cannot import action:', error)

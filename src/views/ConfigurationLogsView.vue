@@ -12,7 +12,7 @@
         />
       </template>
       <template #title
-        ><div :class="interfaceStore.isOnPhoneScreen ? '' : 'mt-1'">On screen telemetry data</div></template
+        ><div :class="interfaceStore.isOnPhoneScreen ? '' : 'mt-1'">{{ t('telemetry.title') }}</div></template
       >
       <template #content>
         <div
@@ -31,7 +31,7 @@
           >
             <div id="leftColumn" class="flex flex-col justify-start align-start mt-[2vh] overflow-auto">
               <ExpansiblePanel compact mark-expanded darken-content hover-effect>
-                <template #title>Overlay Options</template>
+                <template #title>{{ t('telemetry.overlayOptions.title') }}</template>
                 <template #content>
                   <div>
                     <div class="flex flex-col flex-wrap justify-between align-start gap-y-0 pt-3">
@@ -39,7 +39,7 @@
                         <span
                           class="font-bold text-white text-start mb-5"
                           :class="interfaceStore.isOnSmallScreen ? ' text-xs w-[75px]' : 'text-sm w-[125px]'"
-                          >Font size</span
+                          >{{ t('telemetry.overlayOptions.fontSize') }}</span
                         >
                         <v-text-field
                           v-model="telemetryDisplayOptions.fontSize"
@@ -51,7 +51,7 @@
                         <span
                           class="font-bold text-white text-start mb-5"
                           :class="interfaceStore.isOnSmallScreen ? ' text-xs w-[75px]' : 'text-sm w-[125px]'"
-                          >Shadow size</span
+                          >{{ t('telemetry.overlayOptions.shadowSize') }}</span
                         >
                         <v-text-field
                           v-model="telemetryDisplayOptions.fontShadowSize"
@@ -76,7 +76,7 @@
                               <span
                                 :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
                                 class="text-sm font-bold text-white text-start"
-                                >Font color</span
+                                >{{ t('telemetry.overlayOptions.fontColor') }}</span
                               >
                               <div
                                 v-bind="props"
@@ -101,7 +101,7 @@
                               <span
                                 :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
                                 class="text-sm font-bold text-white text-start"
-                                >Outline color</span
+                                >{{ t('telemetry.overlayOptions.outlineColor') }}</span
                               >
                               <div
                                 v-bind="props"
@@ -125,7 +125,7 @@
                               <span
                                 :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
                                 class="text-sm font-bold text-white text-start"
-                                >Shadow color</span
+                                >{{ t('telemetry.overlayOptions.shadowColor') }}</span
                               >
                               <div
                                 v-bind="props"
@@ -148,7 +148,7 @@
                           <span
                             class="text-sm font-bold text-white -mt-[20px] text-start"
                             :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
-                            >Bold</span
+                            >{{ t('telemetry.overlayOptions.bold') }}</span
                           >
                         </div>
                         <div
@@ -159,7 +159,7 @@
                           <span
                             class="text-sm font-bold text-white -mt-[20px] text-start"
                             :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
-                            >Italic</span
+                            >{{ t('telemetry.overlayOptions.italic') }}</span
                           >
                         </div>
                         <div
@@ -170,7 +170,7 @@
                           <span
                             class="text-sm font-bold text-white -mt-[20px] text-start"
                             :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
-                            >Underline</span
+                            >{{ t('telemetry.overlayOptions.underline') }}</span
                           >
                         </div>
                         <div
@@ -181,7 +181,7 @@
                           <span
                             class="text-sm font-bold text-white -mt-[20px] text-start"
                             :class="interfaceStore.isOnSmallScreen ? ' text-xs' : 'text-sm'"
-                            >Strikethrough</span
+                            >{{ t('telemetry.overlayOptions.strikethrough') }}</span
                           >
                         </div>
                       </div>
@@ -190,7 +190,7 @@
                 </template>
               </ExpansiblePanel>
               <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
-                <template #title>Vehicle Variables</template>
+                <template #title>{{ t('telemetry.vehicleVariables.title') }}</template>
                 <template #content>
                   <VueDraggable
                     v-model="loggedVariables"
@@ -219,7 +219,7 @@
                 </template>
               </ExpansiblePanel>
               <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
-                <template #title>Mission Variables</template>
+                <template #title>{{ t('telemetry.missionVariables.title') }}</template>
                 <template #content>
                   <VueDraggable
                     v-model="otherLoggingElements"
@@ -248,52 +248,7 @@
                 </template>
               </ExpansiblePanel>
               <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
-                <template #title>Data Lake Variables</template>
-                <template #content>
-                  <v-text-field
-                    v-model="dataLakeSearch"
-                    placeholder="Search variables..."
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    clearable
-                    class="mt-2 mb-1"
-                    prepend-inner-icon="mdi-magnify"
-                  />
-                  <VueDraggable
-                    v-model="dataLakeVarsForDisplay"
-                    tag="div"
-                    :sort="true"
-                    class="flex flex-col items-start w-full min-h-[50px] max-h-[200px] overflow-x-hidden py-2 overflow-y-auto"
-                    :animation="150"
-                    :group="{ name: 'availableDataElements', put: false }"
-                  >
-                    <div v-for="variable in dataLakeVarsForDisplay" :key="variable" class="w-full">
-                      <v-chip
-                        :size="
-                          interfaceStore.isOnSmallScreen
-                            ? 'x-small'
-                            : interfaceStore.isOnVeryLargeScreen
-                            ? 'large'
-                            : 'small'
-                        "
-                        :class="
-                          interfaceStore.isOnSmallScreen
-                            ? 'data-lake-variable-chip'
-                            : 'my-[2px] data-lake-variable-chip'
-                        "
-                        :title="variable"
-                        label
-                        class="cursor-grab elevation-1 w-full justify-start"
-                      >
-                        <span class="data-lake-variable-label">{{ resolveDisplayName(variable) }}</span>
-                      </v-chip>
-                    </div>
-                  </VueDraggable>
-                </template>
-              </ExpansiblePanel>
-              <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
-                <template #title>Custom Messages</template>
+                <template #title>{{ t('telemetry.customMessages.title') }}</template>
                 <template #content>
                   <VueDraggable
                     v-model="customMessageElements"
@@ -321,12 +276,7 @@
                         <v-icon right class="ml-2" @click.stop="removeCustomMessageElement(index)">mdi-close</v-icon>
                       </v-chip>
                     </div>
-                    <v-menu
-                      :key="customMessageElements.length"
-                      v-model="customMessageMenuOpen"
-                      :close-on-content-click="false"
-                      offset-y
-                    >
+                    <v-menu :key="customMessageElements.length" :close-on-content-click="false" offset-y>
                       <template #activator="{ props }">
                         <GlassButton
                           v-bind="props"
@@ -338,35 +288,28 @@
                         />
                       </template>
                       <div
-                        class="frosted-button backdrop-blur-md rounded-lg overflow-visible w-[400px] flex flex-col px-4 pt-2 pb-3 elevation-2"
+                        class="frosted-button backdrop-blur-md rounded-lg overflow-hidden w-[400px] px-4 pt-2 elevation-2"
                       >
-                        <span class="text-sm font-bold text-white text-center w-full">Enter message</span>
-                        <span v-pre class="text-[10px] text-slate-400 text-center w-full mt-1"
-                          >Type {{ to autocomplete data lake variables</span
-                        >
-                        <div
-                          ref="messageEditorContainer"
-                          class="h-[60px] w-full mt-2 border border-[#FFFFFF33] rounded-lg"
-                          style="overflow: visible"
+                        <span class="text-sm font-bold text-white text-center w-full">{{
+                          t('telemetry.customMessages.enterMessage')
+                        }}</span>
+                        <v-text-field
+                          v-model="newMessage"
+                          variant="outlined"
+                          autofocus
+                          width="400px"
+                          class="mt-2"
+                          @keyup.enter="addCustomMessageElement()"
                         />
-                        <v-btn
-                          size="small"
-                          variant="tonal"
-                          class="mt-2 self-end"
-                          prepend-icon="mdi-plus"
-                          @click="addCustomMessageElement()"
-                        >
-                          Add
-                        </v-btn>
                       </div>
                     </v-menu>
                   </VueDraggable>
                 </template>
               </ExpansiblePanel>
               <ExpansiblePanel compact mark-expanded no-top-divider darken-content hover-effect>
-                <template #title>Settings</template>
+                <template #title>{{ t('telemetry.settings.title') }}</template>
                 <template #content>
-                  <p class="text-[12px] mt-2 ml-1">Telemetry frequency - 1 to 100 Hz (default 1 Hz)</p>
+                  <p class="text-[12px] mt-2 ml-1">{{ t('telemetry.settings.frequencyHint') }}</p>
                   <div class="flex mb-1 justify">
                     <v-slider
                       v-model="newFrequency"
@@ -393,8 +336,8 @@
               </ExpansiblePanel>
               <div class="flex justify-end w-full mt-2">
                 <v-btn size="x-small" variant="text" class="mr-2" @click="resetAllChips">
-                  Reset Positions
-                  <v-icon size="18" class="ml-2">mdi-restore</v-icon>
+                  {{ t('telemetry.resetPositions') }}
+                  <v-icon size="18" class="ml-2">mdi-refresh</v-icon>
                 </v-btn>
               </div>
             </div>
@@ -439,7 +382,7 @@
                       "
                       class="cursor-grab elevation-1"
                       :class="interfaceStore.isOnSmallScreen ? '' : 'my-[2px]'"
-                      >{{ resolveDisplayName(variable) }}
+                      >{{ variable }}
                       <v-icon right class="ml-2 -mr-1" @click="removeChipFromGrid(config.key, variable)">
                         mdi-close
                       </v-icon>
@@ -456,24 +399,19 @@
 </template>
 
 <script setup lang="ts">
-import type * as monacoTypes from 'monaco-editor'
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
+import { useI18n } from 'vue-i18n'
 
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
 import GlassButton from '@/components/GlassButton.vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
-import {
-  getAllDataLakeVariablesInfo,
-  getDataLakeVariableInfo,
-  listenToDataLakeVariablesInfoChanges,
-} from '@/libs/actions/data-lake'
-import { createMonacoEditor } from '@/libs/monaco-manager'
 import { CurrentlyLoggedVariables, datalogger } from '@/libs/sensors-logging'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 
 import BaseConfigurationView from './BaseConfigurationView.vue'
 
+const { t } = useI18n()
 const { showDialog } = useInteractionDialog()
 
 const interfaceStore = useAppInterfaceStore()
@@ -494,7 +432,6 @@ const updateVariables = (): void => {
   // Filter variables that are already in the telemetry display grid
   loggedVariables.value = loggedVariables.value.filter((variable) => !allTelemetryValues.has(variable))
   otherLoggingElements.value = otherLoggingElements.value.filter((element) => !allTelemetryValues.has(element))
-  updateDataLakeVarsList()
 }
 
 const telemetryDisplayData = reactive(datalogger.telemetryDisplayData)
@@ -513,15 +450,7 @@ watch(telemetryDisplayOptions, (newVal) => {
   updateVariables()
 })
 
-onMounted(() => {
-  const initialVars = getAllDataLakeVariablesInfo()
-  allDataLakeVarIds.value = Object.keys(initialVars)
-  updateVariables()
-  listenToDataLakeVariablesInfoChanges((variables) => {
-    allDataLakeVarIds.value = Object.keys(variables)
-    updateDataLakeVarsList()
-  })
-})
+onMounted(updateVariables)
 
 const otherAvailableLoggingElements = ['Mission name', 'Time', 'Date']
 
@@ -531,86 +460,8 @@ const otherLoggingElements = ref(otherAvailableLoggingElements)
 const originalOtherLoggingElements = ref(otherAvailableLoggingElements)
 const newFrequency = ref(datalogger.frequency)
 const customMessageElements = ref<string[]>([])
-const customMessageMenuOpen = ref(false)
-const messageEditorContainer = ref<HTMLElement | null>(null)
-let messageEditor: monacoTypes.editor.IStandaloneCodeEditor | null = null
-const dataLakeSearch = ref('')
-const allDataLakeVarIds = ref<string[]>([])
-const dataLakeVarsForDisplay = ref<string[]>([])
+const newMessage = ref('')
 const dragPosition = ref(0)
-
-const resolveDisplayName = (entry: string): string => {
-  const name = getDataLakeVariableInfo(entry)?.name ?? entry
-  if (entry.includes('mavlink/') && name.includes('(')) {
-    return name.substring(0, name.lastIndexOf('(')).trim()
-  }
-  return name
-}
-
-const updateDataLakeVarsList = (): void => {
-  const allTelemetryValues = new Set<string>()
-  Object.values(telemetryDisplayData).forEach((arr) => arr.forEach((v) => allTelemetryValues.add(v)))
-
-  let filtered = allDataLakeVarIds.value.filter((id) => {
-    if (allTelemetryValues.has(id)) return false
-    const name = getDataLakeVariableInfo(id)?.name ?? id
-    if (name.includes('(Legacy)')) return false
-    return true
-  })
-
-  if (dataLakeSearch.value.trim()) {
-    const search = dataLakeSearch.value.toLowerCase()
-    filtered = filtered.filter((id) => resolveDisplayName(id).toLowerCase().includes(search))
-  }
-
-  filtered.sort((a, b) => resolveDisplayName(a).localeCompare(resolveDisplayName(b)))
-  dataLakeVarsForDisplay.value = filtered
-}
-
-watch(dataLakeSearch, updateDataLakeVarsList)
-
-const initMessageEditor = (): void => {
-  if (!messageEditorContainer.value || messageEditor) return
-  messageEditor = createMonacoEditor(messageEditorContainer.value, {
-    language: 'plaintext',
-    value: '',
-    dataLakeCompletionType: 'use-bracket-parser',
-    editorOverrides: {
-      lineNumbers: 'off',
-      glyphMargin: false,
-      folding: false,
-      lineDecorationsWidth: 0,
-      lineNumbersMinChars: 0,
-      fontSize: 13,
-      padding: { top: 6, bottom: 6 },
-      renderLineHighlight: 'none',
-      overviewRulerLanes: 0,
-      scrollbar: { vertical: 'hidden', horizontal: 'auto' },
-      fixedOverflowWidgets: false,
-      quickSuggestions: false,
-      wordBasedSuggestions: 'off',
-      suggestOnTriggerCharacters: true,
-      autoClosingBrackets: 'never',
-    },
-  })
-}
-
-const disposeMessageEditor = (): void => {
-  if (messageEditor) {
-    messageEditor.dispose()
-    messageEditor = null
-  }
-}
-
-watch(customMessageMenuOpen, (open) => {
-  if (open) {
-    nextTick(initMessageEditor)
-  } else {
-    disposeMessageEditor()
-  }
-})
-
-onBeforeUnmount(disposeMessageEditor)
 
 type GridKey =
   | 'LeftTop'
@@ -659,13 +510,8 @@ const getClassForConfig = computed(() => {
 
 const openHelpDialog = (): void => {
   showDialog({
-    title: 'Video Configuration Help',
-    message: [
-      // eslint-disable-next-line vue/max-len
-      'On this screen, you can configure the telemetry data that will be displayed on the subtitle file for recorded videos. You can change the font size, color, and style, as well as the position of each variable on the screen. You can also add custom messages that will be displayed on the video player screen.',
-      'Drag and drop variables from the left panel to the desired position on the Telemetry Data Display.',
-      'For additional Help, refer to documentation or contact us.',
-    ],
+    title: t('telemetry.help.title'),
+    message: [t('telemetry.help.text1'), t('telemetry.help.text2'), t('telemetry.help.text3')],
     variant: 'text-only',
     maxWidth: interfaceStore.isOnSmallScreen ? '80vw' : '60vw',
     persistent: false,
@@ -690,8 +536,6 @@ const removeChipFromGrid = (quadrantKey: string, chip: string): void => {
       loggedVariables.value.push(chip)
     } else if (originalOtherLoggingElements.value.includes(chip)) {
       otherLoggingElements.value.push(chip)
-    } else if (allDataLakeVarIds.value.includes(chip)) {
-      // Data lake variable - will reappear in the list via updateDataLakeVarsList
     } else if (!CurrentlyLoggedVariables.getAllVariables().includes(chip)) {
       customMessageElements.value.push(chip)
     }
@@ -699,11 +543,9 @@ const removeChipFromGrid = (quadrantKey: string, chip: string): void => {
 }
 
 const addCustomMessageElement = (): void => {
-  if (!messageEditor) return
-  const value = messageEditor.getValue().trim()
-  if (value !== '') {
-    customMessageElements.value.push(value)
-    messageEditor.setValue('')
+  if (newMessage.value.trim() !== '') {
+    customMessageElements.value.push(newMessage.value)
+    newMessage.value = ''
   }
 }
 
@@ -719,7 +561,6 @@ const resetAllChips = (): void => {
   Object.values(telemetryDisplayData).forEach((displayGridArray) => {
     displayGridArray.forEach((variable) => {
       if (CurrentlyLoggedVariables.getAllVariables().includes(variable)) return
-      if (allDataLakeVarIds.value.includes(variable)) return
       customMessageElementsBackup.push(variable)
     })
   })
@@ -756,26 +597,6 @@ const newFrequencyString = computed({
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.data-lake-variable-chip {
-  height: auto !important;
-  min-height: 24px;
-}
-.data-lake-variable-label {
-  display: -webkit-box;
-  overflow: hidden;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  text-wrap: wrap;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-:deep(.data-lake-variable-chip .v-chip__content) {
-  display: block;
-  width: 100%;
-  line-height: 1.25;
-  padding: 4px 0;
-}
 .frosted-button {
   background-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -791,12 +612,7 @@ const newFrequencyString = computed({
 .mock-screen {
   position: absolute;
 }
-.input[type='number']::-webkit-inner-spin-button {
+. input[type='number']::-webkit-inner-spin-button {
   margin-left: 6px;
-}
-</style>
-<style>
-.monaco-editor .suggest-widget {
-  width: 600px !important;
 }
 </style>

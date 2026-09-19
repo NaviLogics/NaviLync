@@ -1,16 +1,13 @@
 <template>
   <BaseConfigurationView>
     <template #help-icon> </template>
-    <template #title>Video configuration</template>
+    <template #title>{{ t('video.title') }}</template>
     <template #content>
-      <div class="flex-col h-full ml-[1vw] w-[920px] max-h-[85vh] overflow-y-auto pr-3">
+      <div class="flex-col h-full ml-[1vw] w-[840px] max-h-[85vh] overflow-y-auto pr-3">
         <ExpansiblePanel no-top-divider :is-expanded="!interfaceStore.isOnPhoneScreen">
-          <template #title>Streams mapping</template>
+          <template #title>{{ t('video.streamsMapping.title') }}</template>
           <template #info>
-            Here you can map your external video streams to internal names and manage ignored streams. Active streams
-            allow you to easily switch between different video sources in Cockpit. The widgets will be connected to the
-            internal names, and the external video stream will be mapped to the internal name. Ignored streams (shown
-            with "--" as internal name) can be restored by clicking the restore button.
+            {{ t('video.streamsMapping.info') }}
           </template>
           <template #content>
             <div class="flex justify-center flex-col w-full ml-2 mt-2">
@@ -24,25 +21,22 @@
                 <template #headers>
                   <tr>
                     <th class="text-center">
-                      <p class="text-[16px] font-bold">Internal name</p>
+                      <p class="text-[16px] font-bold">{{ t('video.streamsMapping.internalName') }}</p>
                     </th>
                     <th class="text-center">
-                      <p class="text-[16px] font-bold">External name</p>
+                      <p class="text-[16px] font-bold">{{ t('video.streamsMapping.externalName') }}</p>
                     </th>
                     <th class="text-center">
-                      <p class="text-[16px] font-bold">Type</p>
+                      <p class="text-[16px] font-bold">{{ t('video.streamsMapping.videoSource') }}</p>
                     </th>
                     <th class="text-center">
-                      <p class="text-[16px] font-bold">Video source</p>
+                      <p class="text-[16px] font-bold">{{ t('video.streamsMapping.resolution') }}</p>
                     </th>
                     <th class="text-center">
-                      <p class="text-[16px] font-bold">Resolution</p>
+                      <p class="text-[16px] font-bold">{{ t('video.streamsMapping.status') }}</p>
                     </th>
                     <th class="text-center">
-                      <p class="text-[16px] font-bold">Status</p>
-                    </th>
-                    <th class="text-center">
-                      <p class="text-[16px] font-bold">Actions</p>
+                      <p class="text-[16px] font-bold">{{ t('video.streamsMapping.actions') }}</p>
                     </th>
                   </tr>
                 </template>
@@ -60,29 +54,8 @@
                     </td>
                     <td>
                       <div class="flex items-center justify-center">
-                        <v-chip
-                          size="small"
-                          :color="
-                            (item.protocol ?? videoStore.getStreamProtocol(item.externalId)) === 'rtsp'
-                              ? '#e67e22'
-                              : '#3498db'
-                          "
-                          variant="flat"
-                          label
-                          class="text-white text-xs font-medium"
-                        >
-                          {{
-                            (item.protocol ?? videoStore.getStreamProtocol(item.externalId)) === 'rtsp'
-                              ? 'RTSP'
-                              : 'WebRTC'
-                          }}
-                        </v-chip>
-                      </div>
-                    </td>
-                    <td>
-                      <div class="flex items-center justify-center">
                         <ScrollingText
-                          :text="getStreamDisplayInfo(item.externalId).source"
+                          :text="getStreamInfo(item.externalId)?.sourceName || t('video.streamsMapping.unknown')"
                           max-width="120px"
                           class="text-sm text-gray-300"
                         />
@@ -92,13 +65,14 @@
                       <div class="flex items-center justify-center">
                         <div class="text-center">
                           <p class="text-sm text-gray-300 leading-tight">
-                            {{ getStreamDisplayInfo(item.externalId).resolution }}
+                            {{
+                              getStreamInfo(item.externalId)
+                                ? `${getStreamInfo(item.externalId)?.width}x${getStreamInfo(item.externalId)?.height}`
+                                : t('video.streamsMapping.unknown')
+                            }}
                           </p>
-                          <p
-                            v-if="getStreamDisplayInfo(item.externalId).fps"
-                            class="text-xs text-gray-400 leading-tight"
-                          >
-                            @ {{ getStreamDisplayInfo(item.externalId).fps }}
+                          <p class="text-xs text-gray-400 leading-tight">
+                            {{ getStreamInfo(item.externalId) ? `@ ${getStreamInfo(item.externalId)?.fps}fps` : '' }}
                           </p>
                         </div>
                       </div>
@@ -108,13 +82,13 @@
                         <div class="flex items-center justify-center border-[1px] border-[#ffffff44] rounded-md">
                           <div
                             class="flex items-center rounded-md p-1 text-[#ffffffa5]"
-                            :style="{ backgroundColor: getStreamStatus(item).color }"
+                            :style="{ backgroundColor: getStreamStatus(item.externalId).color }"
                           >
                             <v-icon size="small">
-                              {{ getStreamStatus(item).icon }}
+                              {{ getStreamStatus(item.externalId).icon }}
                             </v-icon>
                             <span class="text-xs ml-1">
-                              {{ getStreamStatus(item).status }}
+                              {{ getStreamStatus(item.externalId).status }}
                             </span>
                           </div>
                         </div>
@@ -143,59 +117,38 @@
                   </tr>
                 </template>
                 <template #no-data>
-                  <div class="text-gray-400 py-4 w-[200px] text-end">No available streams found.</div>
+                  <div class="text-gray-400 py-4 w-[200px] text-end">
+                    {{ t('video.streamsMapping.noStreamsFound') }}
+                  </div>
                 </template>
                 <template #bottom></template>
               </v-data-table>
               <div class="flex items-center justify-start">
-                <v-checkbox v-model="showIgnoredStreams" label="Show ignored streams" hide-details class="text-sm" />
+                <v-checkbox
+                  v-model="showIgnoredStreams"
+                  :label="t('video.streamsMapping.showIgnored')"
+                  hide-details
+                  class="text-sm"
+                />
                 <span v-if="ignoredStreamExternalIds.length > 0" class="text-gray-400 text-sm ml-2">
-                  ({{ ignoredStreamExternalIds.length }} ignored)
+                  ({{ ignoredStreamExternalIds.length }} {{ t('video.streamsMapping.ignored') }})
                 </span>
-              </div>
-              <div v-if="show4kCamBrowserNote" class="text-gray-400 text-sm mt-2 mr-2 w-[95%]">
-                The video from your 4K camera may stutter in this browser version of Cockpit. The desktop version plays
-                this camera through its own connection, which is smoother — install it if the stuttering bothers you.
-                <span v-if="videoStore.hasDisregarded4kCamIgnore">
-                  If you had hidden this camera before, it is showing again: hide it once more and it will stay hidden.
-                </span>
-              </div>
-              <div v-if="isElectron()" class="mt-4 mr-2 mb-2 w-[95%]">
-                <div class="text-sm text-gray-300 mb-2">Add direct RTSP stream (Standalone)</div>
-                <div class="flex items-end gap-2 w-full">
-                  <v-text-field
-                    v-model="rtspUrlInput"
-                    label="RTSP URL"
-                    density="compact"
-                    variant="outlined"
-                    class="flex-1 min-w-0"
-                    hide-details
-                    @keyup.enter="addRtspStream"
-                    @input="rtspInputError = ''"
-                  />
-                  <v-btn variant="text" class="shrink-0 mb-[3px]" @click="addRtspStream">Add</v-btn>
-                </div>
-                <div v-if="rtspInputError" class="text-red-300 text-sm mt-2">
-                  {{ rtspInputError }}
-                </div>
               </div>
             </div>
           </template>
         </ExpansiblePanel>
         <ExpansiblePanel no-top-divider :is-expanded="!interfaceStore.isOnPhoneScreen">
-          <template #title>Allowed WebRTC remote IP Addresses</template>
+          <template #title>{{ t('video.webrtcIp.title') }}</template>
           <template #info>
-            Select the IP addresses to allow connecting to for WebRTC video streaming. For best performance it is
-            recommended to only use the most reliable interfaces - e.g. avoid wireless interfaces if there is a
-            tethered/wired interface available. If no value is specified, all available routes are allowed.
+            {{ t('video.webrtcIp.info') }}
           </template>
           <template #content>
             <div class="flex justify-center flex-col w-[90%] ml-2">
               <v-combobox
-                :model-value="allowedIceIps"
+                v-model="allowedIceIps"
                 multiple
                 :items="availableIceIps"
-                label="Allowed WebRTC remote IP Addresses"
+                :label="t('video.webrtcIp.label')"
                 class="uri-input"
                 variant="outlined"
                 chips
@@ -203,11 +156,10 @@
                 density="compact"
                 clearable
                 hide-details
-                @update:model-value="handleAllowedIpsUpdate"
               />
               <v-checkbox
                 v-model="videoStore.enableAutoIceIpFetch"
-                label="Enable auto-retrieval of allowed IP addresses"
+                :label="t('video.webrtcIp.enableAutoRetrieval')"
                 hide-details
                 class="mb-2"
               />
@@ -215,16 +167,10 @@
           </template>
         </ExpansiblePanel>
         <ExpansiblePanel :is-expanded="!interfaceStore.isOnPhoneScreen">
-          <template #title>Allowed WebRTC protocols:</template>
+          <template #title>{{ t('video.webrtcProtocols.title') }}</template>
           <template #info>
-            <li>
-              Video stream quality may be enhanced by enforcing a protocol that is well-suited to the available network
-              infrastructure.
-            </li>
-            <li>
-              UDP can be lower latency but may drop frames, while TCP enforces frame ordering at the cost of some
-              increased latency and jitter.
-            </li>
+            <li>{{ t('video.webrtcProtocols.info1') }}</li>
+            <li>{{ t('video.webrtcProtocols.info2') }}</li>
           </template>
           <template #content>
             <div class="flex items-center justify-start">
@@ -243,23 +189,17 @@
           </template>
         </ExpansiblePanel>
         <ExpansiblePanel :is-expanded="!interfaceStore.isOnPhoneScreen">
-          <template #title>RTP Jitter Buffer (Target) duration:</template>
+          <template #title>{{ t('video.jitterBuffer.title') }}</template>
           <template #info>
-            <li>
-              Increasing the buffer duration causes additional video latency, but can help to compensate for network
-              jitter and provide more consistent frame timing in the display.
-            </li>
-            <li>
-              Cockpit's default is zero milliseconds, but you can set a custom value, or leave the field empty to use
-              your browser's default.
-            </li>
+            <li>{{ t('video.jitterBuffer.info1') }}</li>
+            <li>{{ t('video.jitterBuffer.info2') }}</li>
           </template>
           <template #content>
             <div class="flex items-center justify-start w-[50%] ml-2">
               <v-text-field
                 v-model.number="jitterBufferTarget"
                 variant="filled"
-                placeholder="auto"
+                :placeholder="t('video.jitterBuffer.placeholder')"
                 type="number"
                 class="uri-input mt-4"
                 theme="dark"
@@ -274,22 +214,11 @@
           </template>
         </ExpansiblePanel>
         <ExpansiblePanel no-bottom-divider :is-expanded="!interfaceStore.isOnPhoneScreen">
-          <template #title>Video library options:</template>
+          <template #title>{{ t('video.libraryOptions.title') }}</template>
           <template #info>
-            <li>
-              Configure live video processing to process videos in real-time during recording for instant availability
-              when recording stops. This is only available in the Electron (desktop) version.
-            </li>
-            <li>
-              Choose whether to save backup raw chunks alongside the final video file. This provides safety for video
-              reconstruction if something goes wrong, but uses approximately double the storage space.
-            </li>
-            <li>
-              Select whether video and subtitle files should be bundled together in a ZIP archive, or downloaded
-              individually. Zipping allows a single download of a group of files, but requires waiting for the files to
-              get zipped together. Depending on file sizes, the zipping process may complete within seconds or could
-              take minutes.
-            </li>
+            <li>{{ t('video.libraryOptions.info1') }}</li>
+            <li>{{ t('video.libraryOptions.info2') }}</li>
+            <li>{{ t('video.libraryOptions.info3') }}</li>
           </template>
           <template #content>
             <div class="flex items-center justify-end w-[96%] ml-2 mb-4">
@@ -302,7 +231,7 @@
                     </v-icon></v-badge
                   >
                 </template>
-                Video Library
+                {{ t('video.libraryOptions.videoLibrary') }}
               </v-btn>
             </div>
             <!-- Browser Environment Notice -->
@@ -310,10 +239,9 @@
               <div class="flex items-start gap-3">
                 <v-icon color="amber" class="mt-1">mdi-information</v-icon>
                 <div>
-                  <h4 class="text-amber-200 font-medium mb-2">Browser Version</h4>
+                  <h4 class="text-amber-200 font-medium mb-2">{{ t('video.libraryOptions.browserNotice') }}</h4>
                   <p class="text-amber-100 text-sm">
-                    Video processing is not available in the browser version. Your recordings will be saved as raw
-                    chunks that can be downloaded and processed using the standalone version of Cockpit.
+                    {{ t('video.libraryOptions.browserNoticeText') }}
                   </p>
                 </div>
               </div>
@@ -322,7 +250,7 @@
             <div class="flex items-center justify-start w-[96%] ml-2">
               <v-checkbox
                 v-model="videoStore.enableLiveProcessing"
-                label="Live video processing (Electron)"
+                :label="t('video.libraryOptions.liveProcessing')"
                 class="text-sm mx-2"
                 hide-details
                 :disabled="!isElectron()"
@@ -330,8 +258,8 @@
               <v-tooltip
                 :text="
                   isElectron()
-                    ? 'Process videos in real-time during recording for instant availability when recording stops'
-                    : 'Live video processing is only available in the standalone version'
+                    ? t('video.libraryOptions.liveProcessingTooltip')
+                    : t('video.libraryOptions.liveProcessingDisabled')
                 "
               >
                 <template #activator="{ props }">
@@ -343,7 +271,7 @@
             <div class="flex items-center justify-start w-[96%] ml-2">
               <v-checkbox
                 v-model="videoStore.keepRawVideoChunksAsBackup"
-                label="Save backup raw chunks"
+                :label="t('video.libraryOptions.saveBackupChunks')"
                 class="text-sm mx-2"
                 :disabled="!isElectron()"
                 hide-details
@@ -353,26 +281,24 @@
                   <v-icon v-bind="props" class="ml-2 text-slate-400">mdi-information-outline</v-icon>
                 </template>
                 <div class="text-sm">
-                  <p class="mb-2">Save the raw video chunks alongside the final video file for backup purposes.</p>
+                  <p class="mb-2">{{ t('video.libraryOptions.backupChunksTooltip1') }}</p>
                   <p class="mb-2">
-                    <strong>Enabled:</strong> Raw chunks are preserved after recording. Videos use ~2x storage space but
-                    provide safety for reconstruction if the final video is corrupted.
+                    <strong>{{ t('common.enabled') }}:</strong> {{ t('video.libraryOptions.backupChunksTooltip2') }}
                   </p>
                   <p>
-                    <strong>Disabled:</strong> Raw chunks are automatically deleted after successful processing, using
-                    minimal storage space.
+                    <strong>{{ t('common.disabled') }}:</strong> {{ t('video.libraryOptions.backupChunksTooltip3') }}
                   </p>
                   <p class="mt-2 text-gray-300">
-                    You can always manually clean up backup chunks later using the "Temporary" tab in the Video Library.
+                    {{ t('video.libraryOptions.backupChunksTooltip4') }}
                   </p>
-                  <p class="mt-2 text-gray-300">For the browser version the chunks are always saved by default.</p>
+                  <p class="mt-2 text-gray-300">{{ t('video.libraryOptions.backupChunksTooltip5') }}</p>
                 </div>
               </v-tooltip>
             </div>
             <div class="flex items-center justify-start w-[50%] ml-2">
               <v-checkbox
                 v-model="snapshotStore.zipMultipleFiles"
-                label="Zip multiple files"
+                :label="t('video.libraryOptions.zipMultipleFiles')"
                 class="text-sm mx-2"
                 hide-details
               />
@@ -386,23 +312,28 @@
   <!-- Edit Stream Name Dialog -->
   <InteractionDialog
     v-model:show-dialog="showEditDialog"
-    title="Edit stream"
+    :title="t('video.editStream.title')"
     variant="text-only"
     :persistent="true"
     :actions="[
-      { text: 'Cancel', size: 'small', action: cancelEditDialog },
-      { text: 'Save', size: 'small', disabled: !newStreamName.trim(), action: saveStreamNameFromDialog },
+      { text: t('video.editStream.cancel'), size: 'small', action: cancelEditDialog },
+      {
+        text: t('video.editStream.save'),
+        size: 'small',
+        disabled: !newStreamName.trim(),
+        action: saveStreamNameFromDialog,
+      },
     ]"
   >
     <template #content>
       <div class="flex flex-col gap-6 px-4 mb-6">
         <div class="text-sm text-gray-400">
-          <span>External stream name: </span>
+          <span>{{ t('video.editStream.externalName') }} </span>
           <span class="text-gray-200">{{ editingStream?.externalId }}</span>
         </div>
         <v-text-field
           v-model="newStreamName"
-          label="Internal stream name"
+          :label="t('video.editStream.internalName')"
           variant="outlined"
           density="compact"
           hide-details
@@ -423,30 +354,29 @@
   <!-- Unavailable Stream Confirmation Dialog -->
   <InteractionDialog
     v-model:show-dialog="showUnavailableStreamDialog"
-    title="Stream is not available"
+    :title="t('video.unavailableStream.title')"
     variant="text-only"
     :persistent="true"
     max-width="520px"
     :actions="[
-      { text: 'KEEP IGNORED', size: 'small', action: closeUnavailableStreamDialog },
-      { text: 'DELETE PERMANENTLY', size: 'small', action: deleteStreamPermanently },
+      { text: t('video.unavailableStream.keepIgnoredBtn'), size: 'small', action: closeUnavailableStreamDialog },
+      { text: t('video.unavailableStream.deletePermanentlyBtn'), size: 'small', action: deleteStreamPermanently },
     ]"
   >
     <template #content>
       <div class="flex flex-col gap-4 px-4 mb-6">
         <p class="text-sm text-gray-300">
-          The stream <span class="text-gray-100 font-medium">'{{ unavailableStreamId }}'</span> you're trying to restore
-          is not available anymore.
+          {{ t('video.unavailableStream.message', { stream: unavailableStreamId }) }}
         </p>
-        <p class="text-sm text-gray-300">You have two options:</p>
+        <p class="text-sm text-gray-300">{{ t('video.unavailableStream.options') }}</p>
         <ul class="text-sm text-gray-300 ml-4 space-y-1">
           <li>
-            • <strong>Keep it ignored:</strong> Maintain it in the ignored list so it won't be mapped automatically if
-            it becomes available again
+            • <strong>{{ t('video.unavailableStream.keepIgnoredBtn') }}:</strong>
+            {{ t('video.unavailableStream.keepIgnored') }}
           </li>
           <li>
-            • <strong>Delete it permanently:</strong> Remove it from the ignored list, so if it becomes available again
-            it will be mapped automatically.
+            • <strong>{{ t('video.unavailableStream.deletePermanentlyBtn') }}:</strong>
+            {{ t('video.unavailableStream.deletePermanently') }}
           </li>
         </ul>
       </div>
@@ -456,19 +386,23 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import ScrollingText from '@/components/ScrollingText.vue'
-import { openSnackbar } from '@/composables/snackbar'
-import { isElectron, isValidIpv4Address, sanitizeIpv4Address } from '@/libs/utils'
+import { type ProcessedStreamInfo, getStreamInformationFromVehicle } from '@/libs/blueos'
+import { isElectron } from '@/libs/utils'
 import { useAppInterfaceStore } from '@/stores/appInterface'
+import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useSnapshotStore } from '@/stores/snapshot'
 import { useVideoStore } from '@/stores/video'
 import { VideoStreamCorrespondency } from '@/types/video'
 
 import BaseConfigurationView from './BaseConfigurationView.vue'
+
+const { t } = useI18n()
 
 /**
  * Available ICE protocols as described in
@@ -478,6 +412,7 @@ const availableICEProtocols = ['udp', 'tcp']
 
 const videoStore = useVideoStore()
 const interfaceStore = useAppInterfaceStore()
+const mainVehicleStore = useMainVehicleStore()
 const snapshotStore = useSnapshotStore()
 
 // Edit dialog state
@@ -491,28 +426,17 @@ const showUnavailableStreamDialog = ref(false)
 const unavailableStreamId = ref('')
 
 const showIgnoredStreams = ref(false)
-const rtspUrlInput = ref('rtsp://user:password@camera-ip:554/stream')
-const rtspInputError = ref('')
+const streamInformation = ref<ProcessedStreamInfo[]>([])
+let fetchInterval: ReturnType<typeof setInterval> | null = null
 
 const streamsToShow = computed(() => {
   return [
     ...videoStore.streamsCorrespondency.map((item) => ({ ...item, isIgnored: false })),
     ...(showIgnoredStreams.value
-      ? ignoredStreamExternalIds.value.map((id) => ({
-          name: '--',
-          externalId: id,
-          isIgnored: true,
-          protocol: id.startsWith('rtsp://') || id.startsWith('rtsps://') ? ('rtsp' as const) : undefined,
-        }))
+      ? ignoredStreamExternalIds.value.map((id) => ({ name: '--', externalId: id, isIgnored: true }))
       : []),
   ].filter((item) => item.name !== '')
 })
-
-const show4kCamBrowserNote = computed(
-  () =>
-    !isElectron() &&
-    videoStore.streamsCorrespondency.some((corr) => videoStore.isBlueRobotics4kCamStreamName(corr.externalId))
-)
 
 const openEditDialog = (item: VideoStreamCorrespondency): void => {
   editingStream.value = item
@@ -540,27 +464,12 @@ const cancelEditDialog = (): void => {
   editDialogError.value = ''
 }
 
-const addRtspStream = (): void => {
-  try {
-    rtspInputError.value = ''
-    if (!rtspUrlInput.value.trim()) {
-      rtspInputError.value = 'Please provide an RTSP URL.'
-      return
-    }
-    videoStore.addRtspStreamCorrespondency(rtspUrlInput.value.trim())
-    rtspUrlInput.value = ''
-  } catch (error) {
-    rtspInputError.value = (error as Error).message
-  }
-}
-
 const deleteStream = (item: VideoStreamCorrespondency): void => {
   videoStore.deleteStreamCorrespondency(item.externalId)
 }
 
 const restoreIgnoredStream = (externalId: string): void => {
-  const isRtsp = externalId.startsWith('rtsp://') || externalId.startsWith('rtsps://')
-  const isStreamAvailable = isRtsp || videoStore.namesAvailableStreams.includes(externalId)
+  const isStreamAvailable = videoStore.namesAvailableStreams.includes(externalId)
 
   // If the stream is available, restore normally, otherwise ask the user to confirm they want to delete it permanently
   if (isStreamAvailable) {
@@ -582,39 +491,57 @@ const deleteStreamPermanently = (): void => {
   closeUnavailableStreamDialog()
 }
 
-const getStreamDisplayInfo = (
-  externalId: string
-): {
-  /** Video source description */
-  source: string
-  /** Resolution string */
-  resolution: string
-  /** FPS string */
-  fps: string
-} => {
-  return videoStore.getStreamDisplayInfo(externalId)
+const fetchStreamInformation = async (): Promise<void> => {
+  if (!mainVehicleStore.globalAddress) return
+
+  try {
+    streamInformation.value = await getStreamInformationFromVehicle(mainVehicleStore.globalAddress)
+  } catch (error) {
+    console.error('Failed to fetch stream information:', error)
+    streamInformation.value = []
+  }
+}
+
+const startStreamInfoFetching = (): void => {
+  // Clear any existing interval
+  if (fetchInterval) {
+    clearInterval(fetchInterval)
+  }
+
+  // Fetch immediately
+  fetchStreamInformation()
+
+  // Set up interval to fetch every 5 seconds
+  fetchInterval = setInterval(() => {
+    fetchStreamInformation()
+  }, 5000)
+}
+
+const stopStreamInfoFetching = (): void => {
+  if (fetchInterval) {
+    clearInterval(fetchInterval)
+    fetchInterval = null
+  }
+}
+
+const getStreamInfo = (externalId: string): ProcessedStreamInfo | undefined => {
+  return streamInformation.value.find((info) => info.name === externalId)
 }
 
 // eslint-disable-next-line
-const getStreamStatus = (item: { externalId: string; protocol?: string }): { status: 'Available' | 'Unavailable' | 'Offline' | 'Unknown'; icon: string; color: string } => {
-  const protocol = item.protocol ?? videoStore.getStreamProtocol(item.externalId)
-  if (protocol === 'rtsp') {
-    return isElectron()
-      ? { status: 'Available', icon: 'mdi-check-circle', color: '#297e1944' }
-      : { status: 'Unavailable', icon: 'mdi-close-circle', color: '#ff000044' }
-  }
-
-  const isInAvailableList = videoStore.namesAvailableStreams.includes(item.externalId)
-  const isRunning = videoStore.streamInformation.find((i) => i.name === item.externalId)?.running ?? false
+const getStreamStatus = (externalId: string): { status: string; icon: string; color: string } => {
+  const isInAvailableList = videoStore.namesAvailableStreams.includes(externalId)
+  const streamInfo = getStreamInfo(externalId)
+  const isRunning = streamInfo?.running ?? false
 
   if (isInAvailableList && isRunning) {
-    return { status: 'Available', icon: 'mdi-check-circle', color: '#297e1944' }
+    return { status: t('video.streamStatus.available'), icon: 'mdi-check-circle', color: '#297e1944' }
   } else if (!isInAvailableList) {
-    return { status: 'Unavailable', icon: 'mdi-close-circle', color: '#ff000044' }
+    return { status: t('video.streamStatus.unavailable'), icon: 'mdi-close-circle', color: '#ff000044' }
   } else if (isInAvailableList && !isRunning) {
-    return { status: 'Offline', icon: 'mdi-pause-circle', color: '#ffa50044' }
+    return { status: t('video.streamStatus.offline'), icon: 'mdi-pause-circle', color: '#ffa50044' }
   } else {
-    return { status: 'Unknown', icon: 'mdi-help-circle', color: '#80808044' }
+    return { status: t('video.streamStatus.unknown'), icon: 'mdi-help-circle', color: '#80808044' }
   }
 }
 
@@ -622,56 +549,12 @@ onMounted(async () => {
   if (allowedIceProtocols.value.length === 0) {
     allowedIceProtocols.value = availableICEProtocols
   }
+  startStreamInfoFetching()
 })
 
-/**
- * Sanitizes the list of allowed WebRTC IPs, stripping schemes/ports/paths from prefixed entries and
- * dropping ones with no extractable IPv4 address, notifying the user of any changes made.
- * @param {string[] | null} newValue - The raw list of IPs coming from the combobox.
- */
-function handleAllowedIpsUpdate(newValue: string[] | null): void {
-  if (!newValue) {
-    allowedIceIps.value = []
-    return
-  }
-
-  const cleanedIps: string[] = []
-  const cleanedNotes: string[] = []
-  const rejectedValues: string[] = []
-
-  newValue.forEach((value) => {
-    if (isValidIpv4Address(value)) {
-      cleanedIps.push(value)
-      return
-    }
-
-    const sanitized = sanitizeIpv4Address(value)
-    if (sanitized === undefined) {
-      rejectedValues.push(value)
-      return
-    }
-
-    cleanedIps.push(sanitized)
-    cleanedNotes.push(`'${value}' -> '${sanitized}'`)
-  })
-
-  allowedIceIps.value = [...new Set(cleanedIps)]
-
-  if (cleanedNotes.length > 0) {
-    openSnackbar({
-      message: `Cleaned up allowed WebRTC IP(s): ${cleanedNotes.join(', ')}.`,
-      variant: 'info',
-      persistent: true,
-    })
-  }
-  if (rejectedValues.length > 0) {
-    openSnackbar({
-      message: `Could not extract a valid IP address from: ${rejectedValues.join(', ')}. Entry not added.`,
-      variant: 'warning',
-    })
-  }
-  logUserAction(`Updated allowed WebRTC IPs to [${allowedIceIps.value.join(', ')}]`)
-}
+onUnmounted(() => {
+  stopStreamInfoFetching()
+})
 
 const openVideoLibrary = (): void => {
   interfaceStore.videoLibraryVisibility = true
@@ -688,8 +571,8 @@ function handleJitterBufferTargetInput(input: InputEvent): void {
 }
 
 const jitterBufferTargetRules = [
-  (value: number | '') => value === '' || value >= 0 || 'Must be >= 0',
-  (value: number | '') => value === '' || value <= 4000 || 'Must be <= 4000',
+  (value: number | '') => value === '' || value >= 0 || t('video.jitterBuffer.ruleMin'),
+  (value: number | '') => value === '' || value <= 4000 || t('video.jitterBuffer.ruleMax'),
 ]
 
 const { allowedIceIps, allowedIceProtocols, availableIceIps, jitterBufferTarget, ignoredStreamExternalIds } =
