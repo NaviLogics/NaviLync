@@ -1493,5 +1493,24 @@
   "scanDirection": {
     "scan": "Scan",
     "direction": "Direction"
+  },
+  "poi": {
+    "editTitle": "Edit Point of Interest",
+    "placeTitle": "Place Point of Interest",
+    "name": "Name",
+    "description": "Description",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "hexColor": "Hex Color",
+    "changeIcon": "Click to change icon",
+    "searchIcons": "Search icons",
+    "notFound": "POI not found in store.",
+    "cannotOpen": "Cannot open POI dialog without coordinates for a new POI or POI data for editing.",
+    "invalidName": "Invalid Name",
+    "nameEmpty": "POI name cannot be empty.",
+    "invalidCoordinates": "Invalid Coordinates",
+    "coordinatesInvalid": "Latitude and Longitude must be valid numbers.",
+    "cannotSaveWithoutCoordinates": "Cannot save Point of Interest without coordinates.",
+    "noneSelected": "No Point of Interest selected for deletion."
   }
 }
