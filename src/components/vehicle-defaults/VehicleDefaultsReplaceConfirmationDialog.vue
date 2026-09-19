@@ -4,26 +4,29 @@
       <v-card-title class="pb-0 pt-4 text-center">
         <div class="flex items-center justify-center gap-2">
           <v-icon color="warning" size="24">mdi-alert</v-icon>
-          <h2 class="text-xl font-semibold">Replace existing configuration?</h2>
+          <h2 class="text-xl font-semibold">{{ t('vehicleDefaults.replace.title') }}</h2>
         </div>
       </v-card-title>
 
       <v-card-text class="px-6 pb-2">
         <p class="text-center text-sm">
-          This will <strong>permanently delete your current {{ viewsCount }} view(s)</strong> and replace them with the
-          selected default view(s) for {{ vehicleTypeName }}. This action cannot be undone.
+          {{ t('vehicleDefaults.replace.prefix') }}
+          <strong>{{ t('vehicleDefaults.replace.currentViews', { count: viewsCount }) }}</strong>
+          {{ t('vehicleDefaults.replace.suffix', { vehicle: vehicleTypeName }) }}
         </p>
       </v-card-text>
 
       <v-card-actions class="justify-space-between px-6 pb-4">
-        <v-btn variant="text" @click="$emit('cancel')">Cancel</v-btn>
-        <v-btn color="error" @click="$emit('confirm')">Replace</v-btn>
+        <v-btn variant="text" @click="$emit('cancel')">{{ t('common.cancel') }}</v-btn>
+        <v-btn color="error" @click="$emit('confirm')">{{ t('vehicleDefaults.replace.action') }}</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { useAppInterfaceStore } from '@/stores/appInterface'
 
 defineProps<{
@@ -42,5 +45,6 @@ defineEmits<{
   (e: 'cancel'): void
 }>()
 
+const { t } = useI18n()
 const interfaceStore = useAppInterfaceStore()
 </script>

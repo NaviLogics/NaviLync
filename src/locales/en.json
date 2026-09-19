@@ -1512,5 +1512,25 @@
     "coordinatesInvalid": "Latitude and Longitude must be valid numbers.",
     "cannotSaveWithoutCoordinates": "Cannot save Point of Interest without coordinates.",
     "noneSelected": "No Point of Interest selected for deletion."
+  },
+  "vehicleDefaults": {
+    "connectVehicle": "Connect a vehicle so NaviLync can identify which defaults are available.",
+    "import": "Import",
+    "importSelected": "Import selected",
+    "joystick": {
+      "title": "Default Joystick Mapping",
+      "connected": "Connected to {vehicle}. Select which default bindings to import."
+    },
+    "views": {
+      "title": "Default Views",
+      "connected": "Connected to {vehicle}. Choose which default views to import."
+    },
+    "replace": {
+      "title": "Replace existing configuration?",
+      "prefix": "This will",
+      "currentViews": "permanently delete your current {count} view(s)",
+      "suffix": "and replace them with the selected default view(s) for {vehicle}. This action cannot be undone.",
+      "action": "Replace"
+    }
   }
 }
