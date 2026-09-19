@@ -128,7 +128,10 @@ const handlePlayAndPause = async (): Promise<void> => {
     }
   } catch (err) {
     openSnackbar({
-      message: t('miniMission.controlFailed', { action: missionStore.isMissionRunning ? t('miniMission.pauseVerb') : t('miniMission.startVerb'), error: (err as Error).message }),
+      message: t('miniMission.controlFailed', {
+        action: missionStore.isMissionRunning ? t('miniMission.pauseVerb') : t('miniMission.startVerb'),
+        error: (err as Error).message,
+      }),
       variant: 'error',
     })
   }

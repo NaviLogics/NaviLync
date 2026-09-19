@@ -1,5 +1,11 @@
 <template>
-  <InteractionDialog v-model="show" :title="t('armSafety.title')" variant="text-only" max-width="780px" :persistent="false">
+  <InteractionDialog
+    v-model="show"
+    :title="t('armSafety.title')"
+    variant="text-only"
+    max-width="780px"
+    :persistent="false"
+  >
     <template #content>
       <div class="flex gap-x-2 absolute top-0 right-0 py-2 pr-3">
         <slot name="help-icon"></slot>
