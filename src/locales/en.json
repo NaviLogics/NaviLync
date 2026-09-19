@@ -105,7 +105,10 @@
     "success": "Success",
     "warning": "Warning",
     "info": "Info",
-    "none": "none"
+    "none": "none",
+    "saving": "Saving...",
+    "update": "Update",
+    "add": "Add"
   },
   "validation": {
     "invalidHostAddress": "Invalid host address. Should be an IP address or a hostname",
@@ -1461,5 +1464,34 @@
     "controlFailed": "Failed to {action} mission: {error}",
     "pauseVerb": "pause",
     "startVerb": "start"
+  },
+  "globalOrigin": {
+    "title": "Set Global Origin",
+    "description": "Set the GNSS coordinates of the vehicle's local origin (0,0,0). This is useful with local positioning systems or DVLs when a corresponding global position is required.",
+    "latitude": "Latitude",
+    "latitudeHint": "Latitude in degrees (-90 to 90)",
+    "latitudeRequired": "Latitude is required",
+    "latitudeRange": "Latitude must be between -90 and 90",
+    "longitude": "Longitude",
+    "longitudeHint": "Longitude in degrees (-180 to 180)",
+    "longitudeRequired": "Longitude is required",
+    "longitudeRange": "Longitude must be between -180 and 180",
+    "altitude": "Altitude",
+    "altitudeHint": "Altitude in meters (MSL)",
+    "altitudeRequired": "Altitude is required",
+    "offline": "Cannot set global origin. Vehicle does not appear to be online.",
+    "success": "Global origin set successfully.",
+    "failed": "Failed to set global origin: {error}"
+  },
+  "commandInput": {
+    "type": "Type",
+    "command": "Command",
+    "parameters": "Parameters",
+    "navCommand": "MAVLink Navigation Command",
+    "nonNavCommand": "MAVLink Non-Navigation Command"
+  },
+  "scanDirection": {
+    "scan": "Scan",
+    "direction": "Direction"
   }
 }
