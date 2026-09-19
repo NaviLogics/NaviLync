@@ -19,23 +19,20 @@
         <v-icon class="absolute top-[12px] right-[12px] cursor-pointer" @click="showHelp = !showHelp">
           mdi-help-circle-outline
         </v-icon>
-        <v-card-title class="w-full text-center mt-2">DIY widget configuration</v-card-title>
+        <v-card-title class="w-full text-center mt-2">{{ $t('widgetConfig.diy.title') }}</v-card-title>
         <v-card-text class="mx-2 flex flex-col gap-y-3">
           <v-expand-transition>
             <div v-if="showHelp" class="help-panel mb-4 p-4 rounded bg-white/5">
-              <h3 class="text-lg mb-2">Editor instructions</h3>
+              <h3 class="text-lg mb-2">{{ $t('widgetConfig.diy.instructionsTitle') }}</h3>
               <ul class="text-sm text-white/70 list-disc pl-4 space-y-1">
-                <li>Use the HTML, CSS, and JS editors to create your custom widget</li>
-                <li>Changes are applied when you click Apply or press Cmd/Ctrl + Enter/S</li>
-                <li>Navigate between editors using Cmd/Ctrl + Option/Alt + ↑/↓</li>
-                <li>Reset to last saved state using the Reset button</li>
-                <li>Your code runs in the widget's context and has access to the DOM</li>
-                <li>You can use the console to debug your code</li>
-                <li>
-                  You can use the data-lake system to inject or consume data from Cockpit. Check the docs for more
-                  information around this.
-                </li>
-                <li>Click on each editor's header to expand it to full size</li>
+                <li>{{ $t('widgetConfig.diy.instruction1') }}</li>
+                <li>{{ $t('widgetConfig.diy.instruction2') }}</li>
+                <li>{{ $t('widgetConfig.diy.instruction3') }}</li>
+                <li>{{ $t('widgetConfig.diy.instruction4') }}</li>
+                <li>{{ $t('widgetConfig.diy.instruction5') }}</li>
+                <li>{{ $t('widgetConfig.diy.instruction6') }}</li>
+                <li>{{ $t('widgetConfig.diy.instruction7') }}</li>
+                <li>{{ $t('widgetConfig.diy.instruction8') }}</li>
               </ul>
             </div>
           </v-expand-transition>
@@ -63,10 +60,16 @@
             </v-expansion-panel>
           </v-expansion-panels>
 
-          <v-checkbox v-model="autoSave" label="Auto Save" density="compact" class="-mb-2" hide-details />
+          <v-checkbox
+            v-model="autoSave"
+            :label="$t('widgetConfig.diy.autoSave')"
+            density="compact"
+            class="-mb-2"
+            hide-details
+          />
           <v-checkbox
             v-model="widget.options.inheritCockpitStyles"
-            label="Inherit Cockpit interface styles"
+            :label="$t('widgetConfig.diy.inheritStyles')"
             density="compact"
             class="-mb-2"
             hide-details
@@ -74,18 +77,20 @@
         </v-card-text>
         <v-card-actions>
           <div class="flex justify-between items-center px-4 w-full h-full">
-            <v-btn class="text-white/60" variant="text" @click="closeDialog">Close</v-btn>
+            <v-btn class="text-white/60" variant="text" @click="closeDialog">{{ $t('widgetConfig.diy.close') }}</v-btn>
             <div class="flex gap-x-3">
               <v-btn class="text-white/60" variant="text" title="Export configuration" @click="exportConfig">
                 <v-icon class="mr-1 mt-[2px]">mdi-download</v-icon>
-                Export
+                {{ $t('widgetConfig.diy.export') }}
               </v-btn>
               <v-btn class="text-white/60 mr-10" variant="text" title="Import configuration" @click="importConfig">
                 <v-icon class="mr-1 mt-[2px]">mdi-upload</v-icon>
-                Import
+                {{ $t('widgetConfig.diy.import') }}
               </v-btn>
-              <v-btn class="text-white/60" variant="text" @click="resetChanges">Reset</v-btn>
-              <v-btn class="text-white" variant="text" @click="applyChanges">Apply</v-btn>
+              <v-btn class="text-white/60" variant="text" @click="resetChanges">{{
+                $t('widgetConfig.diy.reset')
+              }}</v-btn>
+              <v-btn class="text-white" variant="text" @click="applyChanges">{{ $t('widgetConfig.diy.apply') }}</v-btn>
             </div>
           </div>
         </v-card-actions>
@@ -103,7 +108,7 @@ import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
 import type { Widget } from '@/types/widgets'
 
-const autoSave = useBlueOsStorage('cockpit-diy-widget-auto-save', false)
+const autoSave = useBlueOsStorage('diy-widget-auto-save', false)
 
 const interfaceStore = useAppInterfaceStore()
 const widgetStore = useWidgetManagerStore()

@@ -4,12 +4,12 @@
   </div>
   <v-dialog v-model="widgetStore.widgetManagerVars(widget.hash).configMenuOpen" min-width="400" max-width="45%">
     <v-card class="pa-4" :style="interfaceStore.globalGlassMenuStyles" style="border-radius: 15px">
-      <v-card-title class="text-center">Attitude widget config</v-card-title>
+      <v-card-title class="text-center">{{ $t('widgetConfig.attitude.title') }}</v-card-title>
       <v-card-text>
         <div class="flex justify-center gap-x-8 mb-4">
           <v-switch
             class="ma-1"
-            label="Show roll/pitch values"
+            :label="$t('widgetConfig.attitude.showRollPitchValues')"
             :model-value="widget.options.showRollPitchValues"
             :color="widget.options.showRollPitchValues ? 'white' : undefined"
             hide-details
@@ -17,7 +17,7 @@
           />
           <v-switch
             class="ma-1"
-            label="Show center aim"
+            :label="$t('widgetConfig.attitude.showCenterAim')"
             :model-value="widget.options.showCenterAim"
             :color="widget.options.showCenterAim ? 'white' : undefined"
             hide-details
@@ -25,7 +25,7 @@
           />
           <v-switch
             class="ma-1"
-            label="Show pitch lines"
+            :label="$t('widgetConfig.attitude.showPitchLines')"
             :model-value="widget.options.showPitchLines"
             :color="widget.options.showPitchLines ? 'white' : undefined"
             hide-details
@@ -35,14 +35,14 @@
         <v-slider
           v-model="widget.options.cameraFOV"
           color="white"
-          label="Camera vertical FOV"
+          :label="$t('widgetConfig.attitude.cameraFOV')"
           :min="20"
           :max="180"
           thumb-label
         />
         <v-slider
           v-model="widget.options.desiredAimRadius"
-          label="Center circle radius"
+          :label="$t('widgetConfig.attitude.centerRadius')"
           color="white"
           :min="10"
           :max="300"
@@ -50,7 +50,7 @@
         />
         <v-expansion-panels theme="dark">
           <v-expansion-panel class="bg-[#FFFFFF22]">
-            <v-expansion-panel-title>Color</v-expansion-panel-title>
+            <v-expansion-panel-title>{{ $t('widgetConfig.attitude.color') }}</v-expansion-panel-title>
             <v-expansion-panel-text class="pa-2">
               <v-color-picker
                 v-model="widget.options.hudColor"

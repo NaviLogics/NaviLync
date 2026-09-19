@@ -3,14 +3,14 @@
     v-if="!widget.options.dataLakeVariableId"
     class="w-full h-full flex items-center justify-center text-center text-white text-h5 font-weight-bold p-4 overflow-hidden"
   >
-    Please open the Plotter widget configuration menu to select a variable to be plotted.
+    {{ $t('widgetConfig.plotter.noVariableMessage') }}
   </p>
   <div v-else class="main">
     <canvas ref="canvasRef" :width="canvasSize.width" :height="canvasSize.height" />
   </div>
   <InteractionDialog
     v-model="widgetStore.widgetManagerVars(widget.hash).configMenuOpen"
-    :title="`Plotter config`"
+    :title="$t('widgetConfig.plotter.title')"
     variant="text-only"
   >
     <template #content>
@@ -20,22 +20,35 @@
       >
         <!-- Data source section -->
         <ExpansiblePanel no-top-divider no-bottom-divider is-expanded compact>
-          <template #title>Data Source</template>
+          <template #title>{{ $t('widgetConfig.plotter.dataSource') }}</template>
           <template #content>
             <div class="py-2">
-              <v-autocomplete
+              <v-text-field
+                v-model="searchTerm"
+                density="compact"
+                variant="filled"
+                theme="dark"
+                type="text"
+                :placeholder="$t('widgetConfig.plotter.searchVariables')"
+                class="mb-4"
+                clearable
+                @update:model-value="menuOpen = true"
+                @click:clear="menuOpen = false"
+                @update:focused="(isFocused: boolean) => (menuOpen = isFocused)"
+              />
+              <v-select
                 v-model="widget.options.dataLakeVariableId"
-                :items="availableDataLakeNumberVariables"
+                :items="filteredDataLakeNumberVariables"
                 item-title="name"
                 item-value="id"
-                label="Data Lake variable"
-                hint="Select a variable to be plotted"
+                :label="$t('widgetConfig.plotter.dataLakeVariable')"
+                :hint="$t('widgetConfig.plotter.selectVariable')"
                 persistent-hint
                 theme="dark"
                 variant="outlined"
                 density="comfortable"
-                clearable
-                prepend-inner-icon="mdi-magnify"
+                :menu-props="{ modelValue: menuOpen }"
+                @click="menuOpen = !menuOpen"
               />
             </div>
           </template>
@@ -43,14 +56,19 @@
 
         <!-- Appearance section -->
         <ExpansiblePanel no-top-divider no-bottom-divider compact :is-expanded="!interfaceStore.isOnSmallScreen">
-          <template #title>Appearance</template>
+          <template #title>{{ $t('widgetConfig.plotter.appearance') }}</template>
           <template #content>
             <div class="flex flex-wrap gap-x-8 gap-y-2 py-2">
-              <v-checkbox v-model="widget.options.showTitle" label="Show title" hide-details class="-mt-1" />
+              <v-checkbox
+                v-model="widget.options.showTitle"
+                :label="$t('widgetConfig.plotter.showTitle')"
+                hide-details
+                class="-mt-1"
+              />
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props: colorPickerActivatorProps }">
                   <div v-bind="colorPickerActivatorProps" class="flex cursor-pointer">
-                    <span class="mt-3">Background color</span>
+                    <span class="mt-3">{{ $t('widgetConfig.plotter.backgroundColor') }}</span>
                     <div
                       class="w-[30px] h-[30px] border-2 border-slate-700 rounded-lg cursor-pointer ml-2 mt-2"
                       :style="{ backgroundColor: widget.options.backgroundColor }"
@@ -62,7 +80,7 @@
               <v-menu :close-on-content-click="false">
                 <template #activator="{ props: colorPickerActivatorProps }">
                   <div v-bind="colorPickerActivatorProps" class="flex cursor-pointer">
-                    <span class="mt-3">Line color</span>
+                    <span class="mt-3">{{ $t('widgetConfig.plotter.lineColor') }}</span>
                     <div
                       class="w-[30px] h-[30px] border-2 border-slate-700 rounded-lg cursor-pointer ml-2 mt-2"
                       :style="{ backgroundColor: widget.options.lineColor }"
@@ -74,12 +92,51 @@
               <v-text-field
                 v-model.number="widget.options.lineThickness"
                 type="number"
-                label="Line thickness"
+                :label="$t('widgetConfig.plotter.lineThickness')"
                 variant="outlined"
                 density="compact"
-                :rules="[(v: number) => v > 0 || 'Must be greater than 0']"
-                style="max-width: 110px"
+                :rules="[(v: number) => v > 0 || $t('widgetConfig.plotter.mustBeGreaterThanZero')]"
+                width="140px"
                 hide-details
+              />
+            </div>
+          </template>
+        </ExpansiblePanel>
+
+        <!-- Data points section -->
+        <ExpansiblePanel no-top-divider no-bottom-divider compact :is-expanded="!interfaceStore.isOnSmallScreen">
+          <template #title>{{ $t('widgetConfig.plotter.dataPoints') }}</template>
+          <template #content>
+            <div class="py-2">
+              <div class="flex flex-wrap gap-x-8 gap-y-2">
+                <v-text-field
+                  v-model.number="widget.options.decimalPlaces"
+                  type="number"
+                  :label="$t('widgetConfig.plotter.decimalPlaces')"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="[(v: number) => v >= 0 || $t('widgetConfig.plotter.mustBeZeroOrGreater')]"
+                  :hint="$t('widgetConfig.plotter.decimalPlacesHint')"
+                  width="100px"
+                />
+                <v-checkbox v-model="widget.options.limitSamples" :label="$t('widgetConfig.plotter.limitSamples')" />
+                <v-text-field
+                  v-model.number="widget.options.maxSamples"
+                  type="number"
+                  :label="$t('widgetConfig.plotter.maximumSamples')"
+                  variant="outlined"
+                  density="comfortable"
+                  :disabled="!widget.options.limitSamples"
+                  :rules="[(v: number) => v > 0 || $t('widgetConfig.plotter.mustBeGreaterThanZero')]"
+                  :hint="$t('widgetConfig.plotter.maximumSamplesHint')"
+                  width="150px"
+                />
+              </div>
+              <v-checkbox
+                v-model="widget.options.updateOnConstantValue"
+                :label="$t('widgetConfig.plotter.updateOnConstant')"
+                :hint="$t('widgetConfig.plotter.updateOnConstantHint')"
+                persistent-hint
               />
             </div>
           </template>
@@ -87,105 +144,85 @@
 
         <!-- Statistics display section -->
         <ExpansiblePanel no-top-divider no-bottom-divider compact :is-expanded="!interfaceStore.isOnSmallScreen">
-          <template #title>Statistics Display</template>
+          <template #title>{{ $t('widgetConfig.plotter.statisticsDisplay') }}</template>
           <template #content>
-            <div class="flex flex-wrap items-center gap-x-6 py-2">
-              <v-checkbox v-model="widget.options.showCurrent" label="Current" hide-details class="-mt-1" />
-              <v-checkbox v-model="widget.options.showMin" label="Min" hide-details class="-mt-1" />
-              <v-checkbox v-model="widget.options.showMedian" label="Median" hide-details class="-mt-1" />
-              <v-checkbox v-model="widget.options.showAvg" label="Avg" hide-details class="-mt-1" />
-              <v-checkbox v-model="widget.options.showMax" label="Max" hide-details class="-mt-1" />
-              <v-checkbox v-model="widget.options.showStdDev" label="Std Dev" hide-details class="-mt-1" />
-              <div class="h-12 border-l border-slate-500"></div>
-              <v-text-field
-                v-model.number="widget.options.decimalPlaces"
-                type="number"
-                label="Decimal places"
-                variant="outlined"
-                density="compact"
-                :rules="[(v: number) => v >= 0 || 'Must be 0 or greater']"
-                style="max-width: 110px"
-                hide-details
-              />
-              <v-tooltip text="Number of decimal places to be displayed" location="top">
-                <template #activator="{ props: infoProps }">
-                  <v-icon v-bind="infoProps" size="small" class="text-slate-400 -ml-4">mdi-information-outline</v-icon>
-                </template>
-              </v-tooltip>
-            </div>
-          </template>
-        </ExpansiblePanel>
-
-        <!-- Time axis section -->
-        <ExpansiblePanel no-top-divider no-bottom-divider compact :is-expanded="!interfaceStore.isOnSmallScreen">
-          <template #title>Time Axis</template>
-          <template #content>
-            <div class="flex flex-wrap items-center gap-x-4 py-2">
-              <v-checkbox v-model="widget.options.limitSamples" label="Limit samples" hide-details class="-mt-1" />
-              <v-text-field
-                v-model.number="widget.options.maxSamples"
-                type="number"
-                label="Max samples"
-                variant="outlined"
-                density="compact"
-                :disabled="!widget.options.limitSamples"
-                :rules="[(v: number) => v > 0 || 'Must be greater than 0']"
-                style="max-width: 110px"
-                hide-details
-              />
-              <v-tooltip text="Higher values will show more history but may impact performance" location="top">
-                <template #activator="{ props: infoProps }">
-                  <v-icon v-bind="infoProps" size="small" class="text-slate-400 -ml-2">mdi-information-outline</v-icon>
-                </template>
-              </v-tooltip>
-              <div class="h-12 border-l border-slate-500"></div>
+            <div class="flex flex-wrap gap-x-6 py-2">
               <v-checkbox
-                v-model="widget.options.updateOnConstantValue"
-                label="Update on constant value"
+                v-model="widget.options.showCurrent"
+                :label="$t('widgetConfig.plotter.current')"
                 hide-details
                 class="-mt-1"
               />
-              <v-tooltip
-                text="Advance graph when value is unchanged (shows horizontal lines for constant values)"
-                location="top"
-                max-width="300px"
-              >
-                <template #activator="{ props: infoProps }">
-                  <v-icon v-bind="infoProps" size="small" class="text-slate-400 -ml-2 -mt-1"
-                    >mdi-information-outline</v-icon
-                  >
-                </template>
-              </v-tooltip>
+              <v-checkbox
+                v-model="widget.options.showMin"
+                :label="$t('widgetConfig.plotter.min')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-checkbox
+                v-model="widget.options.showMedian"
+                :label="$t('widgetConfig.plotter.median')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-checkbox
+                v-model="widget.options.showAvg"
+                :label="$t('widgetConfig.plotter.avg')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-checkbox
+                v-model="widget.options.showMax"
+                :label="$t('widgetConfig.plotter.max')"
+                hide-details
+                class="-mt-1"
+              />
+              <v-checkbox
+                v-model="widget.options.showStdDev"
+                :label="$t('widgetConfig.plotter.stdDev')"
+                hide-details
+                class="-mt-1"
+              />
             </div>
           </template>
         </ExpansiblePanel>
 
         <!-- Vertical Range section -->
         <ExpansiblePanel no-top-divider no-bottom-divider compact :is-expanded="!interfaceStore.isOnSmallScreen">
-          <template #title>Vertical Range</template>
+          <template #title>{{ $t('widgetConfig.plotter.verticalRange') }}</template>
           <template #content>
             <div class="flex items-center gap-x-4 py-2 mb-2">
-              <v-checkbox v-model="widget.options.useFixedMinY" label="Fixed minimum" hide-details class="-mt-1" />
+              <v-checkbox
+                v-model="widget.options.useFixedMinY"
+                :label="$t('widgetConfig.plotter.fixedMinimum')"
+                hide-details
+                class="-mt-1"
+              />
               <v-text-field
                 v-model.number="widget.options.fixedMinY"
                 type="number"
-                label="Min value"
+                :label="$t('widgetConfig.plotter.minValue')"
                 variant="outlined"
                 density="compact"
                 :disabled="!widget.options.useFixedMinY"
-                style="max-width: 110px"
+                width="100px"
                 hide-details
               />
               <div class="h-12 border-l border-slate-500"></div>
-              <v-checkbox v-model="widget.options.useFixedMaxY" label="Fixed maximum" hide-details class="-mt-1" />
+              <v-checkbox
+                v-model="widget.options.useFixedMaxY"
+                :label="$t('widgetConfig.plotter.fixedMaximum')"
+                hide-details
+                class="-mt-1"
+              />
               <v-text-field
                 v-model.number="widget.options.fixedMaxY"
                 type="number"
-                label="Max value"
+                :label="$t('widgetConfig.plotter.maxValue')"
                 variant="outlined"
                 density="compact"
                 :disabled="!widget.options.useFixedMaxY"
-                style="max-width: 110px"
+                width="100px"
                 hide-details
               />
             </div>
@@ -195,7 +232,9 @@
     </template>
     <template #actions>
       <div class="flex w-full justify-end my-2">
-        <v-btn @click="widgetStore.widgetManagerVars(widget.hash).configMenuOpen = false">Close</v-btn>
+        <v-btn @click="widgetStore.widgetManagerVars(widget.hash).configMenuOpen = false">{{
+          $t('widgetConfig.plotter.close')
+        }}</v-btn>
       </div>
     </template>
   </InteractionDialog>
@@ -204,6 +243,7 @@
 <script setup lang="ts">
 import { useElementVisibility, useWindowSize } from '@vueuse/core'
 import { computed, nextTick, onBeforeMount, onMounted, onUnmounted, ref, toRefs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   DataLakeVariable,
@@ -221,6 +261,8 @@ import type { Widget } from '@/types/widgets'
 
 import ExpansiblePanel from '../ExpansiblePanel.vue'
 import InteractionDialog from '../InteractionDialog.vue'
+
+const { t } = useI18n()
 
 const interfaceStore = useAppInterfaceStore()
 
@@ -292,6 +334,19 @@ const availableDataLakeNumberVariables = computed(() => {
   return availableDataLakeVariables.value.filter((variable) => variable.type === 'number')
 })
 
+const searchTerm = ref('')
+const menuOpen = ref(false)
+
+watch(
+  () => widget.value.options.dataLakeVariableId,
+  () => (menuOpen.value = false)
+)
+
+const filteredDataLakeNumberVariables = computed(() => {
+  const search = (searchTerm.value || '').toLowerCase()
+  return availableDataLakeNumberVariables.value.filter((variable) => variable.name.toLowerCase().includes(search))
+})
+
 // Remove the oldest sample if the number of samples is greater than the max samples
 // Use shift if the number of samples is exactly the max samples + 1 for performance reasons
 const cutExtraSamples = (): void => {
@@ -311,9 +366,12 @@ const pushNewValue = (value: number): void => {
 }
 
 const changeDataLakeVariable = (newId: string, oldId?: string): void => {
-  if (!newId) return
+  if (newId === undefined) {
+    console.error('No data lake variable ID provided!')
+    return
+  }
 
-  if (oldId && dataLakeVariableListenerId) {
+  if (oldId !== undefined && dataLakeVariableListenerId) {
     unlistenDataLakeVariable(oldId, dataLakeVariableListenerId)
   }
 
@@ -369,9 +427,12 @@ const drawText = (ctx: CanvasRenderingContext2D, text: string, x: number, y: num
 }
 
 const renderCanvas = (): void => {
-  if (!canvasRef.value) return
-  canvasContext.value = canvasRef.value.getContext('2d')
-  if (!canvasContext.value) return
+  if (canvasRef.value === undefined || canvasRef.value === null) return
+  if (canvasContext.value === undefined) {
+    console.debug('Canvas context undefined!')
+    canvasContext.value = canvasRef.value.getContext('2d')
+    return
+  }
   const ctx = canvasContext.value
   const canvasWidth = canvasSize.value.width
   const canvasHeight = canvasSize.value.height
@@ -465,27 +526,57 @@ const renderCanvas = (): void => {
     let yOffset = 10
 
     if (widget.value.options.showStdDev) {
-      drawText(ctx, `Std Dev: ${Number(stdDevValue).toFixed(decimalPlaces)}`, 10, canvasHeight - yOffset)
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsStdDev', { value: Number(stdDevValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
       yOffset += lineHeight
     }
     if (widget.value.options.showMax) {
-      drawText(ctx, `Max: ${Number(maxValue).toFixed(decimalPlaces)}`, 10, canvasHeight - yOffset)
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsMax', { value: Number(maxValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
       yOffset += lineHeight
     }
     if (widget.value.options.showAvg) {
-      drawText(ctx, `Avg: ${Number(averageValue).toFixed(decimalPlaces)}`, 10, canvasHeight - yOffset)
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsAvg', { value: Number(averageValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
       yOffset += lineHeight
     }
     if (widget.value.options.showMedian) {
-      drawText(ctx, `Median: ${Number(medianValue).toFixed(decimalPlaces)}`, 10, canvasHeight - yOffset)
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsMedian', { value: Number(medianValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
       yOffset += lineHeight
     }
     if (widget.value.options.showMin) {
-      drawText(ctx, `Min: ${Number(minValue).toFixed(decimalPlaces)}`, 10, canvasHeight - yOffset)
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsMin', { value: Number(minValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
       yOffset += lineHeight
     }
     if (widget.value.options.showCurrent) {
-      drawText(ctx, `Current: ${Number(currentValue).toFixed(decimalPlaces)}`, 10, canvasHeight - yOffset)
+      drawText(
+        ctx,
+        t('widgetConfig.plotter.statsCurrent', { value: Number(currentValue).toFixed(decimalPlaces) }),
+        10,
+        canvasHeight - yOffset
+      )
     }
   } catch (error) {
     console.error('Error drawing graph:', error)

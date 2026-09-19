@@ -12,8 +12,8 @@
     class="flex pa-4 bg-[#ffffff10] text-white backdrop-blur-2xl border-[1px] border-[#FAFAFA12]"
   >
     <div class="flex items-center">
-      <span class="mr-3 text-slate-100">Heading style</span>
-      <div class="w-40"><Dropdown v-model="widget.options.headingStyle" :options="headingOptions" /></div>
+      <span class="mr-3 text-slate-100">{{ $t('widgetConfig.compass.headingStyle') }}</span>
+      <div class="w-40"><Dropdown v-model="localizedHeadingStyle" :options="localizedHeadingOptions" /></div>
     </div>
   </Dialog>
 </template>
@@ -22,6 +22,7 @@
 import { useWindowSize } from '@vueuse/core'
 import gsap from 'gsap'
 import { computed, nextTick, onBeforeMount, onMounted, reactive, ref, toRefs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import Dialog from '@/components/Dialog.vue'
 import Dropdown from '@/components/Dropdown.vue'
@@ -30,6 +31,8 @@ import { degrees, radians, resetCanvas, sequentialArray } from '@/libs/utils'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
 import type { Widget } from '@/types/widgets'
+
+const { t } = useI18n()
 
 const widgetStore = useWidgetManagerStore()
 
@@ -69,6 +72,27 @@ const props = defineProps<{
   widget: Widget
 }>()
 const widget = toRefs(props).widget
+
+const localizedHeadingOptions = computed(() => {
+  return headingOptions.map((option) => {
+    if (option === HeadingStyle.NORTH_UP) return t('widgetConfig.compass.northUp')
+    if (option === HeadingStyle.HEAD_UP) return t('widgetConfig.compass.headUp')
+    return option
+  })
+})
+
+const localizedHeadingStyle = computed({
+  get: () => {
+    if (widget.value.options.headingStyle === HeadingStyle.NORTH_UP) return t('widgetConfig.compass.northUp')
+    if (widget.value.options.headingStyle === HeadingStyle.HEAD_UP) return t('widgetConfig.compass.headUp')
+    return widget.value.options.headingStyle
+  },
+  set: (value: string) => {
+    if (value === t('widgetConfig.compass.northUp')) widget.value.options.headingStyle = HeadingStyle.NORTH_UP
+    else if (value === t('widgetConfig.compass.headUp')) widget.value.options.headingStyle = HeadingStyle.HEAD_UP
+    else widget.value.options.headingStyle = value
+  },
+})
 
 onBeforeMount(() => {
   // Set initial widget options if they don't exist
