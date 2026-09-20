@@ -1,4 +1,4 @@
-import { app, BrowserWindow, powerSaveBlocker, protocol, screen } from 'electron'
+import { app, BrowserWindow, powerSaveBlocker, protocol, screen, shell } from 'electron'
 import { join } from 'path'
 
 import { setupAutoUpdater } from './services/auto-update'
@@ -64,11 +64,37 @@ function createWindow(): void {
     event.preventDefault()
   })
 
+  // Never allow renderer content to create unrestricted Electron windows.
+  // Regular HTTP(S) links are delegated to the user's default browser.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const parsedUrl = new URL(url)
+      if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') {
+        void shell.openExternal(url)
+      }
+    } catch (error) {
+      console.warn(`Blocked invalid external URL: ${url}`, error)
+    }
+    return { action: 'deny' }
+  })
+
   if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+    void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
-    mainWindow.loadFile(join(ROOT_PATH.dist, 'index.html'))
+    void mainWindow.loadFile(join(ROOT_PATH.dist, 'index.html'))
   }
+}
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+if (!gotSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  })
 }
 
 app.on('window-all-closed', () => {
@@ -107,6 +133,10 @@ setupVideoRecordingService()
 setupGo2RTCService()
 
 app.whenReady().then(async () => {
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('ru.navilogics.navilync')
+  }
+
   console.log('Electron app is ready.')
   console.log(`NaviLync version: ${app.getVersion()}`)
 
