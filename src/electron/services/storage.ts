@@ -138,7 +138,6 @@ export const setupFilesystemStorage = (): void => {
     await shell.openPath(snapshotFolderPath)
   })
   ipcMain.handle('open-video-file', async (_, fileName: string) => {
-    const videoFolderPath = join(cockpitFolderPath, 'videos')
     const videoFilePath = resolveStoragePath('videos', fileName)
     await shell.openPath(videoFilePath)
   })
