@@ -15,7 +15,7 @@ const SerialPortObject = require('serialport').SerialPort
  */
 export const normalizeSerialPath = (uri: URL): string => {
   const candidate = decodeURIComponent(uri.pathname || uri.hostname)
-  if (process.platform === 'win32') return candidate.replace(/^\\/+/, '')
+  if (process.platform === 'win32') return candidate.replace(/^\/+/, '')
   return candidate
 }
 
