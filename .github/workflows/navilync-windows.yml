@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - feature/navis-atlas-status-v1.18.4
+      - integration/windows-foundation-reconcile
 
 env:
   NODE_OPTIONS: --max-old-space-size=6144
