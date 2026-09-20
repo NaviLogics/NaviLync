@@ -154,13 +154,13 @@ function rebuildVariablesCache(): void {
 }
 
 /**
- * Register completion providers for JavaScript.
+ * Register completion providers for JavaScript and plaintext.
  * The provider checks the model's registered completion type to determine behavior.
  */
 function registerCompletionProviders(): void {
   // Data lake variable completion provider - triggered on '{' (for '{{' syntax)
   // Behavior depends on the completion type registered for each editor model
-  monaco.languages.registerCompletionItemProvider('javascript', {
+  const dataLakeCompletionProvider: monaco.languages.CompletionItemProvider = {
     triggerCharacters: ['{'],
     provideCompletionItems: (model, position) => {
       const textUntilPosition = model.getValueInRange({
@@ -193,8 +193,9 @@ function registerCompletionProviders(): void {
           endColumn: position.column,
         }
 
+        const nonLegacy = Object.entries(cachedVariablesMap).filter(([, v]) => !(v.name || '').includes('(Legacy)'))
         return {
-          suggestions: Object.entries(cachedVariablesMap).map(([id, variable]) => ({
+          suggestions: nonLegacy.map(([id, variable]) => ({
             label: variable.name || id,
             kind: monaco.languages.CompletionItemKind.Variable,
             documentation: `${variable.type}${variable.description ? ` - ${variable.description}` : ''} (${id})`,
@@ -212,8 +213,9 @@ function registerCompletionProviders(): void {
           endColumn: position.column,
         }
 
+        const nonLegacy = Object.entries(cachedVariablesMap).filter(([, v]) => !(v.name || '').includes('(Legacy)'))
         return {
-          suggestions: Object.entries(cachedVariablesMap).map(([id, variable]) => ({
+          suggestions: nonLegacy.map(([id, variable]) => ({
             label: variable.name || id,
             kind: monaco.languages.CompletionItemKind.Variable,
             insertText: ` ${id} }}`,
@@ -226,7 +228,10 @@ function registerCompletionProviders(): void {
 
       return { suggestions: [] }
     },
-  })
+  }
+
+  monaco.languages.registerCompletionItemProvider('javascript', dataLakeCompletionProvider)
+  monaco.languages.registerCompletionItemProvider('plaintext', dataLakeCompletionProvider)
 }
 
 // =============================================================================
@@ -248,6 +253,8 @@ export interface EditorOptions {
    * - undefined: No data lake completions
    */
   dataLakeCompletionType?: DataLakeCompletionType
+  /** Optional Monaco editor construction option overrides (e.g. lineNumbers, fontSize, padding) */
+  editorOverrides?: monaco.editor.IStandaloneEditorConstructionOptions
 }
 
 /**
@@ -278,6 +285,7 @@ export function createMonacoEditor(
     padding: { top: 12, bottom: 12 },
     autoClosingBrackets: options.language === 'javascript' ? 'never' : 'languageDefined',
     autoClosingQuotes: options.language === 'javascript' ? 'never' : 'languageDefined',
+    ...options.editorOverrides,
   })
 
   // Register completion type for this editor's model

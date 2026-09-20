@@ -24,94 +24,72 @@ export interface VeryGenericIndicatorPreset {
   variableMultiplier: number
 }
 
-import { i18n } from '@/plugins/i18n'
-
 export const veryGenericIndicatorPresets: VeryGenericIndicatorPreset[] = [
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.camTilt')
-    },
+    displayName: 'Cam Tilt',
     variableName: 'CamTilt',
     iconName: 'mdi-camera-retake',
     variableUnit: '%',
     variableMultiplier: 100,
   },
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.camPan')
-    },
+    displayName: 'Cam Pan',
     variableName: 'CamPan',
     iconName: 'mdi-camera-retake',
     variableUnit: '%',
     variableMultiplier: 100,
   },
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.waterTemp')
-    },
+    displayName: 'Water Temp',
     variableName: 'SCALED_PRESSURE2.temperature',
     iconName: 'mdi-thermometer',
     variableUnit: '°C',
     variableMultiplier: 0.01,
   },
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.tetherTurns')
-    },
+    displayName: 'Tether Turns',
     variableName: 'TetherTrn',
     iconName: 'mdi-horizontal-rotate-clockwise',
     variableUnit: 'x',
     variableMultiplier: 1,
   },
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.lights1')
-    },
+    displayName: 'Lights (1)',
     variableName: 'Lights1',
     iconName: 'mdi-flashlight',
     variableUnit: '%',
     variableMultiplier: 100,
   },
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.lights2')
-    },
+    displayName: 'Lights (2)',
     variableName: 'Lights2',
     iconName: 'mdi-flashlight',
     variableUnit: '%',
     variableMultiplier: 100,
   },
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.pilotGain')
-    },
+    displayName: 'Pilot Gain',
     variableName: 'PilotGain',
     iconName: 'mdi-account-hard-hat',
     variableUnit: '%',
     variableMultiplier: 100,
   },
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.inputHold')
-    },
+    displayName: 'Input Hold',
     variableName: 'InputHold',
     iconName: 'mdi-gesture-tap-hold',
     variableUnit: '',
     variableMultiplier: 1,
   },
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.rollPitch')
-    },
+    displayName: 'Roll Pitch',
     variableName: 'RollPitch',
     iconName: 'mdi-controller',
     variableUnit: '',
     variableMultiplier: 1,
   },
   {
-    get displayName() {
-      return i18n.global.t('genericIndicatorPresets.altitude')
-    },
+    displayName: 'Altitude',
     variableName: 'RANGEFINDER/distance',
     iconName: 'mdi-arrow-collapse-down',
     variableUnit: 'm',

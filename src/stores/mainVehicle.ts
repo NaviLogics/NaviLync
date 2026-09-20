@@ -11,8 +11,10 @@ import { getAllDataLakeVariablesInfo, getDataLakeVariableInfo, setDataLakeVariab
 import { createDataLakeVariable } from '@/libs/actions/data-lake'
 import { altitude_setpoint } from '@/libs/altitude-slider'
 import {
+  counterDeltaToMbps,
   getCpusInfo,
   getCpuTempCelsius,
+  getIpsInformationFromVehicle,
   getKeyDataFromCockpitVehicleStorage,
   getNetworkInfo,
   getStatus,
@@ -49,12 +51,11 @@ import type {
 import { Coordinates } from '@/libs/vehicle/types'
 import * as Vehicle from '@/libs/vehicle/vehicle'
 import { VehicleFactory } from '@/libs/vehicle/vehicle-factory'
-import i18n from '@/plugins/i18n'
+import { canSuggestCabledLink, createWirelessTrafficWatcher } from '@/libs/wireless-traffic-warning'
 import type { MissionLoadingCallback, Waypoint } from '@/types/mission'
 
 import { useControllerStore } from './controller'
-import { useWidgetManagerStore } from './widgetManager'
-
+import { useMissionStore } from './mission'
 /**
  * Custom parameter data description interface
  */
@@ -79,7 +80,7 @@ const { openSnackbar } = useSnackbar()
 
 export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const controllerStore = useControllerStore()
-  const widgetStore = useWidgetManagerStore()
+  const missionStore = useMissionStore()
   const ws_protocol = location?.protocol === 'https:' ? 'wss' : 'ws'
   const http_protocol = location?.protocol === 'https:' ? 'https' : 'http'
 
@@ -118,6 +119,12 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const currentlyConnectedVehicleId = ref<string | undefined>()
 
   const lastHeartbeat = ref<Date>()
+
+  /**
+   * Set to true the first time {@link isVehicleOnline} becomes true in this app session, and not reset
+   * until a full page reload. Used to distinguish "never had a link" from "had a link, now lost".
+   */
+  const hasVehicleBeenOnlineThisSession = ref(false)
   const firmwareType = ref<MavAutopilot>()
   const vehicleType = ref<MavType>()
   const altitude: Altitude = reactive({} as Altitude)
@@ -138,6 +145,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const currentVehicleName = ref<string | undefined>(undefined)
   const vehiclePositionMaxSampleRate = useStorage('cockpit-vehicle-position-max-sampling-ms', 200) // Limits the frequency of vehicle position updates
   const reachedMissionItemSequences = ref<number[]>([])
+  const currentMissionSeq = ref<number | undefined>(undefined)
 
   const markMissionItemAsReached = (sequence: number): void => {
     if (reachedMissionItemSequences.value.includes(sequence)) return
@@ -207,14 +215,24 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     return lastHeartbeat.value !== undefined && new Date(timeNow.value).getTime() - lastHeartbeat.value.getTime() < 5000
   })
 
+  /**
+   * True when a vehicle was online in this session (heartbeats received) and is now offline. Use for
+   * alarming disconnection UI; omit when the user never established a link this session.
+   * @returns {boolean} True if the user should see connection-lost (red border, pulsing comm indicator, etc.)
+   */
+  const isVehicleConnectionLost = computed(() => {
+    return hasVehicleBeenOnlineThisSession.value && !isVehicleOnline.value
+  })
+
   watch(isVehicleOnline, (isOnline) => {
     if (isOnline) {
+      hasVehicleBeenOnlineThisSession.value = true
       dispatchEvent(new CustomEvent('vehicle-online', { detail: { vehicleAddress: globalAddress.value } }))
-    } else {
-      dispatchEvent(new CustomEvent('vehicle-offline'))
+      return
     }
-    if (isOnline) return
+    dispatchEvent(new CustomEvent('vehicle-offline'))
     currentlyConnectedVehicleId.value = undefined
+    isArmed.value = undefined
   })
 
   watch(enableDatalakeVariablesFromOtherSystems, (newValue) => {
@@ -382,17 +400,11 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     const askGoToConfirm = !canByPassCategory(EventCategory.GOTO)
 
     if (askArmConfirm || askGoToConfirm) {
-      const t = i18n.global.t
-      const command =
-        askArmConfirm && askGoToConfirm
-          ? t('slideToConfirm.armAndGoto')
-          : askArmConfirm
-          ? t('confirmationCategories.arm')
-          : t('confirmationCategories.goto')
+      const command = askArmConfirm && askGoToConfirm ? 'Arm and GoTo' : askArmConfirm ? 'Arm' : 'GoTo'
       try {
         await slideToConfirm({ command })
       } catch (error) {
-        throw new Error(t('slideToConfirm.confirmationIgnored', { command }))
+        throw new Error(`${command} command ignored or cancelled by the user.`)
       }
     }
 
@@ -489,7 +501,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
    */
   async function clearMissions(): Promise<void> {
     mainVehicle.value?.clearMissions()
-    openSnackbar({ message: i18n.global.t('stores.mainVehicle.missionDeleted'), variant: 'info' })
+    openSnackbar({ message: 'Mission deleted from vehicle', variant: 'info' })
   }
 
   /**
@@ -499,6 +511,22 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     if (!mainVehicle.value) throw new Error('No vehicle available to start mission.')
 
     await mainVehicle.value.startMission()
+  }
+
+  /**
+   * Pause mission that is on the vehicle
+   */
+  async function pauseMission(): Promise<void> {
+    if (!mainVehicle.value) throw new Error('No vehicle available to pause mission.')
+    await mainVehicle.value.pauseMission()
+  }
+
+  /**
+   * Send the vehicle home (RTL)
+   */
+  async function returnHome(): Promise<void> {
+    if (!mainVehicle.value) throw new Error('No vehicle available to return home.')
+    await mainVehicle.value.returnHome()
   }
 
   /**
@@ -569,6 +597,11 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     // Set whether to create legacy data lake variable names
     mainVehicle.value.shouldCreateLegacyDataLakeVariables = enableLegacyDataLakeVariableNames.value
 
+    // Set callback for mission's current waypoint updates
+    mainVehicle.value.onMissionCurrent.add(MAVLinkType.MISSION_CURRENT, (seq: number) => {
+      currentMissionSeq.value = seq
+    })
+
     mainVehicle.value.onAltitude.add((newAltitude: Altitude) => {
       Object.assign(altitude, newAltitude)
     })
@@ -578,6 +611,11 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     mainVehicle.value.onArm.add((armed: boolean) => {
       const wasArmed = isArmed.value
       isArmed.value = armed
+
+      // Clear vehicle history on disarm/arm transition only when not persistent (persistent history is cleared only via map context menu)
+      if (wasArmed !== undefined && wasArmed !== armed && !isVehiclePositionHistoryPersistent.value) {
+        missionStore.clearVehicleHistory()
+      }
 
       // If the vehicle was already in the desired state or it's the first time we are checking, do not capture an event
       if (wasArmed === undefined || wasArmed === armed) return
@@ -632,20 +670,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
 
       if (oldVehicleType !== vehicleType.value && vehicleType.value !== undefined) {
         console.log('Vehicle type changed to', vehicleType.value)
-
-        try {
-          controllerStore.loadDefaultProtocolMappingForVehicle(vehicleType.value)
-          console.info(`Loaded default joystick protocol mapping for vehicle type ${vehicleType.value}.`)
-        } catch (error) {
-          console.error(`Could not load default protocol mapping for vehicle type ${vehicleType.value}: ${error}`)
-        }
-
-        try {
-          widgetStore.loadDefaultProfileForVehicle(vehicleType.value)
-          console.info(`Loaded default profile for vehicle type ${vehicleType.value}.`)
-        } catch (error) {
-          console.error(`Could not load default profile for vehicle type ${vehicleType.value}: ${error}`)
-        }
       }
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -709,10 +733,47 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     const networkDownloadSpeedMbpsVariableId = (interfaceName: string): string =>
       `blueos/network/${interfaceName}/downloadSpeedMbps`
 
-    // Store previous network readings for speed calculation
+    // Store the recent network readings of each interface, which the published speeds are measured across
 
     // eslint-disable-next-line jsdoc/require-jsdoc, prettier/prettier
-    const previousNetworkReadings: Map<string, { bytesReceived: number; bytesTransmitted: number; timestamp: number }> = new Map()
+    const networkReadingsHistory: Map<string, { bytesReceived: number; bytesTransmitted: number; timestamp: number }[]> = new Map()
+
+    // Long enough to span several counter refreshes, which is what makes the published speed the real rate.
+    const speedAveragingWindowMs = 10000
+
+    const wirelessTrafficWatcher = createWirelessTrafficWatcher()
+    const cabledLinkCheckIntervalMs = 30000
+    let checkingCabledLinkSuggestion = false
+    let lastCabledLinkCheckTimestamp = 0
+
+    // Asking the vehicle which links it can be reached on is a request of its own, so it is only made once the
+    // traffic condition holds, and throttled from there. The answer cannot be kept for the session, as a cable
+    // plugged in or pulled changes it. A failure just waits for the next check, since a saturated wireless link
+    // is exactly what makes this request fail, and that is when the warning is most needed.
+    const suggestCabledLinkIfItMakesSense = async (timestamp: number): Promise<void> => {
+      if (checkingCabledLinkSuggestion) return
+      if (timestamp - lastCabledLinkCheckTimestamp < cabledLinkCheckIntervalMs) return
+      checkingCabledLinkSuggestion = true
+      lastCabledLinkCheckTimestamp = timestamp
+
+      try {
+        const ipsInfo = await getIpsInformationFromVehicle(globalAddress.value)
+        if (!canSuggestCabledLink(ipsInfo, globalAddress.value)) return
+      } catch (error) {
+        console.error(`Failed to get the links the vehicle can be reached on: ${error}`)
+        return
+      } finally {
+        checkingCabledLinkSuggestion = false
+      }
+
+      wirelessTrafficWatcher.registerWarningShown()
+      openSnackbar({
+        message:
+          "A lot of data is going through the vehicle's WiFi connection. Connecting through the cabled network should give you better video quality and less delay.",
+        variant: 'warning',
+        persistent: true,
+      })
+    }
 
     const cpusInfos = await getCpusInfo(globalAddress.value)
     cpusInfos.forEach((cpu) => {
@@ -804,8 +865,11 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       try {
         const updatedNetworkInfos = await getNetworkInfo(globalAddress.value)
         const currentTimestamp = Date.now()
+        const totalUploadedBytesPerInterface: Record<string, number> = {}
 
         updatedNetworkInfos.forEach((networkInterface) => {
+          totalUploadedBytesPerInterface[networkInterface.name] = networkInterface.total_transmitted_B
+
           // Convert total bytes to megabytes (MB)
           const totalReceivedMB = networkInterface.total_received_B / (1024 * 1024)
           const totalTransmittedMB = networkInterface.total_transmitted_B / (1024 * 1024)
@@ -815,39 +879,37 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
           setDataLakeVariableData(networkTotalTransmittedMBVariableId(networkInterface.name), totalTransmittedMB)
 
           // Calculate and update speeds
-          const previousReading = previousNetworkReadings.get(networkInterface.name)
-          if (previousReading) {
-            const timeDeltaSeconds = (currentTimestamp - previousReading.timestamp) / 1000
-            if (timeDeltaSeconds > 0) {
-              // Calculate speed in bytes per second
-              const downloadSpeedBytesPerSec =
-                (networkInterface.total_received_B - previousReading.bytesReceived) / timeDeltaSeconds
-              const uploadSpeedBytesPerSec =
-                (networkInterface.total_transmitted_B - previousReading.bytesTransmitted) / timeDeltaSeconds
-
-              // Convert to megabits per second (Mbps): bytes/s * 8 bits/byte / (1024 * 1024) = Mbps
-              const downloadSpeedMbps = (downloadSpeedBytesPerSec * 8) / (1024 * 1024)
-              const uploadSpeedMbps = (uploadSpeedBytesPerSec * 8) / (1024 * 1024)
-
-              // Set speeds (ensure they're not negative due to counter resets)
-              setDataLakeVariableData(
-                networkDownloadSpeedMbpsVariableId(networkInterface.name),
-                Math.max(0, downloadSpeedMbps)
-              )
-              setDataLakeVariableData(
-                networkUploadSpeedMbpsVariableId(networkInterface.name),
-                Math.max(0, uploadSpeedMbps)
-              )
-            }
+          const windowStart = currentTimestamp - speedAveragingWindowMs
+          const storedReadings = networkReadingsHistory.get(networkInterface.name) ?? []
+          const readings = storedReadings.filter((reading) => reading.timestamp > windowStart)
+          // A gap longer than the window leaves nothing inside it, and publishing nothing would leave the
+          // previous rate standing as if it were current, so the newest reading is measured against instead.
+          const oldestReading = readings[0] ?? storedReadings[storedReadings.length - 1]
+          if (oldestReading) {
+            const spanMs = currentTimestamp - oldestReading.timestamp
+            setDataLakeVariableData(
+              networkDownloadSpeedMbpsVariableId(networkInterface.name),
+              counterDeltaToMbps(networkInterface.total_received_B - oldestReading.bytesReceived, spanMs)
+            )
+            setDataLakeVariableData(
+              networkUploadSpeedMbpsVariableId(networkInterface.name),
+              counterDeltaToMbps(networkInterface.total_transmitted_B - oldestReading.bytesTransmitted, spanMs)
+            )
           }
 
           // Store current reading for next calculation
-          previousNetworkReadings.set(networkInterface.name, {
+          readings.push({
             bytesReceived: networkInterface.total_received_B,
             bytesTransmitted: networkInterface.total_transmitted_B,
             timestamp: currentTimestamp,
           })
+          networkReadingsHistory.set(networkInterface.name, readings)
         })
+
+        // Not awaited, so a slow beacon does not hold this round nor report its failure as a data lake one.
+        if (wirelessTrafficWatcher.shouldWarn(totalUploadedBytesPerInterface, currentTimestamp)) {
+          suggestCabledLinkIfItMakesSense(currentTimestamp)
+        }
       } catch (error) {
         console.error(`Failed to update network information in data lake: ${error}`)
       }
@@ -952,6 +1014,15 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     mainVehicle.value.requestDefaultMessages()
   }
 
+  /**
+   * Sets the current mission item as active on the vehicle
+   * @param {number} seq - Sequential number of the mission item to set as current
+   */
+  async function setMissionCurrent(seq: number): Promise<void> {
+    if (!mainVehicle.value) throw new Error('No vehicle available to set mission current.')
+    await mainVehicle.value.setMissionCurrent(seq)
+  }
+
   return {
     arm,
     takeoff,
@@ -967,6 +1038,9 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     uploadMission,
     clearMissions,
     startMission,
+    pauseMission,
+    returnHome,
+    setMissionCurrent,
     getCurrentVehicleName,
     mainVehicle,
     globalAddress,
@@ -994,6 +1068,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     isArmed,
     flying,
     isVehicleOnline,
+    isVehicleConnectionLost,
     icon,
     configurationPages,
     rtcConfiguration,
@@ -1012,5 +1087,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     enableDatalakeVariablesFromOtherSystems,
     enableLegacyDataLakeVariableNames,
     getVehicleAddress,
+    currentMissionSeq,
   }
 })

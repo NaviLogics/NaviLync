@@ -17,8 +17,8 @@
       </div>
       <div class="w-[150px] ml-auto">
         <div v-show="hovering" class="flex flex-col items-center justify-center text-white mr-[14px] mt-[10px]">
-          <p class="text-xs -mb-1">Scan</p>
-          <p class="text-xs -mb-1">Direction</p>
+          <p class="text-xs -mb-1">{{ t('scanDirection.scan') }}</p>
+          <p class="text-xs -mb-1">{{ t('scanDirection.direction') }}</p>
           <p class="font-bold text-[30px] text-center text-[#FFFF00]">
             {{ getCardinalDirection(rotationAngle || 0) }}
           </p>
@@ -30,6 +30,9 @@
 
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 /* eslint-disable jsdoc/require-jsdoc */
 const props = defineProps<{

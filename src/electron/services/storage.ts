@@ -1,50 +1,105 @@
 import { dialog, ipcMain, shell } from 'electron'
 import { app } from 'electron'
+import { existsSync, mkdirSync } from 'fs'
 import * as fs from 'fs/promises'
-import { dirname, join } from 'path'
+import { dirname, isAbsolute, join, relative, resolve } from 'path'
 
 import type { FileDialogOptions, FileStats } from '@/types/storage'
 
-// Create a new storage interface for filesystem
-export const cockpitFolderPath = join(app.getPath('home'), 'Cockpit')
-fs.mkdir(cockpitFolderPath, { recursive: true })
+import store from './config-store'
+
+const defaultCockpitFolderPath = join(app.getPath('home'), 'Cockpit')
+let cockpitFolderPath = store.get('cockpitFolderPath') ?? defaultCockpitFolderPath
+let fallbackDialogShown = false
+
+export const resolveStoragePath = (...segments: string[]): string => {
+  const root = resolve(cockpitFolderPath)
+  const candidate = resolve(root, ...segments)
+  const relativePath = relative(root, candidate)
+  if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
+    throw new Error('Requested path escapes the application storage directory')
+  }
+  return candidate
+}
+
+const getStoragePath = (key?: string, subFolders?: string[]): string =>
+  resolveStoragePath(...(subFolders ?? []), ...(key ? [key] : []))
+
+const ensureCockpitFolder = (): void => {
+  if (existsSync(cockpitFolderPath)) return
+  if (cockpitFolderPath === defaultCockpitFolderPath) {
+    mkdirSync(cockpitFolderPath, { recursive: true })
+    return
+  }
+
+  const warnMessage = `The configured folder "${cockpitFolderPath}" is unreachable. Falling back to "${defaultCockpitFolderPath}".`
+  console.warn(warnMessage)
+  cockpitFolderPath = defaultCockpitFolderPath
+  store.delete('cockpitFolderPath')
+  mkdirSync(cockpitFolderPath, { recursive: true })
+
+  if (!fallbackDialogShown) {
+    fallbackDialogShown = true
+    const showWarning = (): void => {
+      dialog.showMessageBox({ type: 'warning', title: 'Cockpit folder unavailable', message: warnMessage }).then(() => {
+        fallbackDialogShown = false
+      })
+    }
+    if (app.isReady()) {
+      showWarning()
+    } else {
+      app.whenReady().then(showWarning)
+    }
+  }
+}
+
+ensureCockpitFolder()
+
+const FOLDER_CHECK_INTERVAL_MS = 5000
+app.whenReady().then(() => {
+  setInterval(ensureCockpitFolder, FOLDER_CHECK_INTERVAL_MS)
+})
 
 export const filesystemStorage = {
   async setItem(key: string, value: ArrayBuffer, subFolders?: string[]): Promise<void> {
+    ensureCockpitFolder()
     const buffer = Buffer.from(value)
-    const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
+    const filePath = getStoragePath(key, subFolders)
     await fs.mkdir(dirname(filePath), { recursive: true })
     await fs.writeFile(filePath, buffer)
   },
   async getItem(key: string, subFolders?: string[]): Promise<ArrayBuffer | null> {
-    const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
+    ensureCockpitFolder()
+    const filePath = getStoragePath(key, subFolders)
     try {
       const buffer = await fs.readFile(filePath)
       return new Uint8Array(buffer).buffer
     } catch (error) {
-      if (error.code === 'ENOENT') return null
+      if (error.code === 'ENOENT' || error.code === 'EISDIR') return null
       throw error
     }
   },
   async removeItem(key: string, subFolders?: string[]): Promise<void> {
-    const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
+    ensureCockpitFolder()
+    const filePath = getStoragePath(key, subFolders)
     try {
       await fs.unlink(filePath)
     } catch (error: any) {
-      // File doesn't exist, which is fine - just ignore it
       if (error.code === 'ENOENT') return
-
       throw error
     }
   },
   async clear(subFolders?: string[]): Promise<void> {
-    const dirPath = join(cockpitFolderPath, ...(subFolders ?? []))
+    ensureCockpitFolder()
+    const dirPath = getStoragePath(undefined, subFolders)
     await fs.rm(dirPath, { recursive: true })
   },
   async keys(subFolders?: string[]): Promise<string[]> {
-    const dirPath = join(cockpitFolderPath, ...(subFolders ?? []))
+    ensureCockpitFolder()
+    const dirPath = getStoragePath(undefined, subFolders)
     try {
-      return await fs.readdir(dirPath)
+      const entries = await fs.readdir(dirPath, { withFileTypes: true })
+      return entries.filter((e) => e.isFile()).map((e) => e.name)
     } catch (error) {
       if (error.code === 'ENOENT') return []
       throw error
@@ -73,19 +128,48 @@ export const setupFilesystemStorage = (): void => {
     await shell.openPath(cockpitFolderPath)
   })
   ipcMain.handle('open-video-folder', async () => {
-    const videoFolderPath = join(cockpitFolderPath, 'videos')
+    const videoFolderPath = resolveStoragePath('videos')
     await fs.mkdir(videoFolderPath, { recursive: true })
     await shell.openPath(videoFolderPath)
   })
+  ipcMain.handle('open-snapshot-folder', async () => {
+    const snapshotFolderPath = resolveStoragePath('snapshots')
+    await fs.mkdir(snapshotFolderPath, { recursive: true })
+    await shell.openPath(snapshotFolderPath)
+  })
   ipcMain.handle('open-video-file', async (_, fileName: string) => {
-    const videoFolderPath = join(cockpitFolderPath, 'videos')
-    const videoFilePath = join(videoFolderPath, fileName)
+    const videoFilePath = resolveStoragePath('videos', fileName)
     await shell.openPath(videoFilePath)
   })
   ipcMain.handle('open-temp-video-chunks-folder', async () => {
-    const tempChunksFolderPath = join(cockpitFolderPath, 'videos', 'temporary-video-chunks')
+    const tempChunksFolderPath = resolveStoragePath('videos', 'temporary-video-chunks')
     await fs.mkdir(tempChunksFolderPath, { recursive: true })
     await shell.openPath(tempChunksFolderPath)
+  })
+
+  ipcMain.handle('get-cockpit-folder-path', () => {
+    ensureCockpitFolder()
+    return cockpitFolderPath
+  })
+
+  ipcMain.handle('get-default-cockpit-folder-path', () => defaultCockpitFolderPath)
+
+  ipcMain.handle('set-cockpit-folder-path', async (_, newPath: string) => {
+    cockpitFolderPath = newPath
+    await fs.mkdir(cockpitFolderPath, { recursive: true })
+    store.set('cockpitFolderPath', cockpitFolderPath)
+  })
+
+  ipcMain.handle('select-cockpit-folder', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Select Cockpit folder',
+      defaultPath: cockpitFolderPath,
+    })
+    if (result.canceled || result.filePaths.length === 0) {
+      return null
+    }
+    return result.filePaths[0]
   })
 
   /**
@@ -97,7 +181,7 @@ export const setupFilesystemStorage = (): void => {
     try {
       // If subFolders is provided, construct path from cockpit folder
       // Otherwise, treat pathOrKey as a full path
-      const filePath = subFolders ? join(cockpitFolderPath, ...(subFolders ?? []), pathOrKey) : pathOrKey
+      const filePath = subFolders ? getStoragePath(pathOrKey, subFolders) : pathOrKey
       const stats = await fs.stat(filePath)
       return {
         exists: true,
@@ -116,13 +200,18 @@ export const setupFilesystemStorage = (): void => {
   })
 
   /**
-   * Show file dialog to select a file
+   * Show file dialog to select one or more files. Multi-selection can be disabled
+   * via the `allowMultiple` option for callers that need a single-file picker.
    * @param options - Optional dialog configuration
-   * @returns The selected file path, or null if cancelled
+   * @returns The selected file paths, or null if cancelled
    */
-  ipcMain.handle('get-path-of-selected-file', async (_, options?: FileDialogOptions) => {
+  ipcMain.handle('get-paths-of-selected-files', async (_, options?: FileDialogOptions) => {
+    const allowMultiple = options?.allowMultiple ?? true
+    const properties: Array<'openFile' | 'multiSelections'> = ['openFile']
+    if (allowMultiple) properties.push('multiSelections')
+
     const result = await dialog.showOpenDialog({
-      properties: ['openFile'],
+      properties,
       filters: options?.filters,
       title: options?.title,
       defaultPath: options?.defaultPath,
@@ -132,6 +221,15 @@ export const setupFilesystemStorage = (): void => {
       return null
     }
 
-    return result.filePaths[0]
+    return result.filePaths
   })
+}
+
+/**
+ * Returns the current Cockpit folder path, falling back to the default if the configured path is unreachable
+ * @returns {string} The active Cockpit folder path
+ */
+export const getCockpitFolderPath = (): string => {
+  ensureCockpitFolder()
+  return cockpitFolderPath
 }

@@ -5,7 +5,7 @@
         <div class="flex absolute top-0 right-0"><v-btn icon="mdi-close" variant="text" @click="closeDialog" /></div>
         <div class="flex flex-col justify-center align-center w-full h-full">
           <div class="relative">
-            <img :src="CockpitLogo" alt="Cockpit Logo" class="w-64 my-4" />
+            <img :src="CockpitLogo" alt="NaviLync Logo" class="w-64 my-4" />
             <img
               v-if="!isElectron()"
               :src="lite"
@@ -19,7 +19,7 @@
                 Cockpit is an intuitive and customizable cross-platform ground control station for remote vehicles of
                 all types.
               </p>
-              <p class="my-3">It was created by Blue Robotics and is entirely open-source.</p>
+              <p class="my-3">NaviLync is based on the open-source Cockpit project created by Blue Robotics.</p>
               <p class="mt-1">
                 It currently supports Ardupilot-based vehicles, but has plans to support any generic vehicle, be it
                 communicating MAVLink or not.
@@ -34,7 +34,7 @@
                 <br />
                 <span class="text-sm text-gray-500">Released: {{ app_version.date }}</span>
               </p>
-              <p class="my-3">Created by Blue Robotics</p>
+              <p class="my-3">NaviLync by NaviLogics · based on Cockpit by Blue Robotics</p>
               <p class="mt-1">Licensed under AGPL-3.0-only or LicenseRef-Cockpit-Custom</p>
             </div>
           </div>
@@ -45,16 +45,9 @@
               icon="mdi-github"
               size="xs"
               target="_blank"
-              href="https://github.com/bluerobotics/cockpit"
+              href="https://github.com/NaviLogics/NaviLync"
             />
-            <v-btn
-              class="mx-3"
-              variant="text"
-              icon="mdi-web"
-              size="xs"
-              target="_blank"
-              href="https://bluerobotics.com"
-            />
+            <v-btn class="mx-3" variant="text" icon="mdi-web" size="xs" target="_blank" href="https://navilogics.ru" />
             <v-btn
               class="mx-3"
               variant="text"
@@ -76,8 +69,8 @@
 <script setup lang="ts">
 import { onUnmounted, ref, watch } from 'vue'
 
-import CockpitLogo from '@/assets/cockpit-logo.png'
-import lite from '@/assets/lite.png'
+import CockpitLogo from '@/assets/cockpit-logo.avif'
+import lite from '@/assets/lite.avif'
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import { app_version } from '@/libs/cosmos'
 import { isElectron } from '@/libs/utils'

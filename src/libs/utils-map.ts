@@ -2,7 +2,7 @@ import * as turf from '@turf/turf'
 import type { Feature, Polygon } from 'geojson'
 import * as L from 'leaflet'
 
-import type { WaypointCoordinates } from '@/types/mission'
+import type { SurveyPath, WaypointCoordinates } from '@/types/mission'
 
 /**
  * Default target follower update interval in milliseconds.
@@ -172,18 +172,46 @@ export class TargetFollower {
 }
 
 /**
+ * Adjusts the given map view so that all the provided waypoint coordinates
+ * are visible at once. Coordinates with invalid lat/lng values are ignored.
+ * @param {L.Map} map - Leaflet map instance to adjust.
+ * @param {WaypointCoordinates[]} coordinates - List of `[latitude, longitude]` tuples to fit.
+ * @param {L.FitBoundsOptions} [options] - Optional Leaflet `fitBounds` options. A sensible
+ *   default padding is applied when none is provided.
+ * @returns {boolean} `true` if the map view was adjusted, `false` if there were no valid
+ *   coordinates to fit.
+ */
+export const fitMapToWaypoints = (
+  map: L.Map,
+  coordinates: WaypointCoordinates[],
+  options?: L.FitBoundsOptions
+): boolean => {
+  const validCoordinates = coordinates.filter(
+    (coord) => Array.isArray(coord) && Number.isFinite(coord[0]) && Number.isFinite(coord[1])
+  )
+  if (validCoordinates.length === 0) return false
+
+  const bounds = L.latLngBounds(validCoordinates.map((coord) => L.latLng(coord[0], coord[1])))
+  map.fitBounds(bounds, { padding: [20, 20], maxZoom: 22, animate: true, ...(options ?? {}) })
+  return true
+}
+
+/**
  * Generates a survey path based on the given polygon and parameters.
  * @param {L.LatLng[]} polygonPoints - The points of the polygon.
  * @param {number} distanceBetweenLines - The distance between survey lines in meters.
  * @param {number} linesAngle - The angle of the survey lines in degrees.
- * @returns {L.LatLng[]} The generated survey path.
+ * @param {number} turnaroundDistance - Distance in meters to extend (positive) or inset (negative) from the polygon
+ *   boundary before turning. Positive values make the vehicle fly past the edges; negative values keep it away.
+ * @returns {SurveyPath} The generated survey path and turnaround segments.
  */
 export const generateSurveyPath = (
   polygonPoints: L.LatLng[],
   distanceBetweenLines: number,
-  linesAngle: number
-): L.LatLng[] => {
-  if (polygonPoints.length < 4) return []
+  linesAngle: number,
+  turnaroundDistance = 0
+): SurveyPath => {
+  if (polygonPoints.length < 4) return { path: [], turnaroundSegments: [] }
 
   const polygonCoords = polygonPoints.map((p) => [p.lng, p.lat])
   if (
@@ -203,8 +231,17 @@ export const generateSurveyPath = (
     const angleRad = (adjustedAngle * Math.PI) / 180
 
     const continuousPath: L.LatLng[] = []
+    const turnaroundSegments: L.LatLng[][] = []
     let d = -diagonal
     let isReverse = false
+
+    let prevExitBoundary: L.LatLng | null = null
+    let prevExitTurnaround: L.LatLng | null = null
+
+    const lineBearing = turf.bearing(
+      turf.point([minX - diagonal * Math.sin(angleRad), minY + diagonal * Math.cos(angleRad)]),
+      turf.point([minX + diagonal * Math.sin(angleRad), minY - diagonal * Math.cos(angleRad)])
+    )
 
     while (d <= diagonal * 2) {
       const lineStart = [
@@ -229,11 +266,51 @@ export const generateSurveyPath = (
         })
 
         const coords = sortedFeatures.map((f) => f.geometry.coordinates)
-        if (isReverse) coords.reverse()
+
+        if (turnaroundDistance !== 0 && coords.length >= 2) {
+          const origFirst = L.latLng(coords[0][1], coords[0][0])
+          const origLast = L.latLng(coords[coords.length - 1][1], coords[coords.length - 1][0])
+
+          if (turnaroundDistance < 0 && Math.abs(turnaroundDistance) * 2 >= origFirst.distanceTo(origLast)) {
+            d += distanceBetweenLines / 111000
+            continue
+          }
+
+          const turnaroundKm = turnaroundDistance / 1000
+          const extFirst = turf.destination(turf.point(coords[0]), turnaroundKm, lineBearing + 180, {
+            units: 'kilometers',
+          })
+          coords[0] = extFirst.geometry.coordinates
+
+          const lastIdx = coords.length - 1
+          const extLast = turf.destination(turf.point(coords[lastIdx]), turnaroundKm, lineBearing, {
+            units: 'kilometers',
+          })
+          coords[lastIdx] = extLast.geometry.coordinates
+
+          const entryBoundary = isReverse ? origLast : origFirst
+          const exitBoundary = isReverse ? origFirst : origLast
+
+          if (isReverse) coords.reverse()
+
+          const entryTurnaround = L.latLng(coords[0][1], coords[0][0])
+          const exitTurnaround = L.latLng(coords[coords.length - 1][1], coords[coords.length - 1][0])
+
+          if (prevExitBoundary && prevExitTurnaround) {
+            turnaroundSegments.push([prevExitBoundary, prevExitTurnaround, entryTurnaround, entryBoundary])
+          } else {
+            turnaroundSegments.push([entryTurnaround, entryBoundary])
+          }
+
+          prevExitBoundary = exitBoundary
+          prevExitTurnaround = exitTurnaround
+        } else {
+          if (isReverse) coords.reverse()
+        }
 
         const linePoints = coords.map((c) => L.latLng(c[1], c[0]))
 
-        if (continuousPath.length > 0) {
+        if (continuousPath.length > 0 && turnaroundDistance === 0) {
           const lastPoint = continuousPath[continuousPath.length - 1]
           const edgePath = moveAlongEdge(poly, lastPoint, linePoints[0], diagonal)
           continuousPath.push(...edgePath)
@@ -246,10 +323,14 @@ export const generateSurveyPath = (
       d += distanceBetweenLines / 111000
     }
 
-    return continuousPath
+    if (turnaroundDistance !== 0 && prevExitBoundary && prevExitTurnaround) {
+      turnaroundSegments.push([prevExitBoundary, prevExitTurnaround])
+    }
+
+    return { path: continuousPath, turnaroundSegments }
   } catch (error) {
     console.error('Error in generateSurveyPath:', error)
-    return []
+    return { path: [], turnaroundSegments: [] }
   }
 }
 

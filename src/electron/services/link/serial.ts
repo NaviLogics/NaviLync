@@ -9,6 +9,17 @@ import { Link } from './link'
 const SerialPortObject = require('serialport').SerialPort
 
 /**
+ * Normalize a serial URI path across POSIX and Windows.
+ * @param {URL} uri Serial connection URI
+ * @returns {string} Native serial port path
+ */
+export const normalizeSerialPath = (uri: URL): string => {
+  const candidate = decodeURIComponent(uri.pathname || uri.hostname)
+  if (process.platform === 'win32') return candidate.replace(/^\/+/, '')
+  return candidate
+}
+
+/**
  * SerialLink class for managing serial connections
  */
 export class SerialLink extends Link {
@@ -27,8 +38,9 @@ export class SerialLink extends Link {
   constructor(uri: URL) {
     super(uri)
     this.protocol = uri.protocol.replace(':', '')
-    this.path = uri.pathname
+    this.path = normalizeSerialPath(uri)
     this.baudRate = parseInt(uri.searchParams.get('baudrate') || '115200', 10)
+    if (!this.path) throw new Error('Serial port path is required')
     if (isNaN(this.baudRate) || this.baudRate <= 0) {
       throw new Error(`Invalid baud rate: ${uri.searchParams.get('baudrate')}`)
     }
@@ -44,18 +56,24 @@ export class SerialLink extends Link {
    * serialLink.open()
    */
   async open(): Promise<void> {
+    let ports: PortInfo[] | undefined
     try {
-      const ports = await SerialPortObject.list()
+      ports = await SerialPortObject.list()
       console.log(
-        `Available serial ports:`,
+        'Available serial ports:',
         ports.map((p: PortInfo) => p.path)
       )
-      const portExists = ports.some((p: PortInfo) => p.path === this.path)
-      if (!portExists) {
-        throw new Error(`Port ${this.path} not found`)
-      }
     } catch (listError: any) {
-      console.error('Error listing ports:', listError)
+      console.warn('Unable to enumerate serial ports before opening:', listError)
+    }
+
+    if (ports) {
+      const requestedPath = process.platform === 'win32' ? this.path.toLowerCase() : this.path
+      const portExists = ports.some((p: PortInfo) => {
+        const availablePath = process.platform === 'win32' ? p.path.toLowerCase() : p.path
+        return availablePath === requestedPath
+      })
+      if (!portExists) throw new Error(`Port ${this.path} not found`)
     }
 
     const port = new SerialPortObject({
@@ -68,7 +86,7 @@ export class SerialLink extends Link {
       port.open((error: Error | null) => {
         if (error) {
           console.error(`Error opening serial port ${this.path}:`, error)
-          reject()
+          reject(error)
           return
         }
 

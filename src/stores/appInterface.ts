@@ -38,11 +38,7 @@ export enum SubMenuComponentName {
 export const useAppInterfaceStore = defineStore('responsive', {
   state: () => ({
     pirateMode: useBlueOsStorage('cockpit-pirate-mode', false),
-    /**
-     * Admin mode allows access to advanced configuration menu items.
-     * When false (operator mode), Interface, Joystick, Video, Telemetry, Dev, and Actions menu items are hidden.
-     * When true (admin mode), all menu items are visible.
-     */
+    /** NaviLync operator/admin mode: advanced configuration stays hidden for operators. */
     isAdminMode: useBlueOsStorage('cockpit-admin-mode', false),
     showSkullAnimation: false,
     width: windowWidth.value,
@@ -65,6 +61,11 @@ export const useAppInterfaceStore = defineStore('responsive', {
     currentSubMenuComponentName: ref<SubMenuComponentName | null>(null),
     isGlassModalAlwaysOnTop: false,
     isTutorialVisible: false,
+    isExternalFeaturesModalVisible: false,
+    isDataPrivacyModalVisible: false,
+    isVehicleDefaultsAutoImportModalVisible: false,
+    isVehicleDefaultsViewsImportModalVisible: false,
+    isVehicleDefaultsJoystickImportModalVisible: false,
     userHasSeenTutorial: useBlueOsStorage('cockpit-has-seen-tutorial', false),
     configPanelVisible: false,
     showSplashScreen: true,
@@ -86,6 +87,15 @@ export const useAppInterfaceStore = defineStore('responsive', {
     },
     hideSkullAnimation() {
       this.showSkullAnimation = false
+    },
+    openVehicleDefaultsAutoImport(): void {
+      this.isVehicleDefaultsAutoImportModalVisible = true
+    },
+    openVehicleDefaultsViewsImport(): void {
+      this.isVehicleDefaultsViewsImportModalVisible = true
+    },
+    openVehicleDefaultsJoystickImport(): void {
+      this.isVehicleDefaultsJoystickImportModalVisible = true
     },
   },
   getters: {

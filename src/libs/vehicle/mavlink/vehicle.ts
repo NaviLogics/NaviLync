@@ -84,8 +84,8 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
   _statusText = new StatusText()
   _statusGPS = new StatusGPS()
   _vehicleSpecificErrors = [0, 0, 0, 0]
-
   _messages: MAVLinkMessageDictionary = new Map()
+  _currentMissionSeq: number | undefined = undefined
 
   onIncomingMAVLinkMessage = new SignalTyped()
   onOutgoingMAVLinkMessage = new SignalTyped()
@@ -96,6 +96,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
   shouldCreateLegacyDataLakeVariables = true
 
   protected currentSystemId = 1
+  onMissionCurrent = new SignalTyped()
 
   /**
    * Create MAVLink vehicle
@@ -317,8 +318,41 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
     const { system_id, component_id } = mavlink_message.header
 
     if (system_id !== this.currentSystemId || component_id !== 1) {
-      // For non-main systems, only inject variables from the MAVLink messages into the DataLake if the user wants to
-      if (this.shouldCreateDatalakeVariablesFromOtherSystems) {
+      // NAVIS Atlas usv_agent publishes operational health as NAMED_VALUE_* through the shared router.
+      // Keep these read-only health metrics available even when the agent uses a non-autopilot component ID.
+      const navisMetricNames = new Set([
+        'SHOREOK',
+        'RTCMOK',
+        'HDGOK',
+        'READY',
+        'GPOSOK',
+        'ESTOK',
+        'RTCMERR',
+        'RTKSTATE',
+        'RDYCODE',
+        'FIXTYPE',
+        'SATS',
+        'HACC_CM',
+        'RTCMAGE',
+        'RTKDWELL',
+        'RTK_BPS',
+        'GPSAGE',
+        'GPOSAGE',
+        'ESTAGE',
+        'HDGAGE',
+        'HDG_DEG',
+        'EKFHACC',
+        'SHOREAGE',
+      ])
+      const isNamedValue = ['NAMED_VALUE_FLOAT', 'NAMED_VALUE_INT'].includes(mavlink_message.message.type)
+      const namedValueName = isNamedValue
+        ? (mavlink_message.message.name as string[]).join('').replaceAll('\\x00', '')
+        : ''
+      const isNavisHealthMetric = isNamedValue && navisMetricNames.has(namedValueName)
+
+      // Preserve Cockpit's opt-in behavior for arbitrary other systems, while always accepting the
+      // explicitly allow-listed NAVIS health telemetry required by the status widget.
+      if (this.shouldCreateDatalakeVariablesFromOtherSystems || isNavisHealthMetric) {
         this.addPackageVariablesToDataLake(mavlink_message)
       }
 
@@ -476,6 +510,13 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       case MAVLinkType.MISSION_ITEM_REACHED: {
         const missionItemReached = mavlink_message.message as Message.MissionItemReached
         this.onMissionItemReached.emit_value(missionItemReached.seq)
+        break
+      }
+
+      case MAVLinkType.MISSION_CURRENT: {
+        const msg = mavlink_message.message as Message.MissionCurrent
+        this._currentMissionSeq = msg.seq
+        this.onMissionCurrent.emit_value(MAVLinkType.MISSION_CURRENT, msg.seq)
         break
       }
 
@@ -1231,7 +1272,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       target_component: 1,
       seq: 0,
       frame: { type: MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT },
-      command: { type: MavCmd.MAV_CMD_GET_HOME_POSITION },
+      command: { type: MavCmd.MAV_CMD_NAV_WAYPOINT },
       current: 1,
       autocontinue: 1,
       param1: 0,
@@ -1262,15 +1303,15 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
   }
 
   /**
-   * Start mission that is on the vehicle
+   * Reset vehicle mode to LOITER/ALT_HOLD
    */
-  async startMission(): Promise<void> {
-    // Start by reseting the current mode to LOITER (or ALT_HOLD for submarines)
-    // This is necessary as the vehicle can be in a mission and will not answer until getting off of the AUTO mode
+  private async resetMode(): Promise<void> {
+    // Resets the current mode to LOITER (or ALT_HOLD for submarines)
     let resetModeName = 'LOITER'
     if ([Vehicle.Type.Sub].includes(this._type)) {
       resetModeName = 'ALT_HOLD'
     }
+
     const resetMode = this.modesAvailable().get(resetModeName)
     if (resetMode === undefined) {
       throw Error(
@@ -1278,6 +1319,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
         Please put the vehicle in ${resetModeName} mode manually so a new mission can be started.`
       )
     }
+
     await this.setMode(resetMode as Modes)
 
     // Check if the vehicle got off of the AUTO mode
@@ -1286,9 +1328,19 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       await this.setMode(resetMode as Modes)
       await sleep(100)
     }
+
     if (this.mode() !== resetMode) {
       throw Error(`Could not put vehicle in ${resetModeName} mode. Please do it manually.`)
     }
+  }
+
+  /**
+   * Start mission that is on the vehicle
+   */
+  async startMission(): Promise<void> {
+    // Start by resetting the current mode
+    // This is necessary as the vehicle can be in a mission and will not answer until getting off of the AUTO mode
+    await this.resetMode()
 
     // Arming the vehicle is necessary to successfully start a mission
     const initialTimeArmCheck = new Date().getTime()
@@ -1301,6 +1353,50 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
     }
 
     await this.sendCommandLong(MavCmd.MAV_CMD_MISSION_START, 0, 0)
+  }
+
+  /**
+   * Pause mission that is on the vehicle
+   */
+  async pauseMission(): Promise<void> {
+    let pauseModeName = 'LOITER'
+    if ([Vehicle.Type.Sub, Vehicle.Type.Copter].includes(this._type)) {
+      pauseModeName = this.modesAvailable().has('POSHOLD') ? 'POSHOLD' : pauseModeName
+    }
+
+    const pauseMode = this.modesAvailable().get(pauseModeName)
+    if (pauseMode === undefined) {
+      throw Error(`${pauseModeName} mode is not available.`)
+    }
+
+    await this.setMode(pauseMode as Modes)
+  }
+
+  /**
+   * Send the vehicle home by setting it to SMART_RTL (preferred) or RTL mode
+   */
+  async returnHome(): Promise<void> {
+    const smartRtlMode = this.modesAvailable().get('SMART_RTL')
+    const rtlMode = this.modesAvailable().get('RTL')
+
+    const homeMode = smartRtlMode ?? rtlMode
+    const homeModeName = smartRtlMode !== undefined ? 'SMART_RTL' : 'RTL'
+
+    if (homeMode === undefined) {
+      throw Error('No return-to-home mode (SMART_RTL or RTL) is available on this vehicle.')
+    }
+
+    await this.setMode(homeMode as Modes)
+
+    const initialTimeHomeModeCheck = new Date().getTime()
+    while (this.mode() !== homeMode && new Date().getTime() - initialTimeHomeModeCheck < 10000) {
+      await this.setMode(homeMode as Modes)
+      await sleep(100)
+    }
+
+    if (this.mode() !== homeMode) {
+      throw Error(`Could not put vehicle in ${homeModeName} mode. Please do it manually.`)
+    }
   }
 
   /**
@@ -1524,5 +1620,21 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
         setDataLakeVariableData(newStylePath, value)
       })
     }
+  }
+
+  /**
+   * Set mission current (jump/skip to waypoint)
+   * @param {number} seq - Mission item index to set as current
+   */
+  async setMissionCurrent(seq: number): Promise<void> {
+    await this.sendCommandLong(MavCmd.MAV_CMD_DO_SET_MISSION_CURRENT, seq)
+  }
+
+  /**
+   * Getter for current mission seq
+   * @returns {number | undefined} Current mission seq, or undefined if n/a
+   */
+  currentMissionSeq(): number | undefined {
+    return this._currentMissionSeq
   }
 }

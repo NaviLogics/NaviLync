@@ -1,6 +1,5 @@
 import { ref } from 'vue'
 
-import { i18n } from '@/plugins/i18n'
 import { useMissionStore } from '@/stores/mission'
 
 import {
@@ -18,10 +17,10 @@ export type ConfirmCallback = () => void | Promise<void>
 
 /** Refs */
 export const showSlideToConfirm = ref(false)
-export const sliderText = ref(i18n.global.t('slideToConfirm.slideToConfirm'))
-export const confirmationSliderText = ref(i18n.global.t('slideToConfirm.actionConfirm'))
-export const deniedText = ref(i18n.global.t('slideToConfirm.actionDenied'))
-export const expiredText = ref(i18n.global.t('slideToConfirm.actionExpired'))
+export const sliderText = ref('Slide to Confirm')
+export const confirmationSliderText = ref('Action Confirm')
+export const deniedText = ref('Action Denied')
+export const expiredText = ref('Action Expired')
 export const sliderPercentage = ref(0)
 export const onAction = ref<(confirmed: boolean) => void>()
 
@@ -159,19 +158,17 @@ export function slideToConfirm(content: ConfirmContent, byPass = false): Promise
 
   /** If there is already some confirmation step, deny the action */
   if (showSlideToConfirm.value) {
-    return Promise.reject(new Error(i18n.global.t('slideToConfirm.cannotConfirm', { command: content.command })))
+    return Promise.reject(new Error(`Cannot confirm ${content.command}. Another confirmation is already in progress.`))
   }
 
   // Register the hold to confirm action for joystick listening
   const holdToConfirmCallbackId = registerHoldToConfirm()
 
   // Setup and show the slide to confirm component
-  sliderText.value = content.text ?? i18n.global.t('slideToConfirm.confirmCommand', { command: content.command })
-  confirmationSliderText.value =
-    content.confirmedText ?? i18n.global.t('slideToConfirm.commandConfirmed', { command: content.command })
-  deniedText.value = content.deniedText ?? i18n.global.t('slideToConfirm.commandDenied', { command: content.command })
-  expiredText.value =
-    content.expiredText ?? i18n.global.t('slideToConfirm.commandExpired', { command: content.command })
+  sliderText.value = content.text ?? `Confirm ${content.command}`
+  confirmationSliderText.value = content.confirmedText ?? `${content.command} confirmed`
+  deniedText.value = content.deniedText ?? `${content.command} denied`
+  expiredText.value = content.expiredText ?? `${content.command} expired`
   showSlideToConfirm.value = true
 
   // Register the callback to call the action
@@ -184,7 +181,7 @@ export function slideToConfirm(content: ConfirmContent, byPass = false): Promise
         return resolve()
       }
 
-      return reject(new Error(i18n.global.t('slideToConfirm.confirmationIgnored', { command: content.command })))
+      return reject(new Error(`Confirmation of '${content.command}' command ignored or denied by the user.`))
     }
   })
 }

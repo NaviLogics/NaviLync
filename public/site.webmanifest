@@ -1,7 +1,7 @@
 {
-    "name": "Cockpit",
-    "short_name": "Cockpit",
-    "description": "An intuitive and customizable cross-platform ground control station for remote vehicles of all types.",
+    "name": "NaviLync",
+    "short_name": "NaviLync",
+    "description": "NaviLync ground control station for NAVIS ATLAS unmanned surface vehicles.",
     "icons": [
         {
             "src": "pwa-192x192.png",

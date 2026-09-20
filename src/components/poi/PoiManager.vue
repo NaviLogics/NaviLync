@@ -1,7 +1,7 @@
 <template>
   <InteractionDialog
     v-model="poiDialogVisible"
-    :title="`${editingPoiId ? 'Edit' : 'Place'} Point of Interest`"
+    :title="editingPoiId ? t('poi.editTitle') : t('poi.placeTitle')"
     variant="text-only"
     max-width="500px"
     :persistent="true"
@@ -13,14 +13,20 @@
         </v-btn>
       </div>
       <div class="p-3">
-        <v-text-field v-model="newPoiName" label="Name" variant="outlined"></v-text-field>
-        <v-text-field v-model="newPoiDescription" label="Description" variant="outlined"></v-text-field>
+        <v-text-field v-model="newPoiName" :label="t('poi.name')" variant="outlined"></v-text-field>
+        <v-text-field v-model="newPoiDescription" :label="t('poi.description')" variant="outlined"></v-text-field>
 
         <div class="grid grid-cols-2 gap-x-4">
-          <v-text-field v-model.number="newPoiLat" label="Latitude" variant="outlined" type="number" step="0.0000001" />
+          <v-text-field
+            v-model.number="newPoiLat"
+            :label="t('poi.latitude')"
+            variant="outlined"
+            type="number"
+            step="0.0000001"
+          />
           <v-text-field
             v-model.number="newPoiLng"
-            label="Longitude"
+            :label="t('poi.longitude')"
             variant="outlined"
             type="number"
             step="0.0000001"
@@ -38,14 +44,20 @@
                 <v-icon>mdi-palette</v-icon>
               </v-btn>
             </div>
-            <v-text-field v-model="newPoiColor" label="Hex Color" hide-details variant="outlined" class="flex-grow" />
+            <v-text-field
+              v-model="newPoiColor"
+              :label="t('poi.hexColor')"
+              hide-details
+              variant="outlined"
+              class="flex-grow"
+            />
             <v-spacer />
             <div
               class="cursor-pointer hover:opacity-80 flex flex-col items-center"
               @click="isIconPickerOpen = !isIconPickerOpen"
             >
               <v-icon :icon="newPoiIcon" size="48" :color="newPoiColor" />
-              <span class="text-white opacity-50 mx-2 text-xs mt-1">Click to change icon</span>
+              <span class="text-white opacity-50 mx-2 text-xs mt-1">{{ t('poi.changeIcon') }}</span>
             </div>
           </div>
 
@@ -56,7 +68,7 @@
           <div v-if="isIconPickerOpen" class="icon-picker-container">
             <v-text-field
               v-model="iconSearchQuery"
-              label="Search icons"
+              :label="t('poi.searchIcons')"
               variant="outlined"
               density="compact"
               prepend-inner-icon="mdi-magnify"
@@ -82,9 +94,9 @@
       </div>
     </template>
     <template #actions>
-      <v-btn v-if="editingPoiId" text @click="deletePoi">Delete</v-btn>
+      <v-btn v-if="editingPoiId" text @click="deletePoi">{{ t('common.delete') }}</v-btn>
       <v-spacer></v-spacer>
-      <v-btn text @click="savePoi">Save</v-btn>
+      <v-btn text @click="savePoi">{{ t('common.save') }}</v-btn>
     </template>
   </InteractionDialog>
 </template>
@@ -92,12 +104,14 @@
 <script setup lang="ts">
 import { v4 as uuid } from 'uuid'
 import { defineExpose, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useMissionStore } from '@/stores/mission'
 import type { PointOfInterest, PointOfInterestCoordinates } from '@/types/mission'
 
+const { t } = useI18n()
 const missionStore = useMissionStore()
 const { showDialog } = useInteractionDialog()
 
@@ -286,8 +300,8 @@ const openDialog = (coordinates?: PointOfInterestCoordinates | null, poiToEdit?:
     if (!freshPoi) {
       showDialog({
         variant: 'error',
-        title: 'Error',
-        message: 'POI not found in store.',
+        title: t('common.error'),
+        message: t('poi.notFound'),
       })
       console.error('POI not found in store:', poiToEdit.id)
       isInitializingDialog.value = false
@@ -327,8 +341,8 @@ const openDialog = (coordinates?: PointOfInterestCoordinates | null, poiToEdit?:
   } else {
     showDialog({
       variant: 'error',
-      title: 'Error',
-      message: 'Cannot open POI dialog without coordinates for a new POI or POI data for editing.',
+      title: t('common.error'),
+      message: t('poi.cannotOpen'),
     })
     console.error('POI Dialog: Insufficient data to open.')
     isInitializingDialog.value = false
@@ -375,14 +389,14 @@ const closeDialog = (): void => {
 
 const savePoi = (): void => {
   if (!newPoiName.value.trim()) {
-    showDialog({ title: 'Invalid Name', message: 'POI name cannot be empty.', variant: 'error' })
+    showDialog({ title: t('poi.invalidName'), message: t('poi.nameEmpty'), variant: 'error' })
     return
   }
 
   if (newPoiLat.value === null || newPoiLng.value === null || isNaN(newPoiLat.value) || isNaN(newPoiLng.value)) {
     showDialog({
-      title: 'Invalid Coordinates',
-      message: 'Latitude and Longitude must be valid numbers.',
+      title: t('poi.invalidCoordinates'),
+      message: t('poi.coordinatesInvalid'),
       variant: 'error',
     })
     return
@@ -392,7 +406,7 @@ const savePoi = (): void => {
     // Get the current POI from store to preserve current coordinates
     const currentPoi = missionStore.pointsOfInterest.find((poi) => poi.id === editingPoiId.value)
     if (!currentPoi) {
-      showDialog({ variant: 'error', title: 'Error', message: 'POI not found in store.' })
+      showDialog({ variant: 'error', title: t('common.error'), message: t('poi.notFound') })
       return
     }
 
@@ -424,7 +438,7 @@ const savePoi = (): void => {
 
     if (!coordinatesToSave) {
       // This case should ideally not be reached if openDialog is called correctly with coordinates for new POIs.
-      showDialog({ variant: 'error', title: 'Error', message: 'Cannot save Point of Interest without coordinates.' })
+      showDialog({ variant: 'error', title: t('common.error'), message: t('poi.cannotSaveWithoutCoordinates') })
       console.error(
         'Cannot save new POI: coordinatesToSave is null. dialogInitialCoordinates:',
         dialogInitialCoordinates.value,
@@ -456,8 +470,8 @@ const deletePoi = (): void => {
     // This case should ideally not be reached if the delete button is only visible when editingPoiId is set.
     showDialog({
       variant: 'error',
-      title: 'Error',
-      message: 'No Point of Interest selected for deletion.',
+      title: t('common.error'),
+      message: t('poi.noneSelected'),
     })
     console.error('Delete POI: editingPoiId is null.')
   }

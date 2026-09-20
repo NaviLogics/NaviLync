@@ -3,7 +3,7 @@
     <div class="flex flex-col px-3 my-2 bg-[#EEEEEE22] text-white rounded-md">
       <!-- Command Type Selection -->
       <div class="flex flex-col w-full justify-between items-center text-[12px] border-b border-white/10 py-2">
-        <p class="w-full text-center">Type</p>
+        <p class="w-full text-center">{{ t('commandInput.type') }}</p>
         <v-select
           v-model="selectedCommandType"
           :items="commandTypeOptions"
@@ -20,7 +20,7 @@
 
       <!-- MAVLink Command Selection -->
       <div v-if="selectedCommandType" class="flex flex-col w-full justify-between items-center text-[12px] py-2">
-        <p class="w-full text-center">Command</p>
+        <p class="w-full text-center">{{ t('commandInput.command') }}</p>
         <v-select
           v-model="selectedMavCommand"
           :items="availableMavCommands"
@@ -38,7 +38,7 @@
       <!-- Parameter Inputs -->
       <div v-if="selectedMavCommand" class="flex flex-col">
         <v-divider class="border-black w-full" />
-        <div class="text-[11px] font-semibold text-center py-2">Parameters</div>
+        <div class="text-[11px] font-semibold text-center py-2">{{ t('commandInput.parameters') }}</div>
 
         <!-- Nav Command Parameters (4 params) -->
         <template v-if="selectedCommandType === MissionCommandType.MAVLINK_NAV_COMMAND">
@@ -93,9 +93,9 @@
 
       <!-- Action Buttons -->
       <div class="flex w-full justify-between py-2">
-        <v-btn size="small" variant="outlined" @click="cancelCommand"> Cancel </v-btn>
+        <v-btn size="small" variant="outlined" @click="cancelCommand"> {{ t('common.cancel') }} </v-btn>
         <v-btn v-if="selectedMavCommand" size="small" variant="outlined" @click="addCommand">
-          {{ isEditing ? 'Update' : 'Add' }}
+          {{ isEditing ? t('common.update') : t('common.add') }}
         </v-btn>
       </div>
     </div>
@@ -104,9 +104,12 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { MissionCommand, MissionCommandType } from '@/types/mission'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   /**
@@ -137,10 +140,10 @@ const commandParams = reactive<Record<string, number>>({
   z: 0,
 })
 
-const commandTypeOptions = [
-  { name: 'MAVLink Navigation Command', value: MissionCommandType.MAVLINK_NAV_COMMAND },
-  { name: 'MAVLink Non-Navigation Command', value: MissionCommandType.MAVLINK_NON_NAV_COMMAND },
-]
+const commandTypeOptions = computed(() => [
+  { name: t('commandInput.navCommand'), value: MissionCommandType.MAVLINK_NAV_COMMAND },
+  { name: t('commandInput.nonNavCommand'), value: MissionCommandType.MAVLINK_NON_NAV_COMMAND },
+])
 
 // Helper function to convert MAV_CMD enum to display name
 const formatCommandName = (command: string): string => {

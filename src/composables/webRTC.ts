@@ -3,6 +3,7 @@
 import { type Ref, ref, watch } from 'vue'
 
 import * as Connection from '@/libs/connection/connection'
+import { setJitterBufferTarget } from '@/libs/webrtc/jitter-buffer'
 import { Session } from '@/libs/webrtc/session'
 import { Signaller } from '@/libs/webrtc/signaller'
 import type { Stream } from '@/libs/webrtc/signalling_protocol'
@@ -42,6 +43,7 @@ export class WebRTCManager {
   private consumerId: string | undefined
   private streamName: string | undefined
   public session: Session | undefined
+  public onUnreceivableVideo?: (codecs: string[]) => void
   private rtcConfiguration: RTCConfiguration
   private selectedICEIPs: string[] = []
   private selectedICEProtocols: string[] = []
@@ -75,9 +77,10 @@ export class WebRTCManager {
    * @param {string} reason
    */
   public close(reason: string): void {
+    this.hasEnded = true
+    this.signaller.onOpen = undefined
     this.stopSession(reason)
     this.signaller.end(reason)
-    this.hasEnded = true
   }
 
   /**
@@ -182,6 +185,8 @@ export class WebRTCManager {
    *
    */
   private startConsumer(): void {
+    if (this.hasEnded) return
+
     this.hasEnded = false
     // Requests a new consumer ID
     if (this.consumerId === undefined) {
@@ -233,7 +238,9 @@ export class WebRTCManager {
     const [remoteStream] = event.streams
     this.mediaStream.value = remoteStream
 
-    this.session?.setJitterBufferTarget(this.JitterBufferTarget)
+    if (this.session?.peerConnection) {
+      setJitterBufferTarget(this.session.peerConnection, this.JitterBufferTarget)
+    }
 
     // Assign 'motion' contentHint to media stream video tracks, so it performs better on low bandwith situations
     // More on that here: https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack/contentHint
@@ -289,13 +296,15 @@ export class WebRTCManager {
    *
    */
   private startSession(): void {
+    if (this.hasEnded) return
     if (this.waitingForSessionStart) {
       return
     }
     this.waitingForSessionStart = true
 
     window.setTimeout(() => {
-      if (!this.waitingForSessionStart) {
+      if (!this.waitingForSessionStart || this.hasEnded) {
+        this.waitingForSessionStart = false
         return
       }
 
@@ -367,6 +376,8 @@ export class WebRTCManager {
       (_sessionId, reason) => this.onSessionClosed(reason),
       (status: string): void => this.updateStreamStatus(status)
     )
+
+    this.session.onUnreceivableVideo = (codecs: string[]): void => this.onUnreceivableVideo?.(codecs)
 
     // Registers Session callback for the Signaller endSession parser
     this.signaller.parseEndSessionQuestion(this.consumerId!, producerId, this.session.id, (sessionId, reason) => {

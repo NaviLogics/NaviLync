@@ -60,23 +60,51 @@ export const resetCanvas = (context: CanvasRenderingContext2D): void => {
   context.globalCompositeOperation = 'source-over'
 }
 
+// Regex from https://stackoverflow.com/a/106223/3850957
+const ipv4AddressRegex = new RegExp(
+  '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
+)
+
 export const isValidNetworkAddress = (maybeAddress: string): boolean => {
   if (maybeAddress && maybeAddress.length >= 255) {
     return false
   }
 
-  // Regexes from https://stackoverflow.com/a/106223/3850957
-  const ipRegex = new RegExp(
-    '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$'
-  )
+  // Regex from https://stackoverflow.com/a/106223/3850957
   const hostnameRegex = new RegExp(
     '^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$'
   )
 
-  if (ipRegex.test(maybeAddress) || hostnameRegex.test(maybeAddress)) {
+  if (ipv4AddressRegex.test(maybeAddress) || hostnameRegex.test(maybeAddress)) {
     return true
   }
   return false
+}
+
+/**
+ * Checks whether a value is a bare IPv4 address, with no scheme, port, or path.
+ * @param {string} value - The value to test.
+ * @returns {boolean} Whether the value is a bare IPv4 address.
+ */
+export const isValidIpv4Address = (value: string): boolean => {
+  return ipv4AddressRegex.test(value)
+}
+
+/**
+ * Extracts a bare IPv4 address from a value that may carry a scheme, port, or path/CIDR suffix
+ * (e.g. `http://192.168.2.2:554/stream`, `192.168.2.0/24`).
+ * @param {string} rawValue - The raw, possibly prefixed or suffixed address.
+ * @returns {string | undefined} The bare IPv4 address, or `undefined` if none could be extracted.
+ */
+export const sanitizeIpv4Address = (rawValue: string): string | undefined => {
+  let candidate = rawValue.trim()
+  if (!candidate) return undefined
+
+  candidate = candidate.replace(/^\w+:\/\//, '')
+  candidate = candidate.split(/[/\\]/)[0]
+  candidate = candidate.split(':')[0]
+
+  return isValidIpv4Address(candidate) ? candidate : undefined
 }
 
 export const isValidURL = (maybeURL: string): boolean => {
@@ -132,12 +160,16 @@ export const reloadCockpit = (timeout = 3000): void => {
 
 /**
  * Detects if the application is running in Electron
+ *
+ * In the renderer the user agent alone is not enough: Electron-based embedded browsers, like the preview
+ * panes of Electron-based IDEs, carry the same `Electron/<version>` token but never run our preload
+ * script, so the bridge it exposes is what tells our own shell apart from them.
  * @returns {boolean} True if running in Electron, false otherwise
  */
 export const isElectron = (): boolean => {
   // Check if the userAgent contains 'electron' (for renderer process)
   if (typeof navigator === 'object' && typeof navigator.userAgent === 'string') {
-    return navigator.userAgent.toLowerCase().includes('electron')
+    return navigator.userAgent.toLowerCase().includes('electron') && globalThis.window?.electronAPI !== undefined
   }
 
   // Check if the process object exists and contains 'electron' (for main process)
@@ -217,6 +249,25 @@ export const machinizeString = (str: string): string => {
     .replace(/[^a-zA-Z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '')
+}
+
+/**
+ * Sanitizes a value for use as a filename component on every supported platform.
+ * Windows is the strictest target: it forbids `<`, `>`, `:`, `"`, `/`, `\`, `|`, `?`, `*`
+ * and control characters, and disallows trailing dots/spaces. Without this, values like
+ * RTSP URLs (used as snapshot stream names) or mission names containing colons produce
+ * paths that fail with ENOENT on NTFS.
+ * @param {string} value
+ * @returns {string} Filesystem-safe representation of the value
+ */
+export const sanitizeFilenameComponent = (value: string): string => {
+  return (
+    value
+      // eslint-disable-next-line no-control-regex
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^[. ]+|[. ]+$/g, '')
+  )
 }
 
 /**
