@@ -2,6 +2,7 @@ import { type InjectionKey, computed, inject, nextTick, ref } from 'vue'
 
 import { openSnackbar } from '@/composables/snackbar'
 import { buildViewsGroupAfterImport } from '@/migration/default-profile-importer'
+import { i18n } from '@/plugins/i18n'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
 
 import { type VehicleDefaultsEvaluationBundle, useVehicleDefaultsEvaluation } from './vehicleDefaultsImportShared'
@@ -91,8 +92,11 @@ export const useVehicleDefaultsViewsImport = (evaluationBundle?: VehicleDefaults
     openSnackbar({
       message:
         effectiveMode === 'replace'
-          ? `Imported default views for ${evaluation.value?.vehicleTypeName}.`
-          : `Appended ${selectedDefaultViewNames.value.length} default view(s) for ${evaluation.value?.vehicleTypeName}.`,
+          ? i18n.global.t('vehicleDefaults.wizard.importedViews', { vehicle: evaluation.value?.vehicleTypeName })
+          : i18n.global.t('vehicleDefaults.wizard.appendedViews', {
+              count: selectedDefaultViewNames.value.length,
+              vehicle: evaluation.value?.vehicleTypeName,
+            }),
       variant: 'success',
       duration: 5000,
     })

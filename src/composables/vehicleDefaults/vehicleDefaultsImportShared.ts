@@ -7,6 +7,7 @@ import {
   isMappingBlank,
   isViewsGroupBlank,
 } from '@/migration/default-profile-importer'
+import { i18n } from '@/plugins/i18n'
 import { useControllerStore } from '@/stores/controller'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
@@ -84,7 +85,7 @@ export const buildJoystickImportRows = (
         rows.push({
           id: `axis-${axisKey}`,
           axisKey,
-          inputLabel: `Axis ${axisKey}`,
+          inputLabel: i18n.global.t('vehicleDefaults.wizard.axis', { index: axisKey }),
           fromActionName: `${currentCorr.action.name} (${signed(currentCorr.min)} / ${signed(currentCorr.max)})`,
           toActionName: `${defaultCorr.action.name} (${signed(defaultCorr.min)} / ${signed(defaultCorr.max)})`,
         })
@@ -95,8 +96,8 @@ export const buildJoystickImportRows = (
     rows.push({
       id: `axis-${axisKey}`,
       axisKey,
-      inputLabel: `Axis ${axisKey}`,
-      fromActionName: currentCorr?.action.name ?? 'Unassigned',
+      inputLabel: i18n.global.t('vehicleDefaults.wizard.axis', { index: axisKey }),
+      fromActionName: currentCorr?.action.name ?? i18n.global.t('vehicleDefaults.wizard.unassigned'),
       toActionName: defaultCorr.action.name,
     })
   }
@@ -115,8 +116,8 @@ export const buildJoystickImportRows = (
       id: `btn-${modKey}-${btnKey}`,
       modifier: modKey,
       buttonKey: Number(btnKey),
-      inputLabel: `Button ${btnKey} (${modKey})`,
-      fromActionName: currentBtn?.action.name ?? 'Unassigned',
+      inputLabel: i18n.global.t('vehicleDefaults.wizard.button', { index: btnKey, modifier: modKey }),
+      fromActionName: currentBtn?.action.name ?? i18n.global.t('vehicleDefaults.wizard.unassigned'),
       toActionName: defaultBtn.action.name,
     })
   }

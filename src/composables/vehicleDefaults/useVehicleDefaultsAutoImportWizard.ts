@@ -1,4 +1,5 @@
 import { type InjectionKey, computed, inject, nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useAppInterfaceStore } from '@/stores/appInterface'
 
@@ -16,6 +17,7 @@ type AutoWizardStep = 'intro' | 'joystick' | 'views' | 'done'
  */
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export const useVehicleDefaultsAutoImportWizard = () => {
+  const { t } = useI18n()
   const interfaceStore = useAppInterfaceStore()
   const defaultsHandled = useVehicleDefaultsHandledFlag()
   const evaluationBundle = useVehicleDefaultsEvaluation()
@@ -41,48 +43,47 @@ export const useVehicleDefaultsAutoImportWizard = () => {
     if (!evaluation.value) return []
     const vehicleTypeName = evaluation.value.vehicleTypeName
     return [
-      `Cockpit detected that you are not using the default configuration for your connected ${vehicleTypeName}. ` +
-        `You can import Cockpit's defaults now, or keep your current setup.`,
-      `On the next screens you can review joystick mapping and views group defaults. For views, you may append the ` +
-        `default views after yours or replace your entire views group. For joystick mapping, select which default ` +
-        `bindings to import.`,
-      `This dialog opens automatically only once, the first time we detect this for this vehicle. After you finish ` +
-        `this walkthrough, it will not open on its own again. You can still import defaults later from the Edit menu ` +
-        `(views) or Joystick configuration (import button on the mapping toolbar).`,
+      t('vehicleDefaults.wizard.introDetection', { vehicle: vehicleTypeName }),
+      t('vehicleDefaults.wizard.introOptions'),
+      t('vehicleDefaults.wizard.introOnce'),
     ]
   })
 
   const stepNumbers: Record<AutoWizardStep, number> = { intro: 1, joystick: 2, views: 3, done: 4 }
-  const stepTitles: Record<AutoWizardStep, string> = {
-    intro: 'Default Configuration',
-    joystick: 'Default Joystick Mapping',
-    views: 'Default Views',
-    done: 'All set',
-  }
+  const stepTitles = computed<Record<AutoWizardStep, string>>(() => ({
+    intro: t('vehicleDefaults.wizard.configuration'),
+    joystick: t('vehicleDefaults.wizard.joystickTitle'),
+    views: t('vehicleDefaults.wizard.viewsTitle'),
+    done: t('vehicleDefaults.wizard.allSet'),
+  }))
 
   const autoWizardStepNumber = computed(() => stepNumbers[autoWizardStep.value])
-  const modalTitle = computed(() => stepTitles[autoWizardStep.value])
+  const modalTitle = computed(() => stepTitles.value[autoWizardStep.value])
 
   const wizardSecondaryLabel = computed(() => {
-    if (autoWizardStep.value === 'intro') return 'Ignore'
+    if (autoWizardStep.value === 'intro') return t('vehicleDefaults.wizard.ignore')
     if (autoWizardStep.value === 'joystick') {
-      return joystickImport.hasImportOffer.value ? 'Ignore Joystick Mapping defaults' : ''
+      return joystickImport.hasImportOffer.value ? t('vehicleDefaults.wizard.ignoreJoystick') : ''
     }
     if (autoWizardStep.value === 'views') {
-      return viewsImport.hasImportOffer.value ? 'Ignore Views Group defaults' : ''
+      return viewsImport.hasImportOffer.value ? t('vehicleDefaults.wizard.ignoreViews') : ''
     }
     return ''
   })
 
   const wizardPrimaryLabel = computed(() => {
-    if (autoWizardStep.value === 'intro') return 'Next'
+    if (autoWizardStep.value === 'intro') return t('vehicleDefaults.wizard.next')
     if (autoWizardStep.value === 'joystick') {
-      return joystickImport.hasImportOffer.value ? 'Import Joystick Mapping defaults' : 'Next'
+      return joystickImport.hasImportOffer.value
+        ? t('vehicleDefaults.wizard.importJoystick')
+        : t('vehicleDefaults.wizard.next')
     }
     if (autoWizardStep.value === 'views') {
-      return viewsImport.hasImportOffer.value ? 'Import Views Group defaults' : 'Next'
+      return viewsImport.hasImportOffer.value
+        ? t('vehicleDefaults.wizard.importViews')
+        : t('vehicleDefaults.wizard.next')
     }
-    return 'Done'
+    return t('vehicleDefaults.wizard.done')
   })
 
   const wizardShowSecondaryButton = computed(() => {

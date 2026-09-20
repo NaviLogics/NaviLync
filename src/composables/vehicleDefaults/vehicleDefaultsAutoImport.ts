@@ -7,6 +7,7 @@ import {
   buildReplacementMapping,
   evaluateDefaults,
 } from '@/migration/default-profile-importer'
+import { i18n } from '@/plugins/i18n'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useControllerStore } from '@/stores/controller'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
@@ -51,7 +52,7 @@ export const useVehicleDefaultsAutoImport = (): void => {
       if (evaluation.views.action === 'auto-import' && evaluation.views.defaultProfile) {
         widgetStore.viewsGroup = buildFreshViewsGroupFromDefault(evaluation.views.defaultProfile)
         openSnackbar({
-          message: `Imported default views for ${evaluation.vehicleTypeName}.`,
+          message: i18n.global.t('vehicleDefaults.wizard.importedViews', { vehicle: evaluation.vehicleTypeName }),
           variant: 'success',
           duration: 5000,
         })
@@ -60,7 +61,7 @@ export const useVehicleDefaultsAutoImport = (): void => {
       if (evaluation.joystick.action === 'auto-import' && evaluation.joystick.defaultMapping) {
         controllerStore.protocolMapping = buildReplacementMapping(evaluation.joystick.defaultMapping)
         openSnackbar({
-          message: `Imported default joystick mapping for ${evaluation.vehicleTypeName}.`,
+          message: i18n.global.t('vehicleDefaults.wizard.importedMapping', { vehicle: evaluation.vehicleTypeName }),
           variant: 'success',
           duration: 5000,
         })

@@ -30,6 +30,8 @@ jobs:
         run: yarn lint
       - name: Typecheck
         run: yarn typecheck
+      - name: Unit tests
+        run: yarn test:unit --run
       - name: Build
         run: yarn build
 

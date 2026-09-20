@@ -223,7 +223,16 @@ jobs:
           tar -czvf Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.uploadExtension }} \
             Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.buildExtension }}
 
+      - name: Upload NaviLync Windows portable artifact
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NaviLync-${{ env.VERSION }}-portable-win-x64
+          path: dist/NaviLync-${{ env.VERSION }}-portable-x64.exe
+          if-no-files-found: error
+
       - name: Upload binary artifact
+        if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.uploadExtension }}

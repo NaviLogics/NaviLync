@@ -3,6 +3,7 @@ import { type InjectionKey, computed, inject, ref } from 'vue'
 import { openSnackbar } from '@/composables/snackbar'
 import { OtherProtocol } from '@/libs/joystick/protocols/other'
 import { cloneMapping } from '@/migration/default-profile-importer'
+import { i18n } from '@/plugins/i18n'
 import { useControllerStore } from '@/stores/controller'
 
 import {
@@ -80,7 +81,10 @@ export const useVehicleDefaultsJoystickImport = (evaluationBundle?: VehicleDefau
     controllerStore.protocolMapping = nextMapping
 
     openSnackbar({
-      message: `Imported ${selectedJoystickRowsCount.value} default joystick binding(s) for ${evaluation.value?.vehicleTypeName}.`,
+      message: i18n.global.t('vehicleDefaults.wizard.importedBindings', {
+        count: selectedJoystickRowsCount.value,
+        vehicle: evaluation.value?.vehicleTypeName,
+      }),
       variant: 'success',
       duration: 5000,
     })
