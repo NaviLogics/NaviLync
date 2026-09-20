@@ -8,6 +8,8 @@ Branch: `feature/navis-atlas-status-v1.18.4`. No merge or release tag is part of
 - Windows workflow #28, commit `5ecc8320c7b217806749ad96f9dfb9cdcea722d0`: successful build, executable existence check and artifact upload.
 - Commit `53cec15476b2ad84d3a9bfa3e068f5962822459d`: completes Vehicle Defaults wizard copy in Russian/English, including dynamic step titles, import notifications and axis/button labels; adds existing unit suite to Windows quality gate; fixes the general CI Windows artifact path.
 - Source validation: changed Vue components parse and compile with Vue SFC compiler; Prettier formatting and new translation-key presence checked.
+- Windows #29: lint and typecheck passed; unit suite reported 50 passed and one widget-file check timeout. The follow-up replaces side-effectful dynamic imports with a Vite file catalog; verification is pending.
+- Draft PR to `main` was rejected by GitHub: the branches have no common history. A deliberate integration branch and Windows Foundation reconciliation are required.
 - No Windows launch test, hardware test, visual acceptance or code-signing verification has been performed in this workspace. Build success is not evidence for those gates.
 
 ## Findings requiring closure
