@@ -10,8 +10,8 @@ const SerialPortObject = require('serialport').SerialPort
 
 /**
  * Normalize a serial URI path across POSIX and Windows.
- * @param uri Serial connection URI
- * @returns Native serial port path
+ * @param {URL} uri Serial connection URI
+ * @returns {string} Native serial port path
  */
 export const normalizeSerialPath = (uri: URL): string => {
   const candidate = decodeURIComponent(uri.pathname || uri.hostname)
