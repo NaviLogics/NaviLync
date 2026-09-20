@@ -2,7 +2,7 @@ import { dialog, ipcMain, shell } from 'electron'
 import { app } from 'electron'
 import { existsSync, mkdirSync } from 'fs'
 import * as fs from 'fs/promises'
-import { dirname, join } from 'path'
+import { dirname, isAbsolute, join, relative, resolve } from 'path'
 
 import type { FileDialogOptions, FileStats } from '@/types/storage'
 
@@ -11,6 +11,19 @@ import store from './config-store'
 const defaultCockpitFolderPath = join(app.getPath('home'), 'Cockpit')
 let cockpitFolderPath = store.get('cockpitFolderPath') ?? defaultCockpitFolderPath
 let fallbackDialogShown = false
+
+export const resolveStoragePath = (...segments: string[]): string => {
+  const root = resolve(cockpitFolderPath)
+  const candidate = resolve(root, ...segments)
+  const relativePath = relative(root, candidate)
+  if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
+    throw new Error('Requested path escapes the application storage directory')
+  }
+  return candidate
+}
+
+const getStoragePath = (key?: string, subFolders?: string[]): string =>
+  resolveStoragePath(...(subFolders ?? []), ...(key ? [key] : []))
 
 const ensureCockpitFolder = (): void => {
   if (existsSync(cockpitFolderPath)) return
@@ -51,13 +64,13 @@ export const filesystemStorage = {
   async setItem(key: string, value: ArrayBuffer, subFolders?: string[]): Promise<void> {
     ensureCockpitFolder()
     const buffer = Buffer.from(value)
-    const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
+    const filePath = getStoragePath(key, subFolders)
     await fs.mkdir(dirname(filePath), { recursive: true })
     await fs.writeFile(filePath, buffer)
   },
   async getItem(key: string, subFolders?: string[]): Promise<ArrayBuffer | null> {
     ensureCockpitFolder()
-    const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
+    const filePath = getStoragePath(key, subFolders)
     try {
       const buffer = await fs.readFile(filePath)
       return new Uint8Array(buffer).buffer
@@ -68,7 +81,7 @@ export const filesystemStorage = {
   },
   async removeItem(key: string, subFolders?: string[]): Promise<void> {
     ensureCockpitFolder()
-    const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
+    const filePath = getStoragePath(key, subFolders)
     try {
       await fs.unlink(filePath)
     } catch (error: any) {
@@ -78,12 +91,12 @@ export const filesystemStorage = {
   },
   async clear(subFolders?: string[]): Promise<void> {
     ensureCockpitFolder()
-    const dirPath = join(cockpitFolderPath, ...(subFolders ?? []))
+    const dirPath = getStoragePath(undefined, subFolders)
     await fs.rm(dirPath, { recursive: true })
   },
   async keys(subFolders?: string[]): Promise<string[]> {
     ensureCockpitFolder()
-    const dirPath = join(cockpitFolderPath, ...(subFolders ?? []))
+    const dirPath = getStoragePath(undefined, subFolders)
     try {
       const entries = await fs.readdir(dirPath, { withFileTypes: true })
       return entries.filter((e) => e.isFile()).map((e) => e.name)
@@ -115,22 +128,22 @@ export const setupFilesystemStorage = (): void => {
     await shell.openPath(cockpitFolderPath)
   })
   ipcMain.handle('open-video-folder', async () => {
-    const videoFolderPath = join(cockpitFolderPath, 'videos')
+    const videoFolderPath = resolveStoragePath('videos')
     await fs.mkdir(videoFolderPath, { recursive: true })
     await shell.openPath(videoFolderPath)
   })
   ipcMain.handle('open-snapshot-folder', async () => {
-    const snapshotFolderPath = join(cockpitFolderPath, 'snapshots')
+    const snapshotFolderPath = resolveStoragePath('snapshots')
     await fs.mkdir(snapshotFolderPath, { recursive: true })
     await shell.openPath(snapshotFolderPath)
   })
   ipcMain.handle('open-video-file', async (_, fileName: string) => {
     const videoFolderPath = join(cockpitFolderPath, 'videos')
-    const videoFilePath = join(videoFolderPath, fileName)
+    const videoFilePath = resolveStoragePath('videos', fileName)
     await shell.openPath(videoFilePath)
   })
   ipcMain.handle('open-temp-video-chunks-folder', async () => {
-    const tempChunksFolderPath = join(cockpitFolderPath, 'videos', 'temporary-video-chunks')
+    const tempChunksFolderPath = resolveStoragePath('videos', 'temporary-video-chunks')
     await fs.mkdir(tempChunksFolderPath, { recursive: true })
     await shell.openPath(tempChunksFolderPath)
   })
@@ -169,7 +182,7 @@ export const setupFilesystemStorage = (): void => {
     try {
       // If subFolders is provided, construct path from cockpit folder
       // Otherwise, treat pathOrKey as a full path
-      const filePath = subFolders ? join(cockpitFolderPath, ...(subFolders ?? []), pathOrKey) : pathOrKey
+      const filePath = subFolders ? getStoragePath(pathOrKey, subFolders) : pathOrKey
       const stats = await fs.stat(filePath)
       return {
         exists: true,
