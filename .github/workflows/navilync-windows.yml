@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feature/navis-atlas-status-v1.18.4
-      - integration/windows-foundation-reconcile
+      - main
 
 env:
   NODE_OPTIONS: --max-old-space-size=6144
