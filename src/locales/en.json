@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Cockpit",
+    "name": "NaviLync",
     "version": "Version {version}"
   },
   "menu": {
@@ -1591,6 +1591,28 @@
       "axis": "Axis {index}",
       "button": "Button {index} ({modifier})",
       "unassigned": "Unassigned"
+    }
+  },
+  "navisAtlasStatus": {
+    "systemStatus": "SYSTEM STATUS",
+    "readyPrefix": "READY",
+    "noData": "NO DATA",
+    "code": "CODE",
+    "rows": {
+      "shoreHealth": "SHORE RTK HEALTH",
+      "rtcmTransport": "RTCM transport",
+      "mavlink": "MAVLink",
+      "gnssRover": "GNSS Rover",
+      "rtkFixed": "RTK FIXED",
+      "missionReady": "MISSION READY",
+      "usvMode": "USV MODE"
+    },
+    "values": {
+      "ok": "OK",
+      "fail": "FAIL",
+      "fixed": "FIXED",
+      "float": "FLOAT",
+      "ready": "READY"
     }
   }
 }
