@@ -20,7 +20,8 @@
               </p>
               <p class="my-3">NaviLync is based on the open-source Cockpit project created by Blue Robotics.</p>
               <p class="mt-1">
-                NaviLync is derived from the Blue Robotics Cockpit project and retains upstream attribution and licensing information.
+                NaviLync is derived from the Blue Robotics Cockpit project and retains upstream attribution and
+                licensing information.
               </p>
             </div>
             <div class="w-[45%] flex flex-col justify-end text-end">
@@ -58,7 +59,9 @@
         </div>
       </template>
       <template #actions
-        ><div class="flex w-full justify-end"><v-btn @click="closeDialog">{{ t('common.close') }}</v-btn></div></template
+        ><div class="flex w-full justify-end">
+          <v-btn @click="closeDialog">{{ t('common.close') }}</v-btn>
+        </div></template
       >
     </InteractionDialog>
   </teleport>
