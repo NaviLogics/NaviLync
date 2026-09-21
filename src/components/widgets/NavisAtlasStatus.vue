@@ -2,19 +2,20 @@
   <div class="navis-status">
     <div class="header">
       <span>NAVIS ATLAS</span>
-      <span class="subtitle">SYSTEM STATUS</span>
+      <span class="subtitle">{{ t('navisAtlasStatus.systemStatus') }}</span>
     </div>
     <div v-for="row in rows" :key="row.label" class="row">
       <span class="label">{{ row.label }}</span>
       <span class="value" :class="row.tone">{{ row.value }}</span>
     </div>
-    <div v-if="reasonText !== 'OK'" class="reason">READY: {{ reasonText }}</div>
+    <div v-if="reasonText !== 'OK'" class="reason">{{ t('navisAtlasStatus.readyPrefix') }}: {{ reasonText }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
 /* eslint-disable jsdoc/require-jsdoc, jsdoc/require-param, jsdoc/require-returns */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   getAllDataLakeVariablesInfo,
@@ -22,6 +23,8 @@ import {
   getDataLakeVariableLastUpdateTimestamp,
 } from '@/libs/actions/data-lake'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
+
+const { t } = useI18n()
 const vehicle = useMainVehicleStore()
 const tick = ref(0)
 let timer: ReturnType<typeof setInterval> | undefined
@@ -71,7 +74,11 @@ const metricFresh = (name: Alias, maxAgeMs = 3000): boolean => {
 }
 
 const state = (ok: boolean, known = true): { value: string; tone: string } =>
-  !known ? { value: '—', tone: 'unknown' } : ok ? { value: 'OK', tone: 'ok' } : { value: 'FAIL', tone: 'fail' }
+  !known
+    ? { value: '—', tone: 'unknown' }
+    : ok
+    ? { value: t('navisAtlasStatus.values.ok'), tone: 'ok' }
+    : { value: t('navisAtlasStatus.values.fail'), tone: 'fail' }
 
 const rows = computed(() => {
   tick.value
@@ -82,6 +89,7 @@ const rows = computed(() => {
   const gnssKnown = fix !== undefined && metricFresh('FIXTYPE')
   const readyKnown = metric('READY') !== undefined && metricFresh('READY')
 
+  // SHOREOK is an RTK-agent health signal, not a direct measurement of the physical NV2 radio link.
   const shore = state(metric('SHOREOK') === 1, shoreKnown)
   const rtcm = state(
     metric('RTCMOK') === 1 && (metric('RTCMAGE') ?? Number.POSITIVE_INFINITY) < 3 && (metric('RTK_BPS') ?? 0) > 0,
@@ -92,18 +100,22 @@ const rows = computed(() => {
   const rtk = !gnssKnown
     ? { value: '—', tone: 'unknown' }
     : fix === 6
-    ? { value: 'FIXED', tone: 'ok' }
-    : { value: fix === 5 ? 'FLOAT' : 'FAIL', tone: fix === 5 ? 'warn' : 'fail' }
+    ? { value: t('navisAtlasStatus.values.fixed'), tone: 'ok' }
+    : { value: fix === 5 ? t('navisAtlasStatus.values.float') : t('navisAtlasStatus.values.fail'), tone: fix === 5 ? 'warn' : 'fail' }
   const ready = state(metric('READY') === 1, readyKnown)
 
   return [
-    { label: 'SHORE↔USV LINK', ...shore },
-    { label: 'RTCM transport', ...rtcm },
-    { label: 'MAVLink', ...mav },
-    { label: 'GNSS Rover', ...gnss },
-    { label: 'RTK FIXED', ...rtk },
-    { label: 'MISSION READY', value: ready.value === 'OK' ? 'READY' : ready.value, tone: ready.tone },
-    { label: 'USV MODE', value: vehicle.mode ?? '—', tone: vehicle.isVehicleOnline ? 'mode' : 'unknown' },
+    { label: t('navisAtlasStatus.rows.shoreHealth'), ...shore },
+    { label: t('navisAtlasStatus.rows.rtcmTransport'), ...rtcm },
+    { label: t('navisAtlasStatus.rows.mavlink'), ...mav },
+    { label: t('navisAtlasStatus.rows.gnssRover'), ...gnss },
+    { label: t('navisAtlasStatus.rows.rtkFixed'), ...rtk },
+    {
+      label: t('navisAtlasStatus.rows.missionReady'),
+      value: ready.value === t('navisAtlasStatus.values.ok') ? t('navisAtlasStatus.values.ready') : ready.value,
+      tone: ready.tone,
+    },
+    { label: t('navisAtlasStatus.rows.usvMode'), value: vehicle.mode ?? '—', tone: vehicle.isVehicleOnline ? 'mode' : 'unknown' },
   ]
 })
 
@@ -126,7 +138,7 @@ const reasonMap: Record<number, string> = {
 const reasonText = computed(() => {
   tick.value
   const code = metric('RDYCODE')
-  return code === undefined ? 'NO DATA' : reasonMap[Math.trunc(code)] ?? `CODE ${code}`
+  return code === undefined ? t('navisAtlasStatus.noData') : reasonMap[Math.trunc(code)] ?? `${t('navisAtlasStatus.code')} ${code}`
 })
 
 onMounted(() => {
