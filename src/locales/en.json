@@ -1605,7 +1605,8 @@
       "gnssRover": "GNSS Rover",
       "rtkFixed": "RTK FIXED",
       "missionReady": "MISSION READY",
-      "usvMode": "USV MODE"
+      "usvMode": "USV MODE",
+      "shoreLink": "SHORE↔USV LINK"
     },
     "values": {
       "ok": "OK",
