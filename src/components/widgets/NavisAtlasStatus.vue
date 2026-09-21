@@ -27,7 +27,30 @@ import { useMainVehicleStore } from '@/stores/mainVehicle'
 const { t } = useI18n()
 const vehicle = useMainVehicleStore()
 const tick = ref(0)
+const shoreLinkReachable = ref<boolean | undefined>(undefined)
+const shoreLinkLatencyMs = ref<number | undefined>(undefined)
 let timer: ReturnType<typeof setInterval> | undefined
+let shoreProbeTimer: ReturnType<typeof setInterval> | undefined
+
+const SHORE_ADDRESS = '192.168.9.21'
+
+const probeShoreLink = async (): Promise<void> => {
+  const probe = window.electronAPI?.checkHostReachability
+  if (!probe) {
+    shoreLinkReachable.value = undefined
+    shoreLinkLatencyMs.value = undefined
+    return
+  }
+
+  try {
+    const result = await probe(SHORE_ADDRESS)
+    shoreLinkReachable.value = result.reachable
+    shoreLinkLatencyMs.value = result.latencyMs
+  } catch {
+    shoreLinkReachable.value = false
+    shoreLinkLatencyMs.value = undefined
+  }
+}
 
 const aliases = [
   'SHOREOK',
@@ -83,6 +106,7 @@ const state = (ok: boolean, known = true): { value: string; tone: string } =>
 const rows = computed(() => {
   tick.value
   const shoreKnown = metric('SHOREOK') !== undefined && metricFresh('SHOREOK')
+  const shoreLink = state(shoreLinkReachable.value === true, shoreLinkReachable.value !== undefined)
   const rtcmKnown = metric('RTCMOK') !== undefined && metricFresh('RTCMOK')
   const fix = metric('FIXTYPE')
   const gpsAge = metric('GPSAGE')
@@ -108,6 +132,14 @@ const rows = computed(() => {
   const ready = state(metric('READY') === 1, readyKnown)
 
   return [
+    {
+      label: t('navisAtlasStatus.rows.shoreLink'),
+      value:
+        shoreLinkReachable.value && shoreLinkLatencyMs.value !== undefined
+          ? `${shoreLink.value} ${shoreLinkLatencyMs.value.toFixed(0)} ms`
+          : shoreLink.value,
+      tone: shoreLink.tone,
+    },
     { label: t('navisAtlasStatus.rows.shoreHealth'), ...shore },
     { label: t('navisAtlasStatus.rows.rtcmTransport'), ...rtcm },
     { label: t('navisAtlasStatus.rows.mavlink'), ...mav },
@@ -152,9 +184,12 @@ const reasonText = computed(() => {
 
 onMounted(() => {
   timer = setInterval(() => tick.value++, 500)
+  void probeShoreLink()
+  shoreProbeTimer = setInterval(() => void probeShoreLink(), 2000)
 })
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
+  if (shoreProbeTimer) clearInterval(shoreProbeTimer)
 })
 </script>
 
