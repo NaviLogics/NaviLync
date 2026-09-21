@@ -23,7 +23,7 @@ export const DEFAULT_LOCALE: SupportedLocale = 'ru'
 function getSavedLocale(): SupportedLocale {
   // Check if we're in a browser environment
   if (typeof localStorage !== 'undefined') {
-    const savedLocale = localStorage.getItem('cockpit-locale')
+    const savedLocale = localStorage.getItem('navilync-locale')
     if (savedLocale && SUPPORTED_LOCALES.includes(savedLocale as SupportedLocale)) {
       return savedLocale as SupportedLocale
     }
