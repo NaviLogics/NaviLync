@@ -39,8 +39,13 @@ const isVirtualInterface = (interfaceName: string): boolean => {
 const MAX_DISCOVERY_ADDRESSES = 4094
 const execFileAsync = promisify(execFile)
 
+/**
+ * Result of an ICMP reachability probe.
+ */
 export interface HostReachability {
+  /** Whether the target replied to the probe. */
   reachable: boolean
+  /** Round-trip latency in milliseconds when available. */
   latencyMs?: number
 }
 
