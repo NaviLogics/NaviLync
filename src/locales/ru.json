@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Cockpit",
+    "name": "NaviLync",
     "version": "Версия {version}"
   },
   "menu": {
@@ -1591,6 +1591,28 @@
       "axis": "Ось {index}",
       "button": "Кнопка {index} ({modifier})",
       "unassigned": "Не назначено"
+    }
+  },
+  "navisAtlasStatus": {
+    "systemStatus": "СОСТОЯНИЕ СИСТЕМЫ",
+    "readyPrefix": "ГОТОВНОСТЬ",
+    "noData": "НЕТ ДАННЫХ",
+    "code": "КОД",
+    "rows": {
+      "shoreHealth": "SHORE RTK HEALTH",
+      "rtcmTransport": "RTCM транспорт",
+      "mavlink": "MAVLink",
+      "gnssRover": "GNSS Rover",
+      "rtkFixed": "RTK FIXED",
+      "missionReady": "MISSION READY",
+      "usvMode": "РЕЖИМ USV"
+    },
+    "values": {
+      "ok": "OK",
+      "fail": "FAIL",
+      "fixed": "FIXED",
+      "float": "FLOAT",
+      "ready": "READY"
     }
   }
 }
