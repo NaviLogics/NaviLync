@@ -101,7 +101,10 @@ const rows = computed(() => {
     ? { value: '—', tone: 'unknown' }
     : fix === 6
     ? { value: t('navisAtlasStatus.values.fixed'), tone: 'ok' }
-    : { value: fix === 5 ? t('navisAtlasStatus.values.float') : t('navisAtlasStatus.values.fail'), tone: fix === 5 ? 'warn' : 'fail' }
+    : {
+        value: fix === 5 ? t('navisAtlasStatus.values.float') : t('navisAtlasStatus.values.fail'),
+        tone: fix === 5 ? 'warn' : 'fail',
+      }
   const ready = state(metric('READY') === 1, readyKnown)
 
   return [
@@ -115,7 +118,11 @@ const rows = computed(() => {
       value: ready.value === t('navisAtlasStatus.values.ok') ? t('navisAtlasStatus.values.ready') : ready.value,
       tone: ready.tone,
     },
-    { label: t('navisAtlasStatus.rows.usvMode'), value: vehicle.mode ?? '—', tone: vehicle.isVehicleOnline ? 'mode' : 'unknown' },
+    {
+      label: t('navisAtlasStatus.rows.usvMode'),
+      value: vehicle.mode ?? '—',
+      tone: vehicle.isVehicleOnline ? 'mode' : 'unknown',
+    },
   ]
 })
 
@@ -138,7 +145,9 @@ const reasonMap: Record<number, string> = {
 const reasonText = computed(() => {
   tick.value
   const code = metric('RDYCODE')
-  return code === undefined ? t('navisAtlasStatus.noData') : reasonMap[Math.trunc(code)] ?? `${t('navisAtlasStatus.code')} ${code}`
+  return code === undefined
+    ? t('navisAtlasStatus.noData')
+    : reasonMap[Math.trunc(code)] ?? `${t('navisAtlasStatus.code')} ${code}`
 })
 
 onMounted(() => {
