@@ -1440,58 +1440,57 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
         throw Error(`Timeout reached while uploading mission.`)
       }
 
-      // Check if the vehicle has requested a mission item
+      // MISSION_ACK completes the transaction. Check it before looking at the cached request:
+      // after PX4 accepts the last item, re-sending that item is outside the transfer and PX4 reports
+      // "IGN MISSION_ITEM: No transfer".
+      const lastMissionAckMessage = this._messages.get(MAVLinkType.MISSION_ACK)
+      const ackReceived = lastMissionAckMessage !== undefined && lastMissionAckMessage.epoch > initTimeUpload
+      if (ackReceived) {
+        missionAck = lastMissionAckMessage.mavtype.type
+        console.debug(`[Mission upload] Acknowledgment received: ${missionAck}`)
+        if (missionAck !== MavMissionResult.MAV_MISSION_ACCEPTED) {
+          throw Error(`Mission upload rejected by vehicle. Result received: ${missionAck}.`)
+        }
+        break
+      }
+
+      // Check if the vehicle has requested a mission item. MISSION_REQUEST is deprecated but,
+      // per MAVLink, it is answered with MISSION_ITEM_INT just like MISSION_REQUEST_INT.
       const lastMissionItemRequestMessage =
-        this._messages.get(MAVLinkType.MISSION_REQUEST) || this._messages.get(MAVLinkType.MISSION_REQUEST_INT)
+        this._messages.get(MAVLinkType.MISSION_REQUEST_INT) || this._messages.get(MAVLinkType.MISSION_REQUEST)
       if (lastMissionItemRequestMessage === undefined) {
         console.debug(`[Mission upload] No mission item request message received.`)
         continue
-      } else {
-        console.debug(`[Mission upload] Received a request for mission item #${lastMissionItemRequestMessage.seq}.`)
       }
 
-      // Check if the request is from another upload
-      const requestFromOtherUpload = lastMissionItemRequestMessage.epoch < initTimeUpload
-      if (requestFromOtherUpload) {
+      // Ignore a request cached from a previous transfer.
+      if (lastMissionItemRequestMessage.epoch < initTimeUpload) {
         console.debug(`[Mission upload] Request was from another upload. Skipping...`)
         continue
       }
 
+      const requestedSeq = lastMissionItemRequestMessage.seq
+      if (requestedSeq < 0 || requestedSeq >= mavlinkWaypoints.length) {
+        throw Error(`Vehicle requested invalid mission item #${requestedSeq}.`)
+      }
+
       const requestAlreadyAnswered = epochLastRequestAnswered === lastMissionItemRequestMessage.epoch
-      if (requestAlreadyAnswered && new Date().getTime() - lastMissionItemRequestMessage.epoch < 250) {
-        console.debug(`[Mission upload] Request was already answered. Skipping...`)
+      if (requestAlreadyAnswered) {
+        // A repeated cached request is not a new PX4 request. Do not manufacture a retransmission:
+        // PX4 will issue a fresh MISSION_REQUEST_INT (new epoch) if it really needs the item again.
         continue
-      } else if (requestAlreadyAnswered) {
-        console.debug(`[Mission upload] Didn't receive the mission item in time. Will send it again.`)
-      } else {
-        timeoutEpoch = new Date().getTime()
       }
 
-      // If none of the above conditions are met, send the mission item
-      console.debug(`[Mission upload] Sending mission item #${lastMissionItemRequestMessage.seq}`)
-      sendMavlinkMessage(mavlinkWaypoints[lastMissionItemRequestMessage.seq])
+      timeoutEpoch = new Date().getTime()
+      console.debug(`[Mission upload] Received request for mission item #${requestedSeq}.`)
+      console.debug(`[Mission upload] Sending MISSION_ITEM_INT #${requestedSeq}.`)
+      sendMavlinkMessage(mavlinkWaypoints[requestedSeq])
 
-      const percentageCompleted = Math.round((100 * (lastMissionItemRequestMessage.seq + 1)) / mavlinkWaypoints.length)
+      const percentageCompleted = Math.round((100 * (requestedSeq + 1)) / mavlinkWaypoints.length)
       console.debug(`[Mission upload] Progress: ${percentageCompleted}%.`)
-      loadingCallback(percentageCompleted)
+      await loadingCallback(percentageCompleted)
 
-      // Update the epoch of the last request answered so we can check if the request was already answered
       epochLastRequestAnswered = lastMissionItemRequestMessage.epoch
-
-      // Stop when the vehicle send a acknowledgement stating that all waypoints were successfully received or that the upload failed
-      const lastMissionAckMessage = this._messages.get(MAVLinkType.MISSION_ACK)
-      const ackReceived = lastMissionAckMessage !== undefined && lastMissionAckMessage.epoch > initTimeUpload
-      if (ackReceived) {
-        console.debug(`[Mission upload] Acknowledgment received: ${lastMissionAckMessage.mavtype.type}`)
-        const missionUploadSucceeded = lastMissionAckMessage.mavtype.type === MavMissionResult.MAV_MISSION_ACCEPTED
-        if (missionUploadSucceeded) {
-          console.debug(`[Mission upload] Mission upload succeeded.`)
-          missionAck = lastMissionAckMessage.mavtype.type
-        } else {
-          console.warn(`[Mission upload] Mission upload failed. Will continue trying until a timeout is reached.`)
-          continue
-        }
-      }
     }
 
     if (missionAck === undefined) {
