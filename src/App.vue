@@ -198,9 +198,14 @@ onBeforeMount(async () => {
     interfaceStore.showSplashScreen = false
   }, maxSplashDuration)
 
-  while (!isBlueOSUserDataSimilar) {
-    isBlueOSUserDataSimilar = await checkBlueOsUserDataSimilarity(vehicleStore.globalAddress, missionStore.username)
-    if (!isBlueOSUserDataSimilar) await sleep(1000)
+  while (!isBlueOSUserDataSimilar && Date.now() - startTime < maxSplashDuration) {
+    try {
+      isBlueOSUserDataSimilar = await checkBlueOsUserDataSimilarity(vehicleStore.globalAddress, missionStore.username)
+    } catch (error) {
+      console.warn('[Startup] BlueOS settings similarity check failed; continuing without blocking startup.', error)
+      break
+    }
+    if (!isBlueOSUserDataSimilar && Date.now() - startTime < maxSplashDuration) await sleep(1000)
   }
 
   const elapsed = Date.now() - startTime

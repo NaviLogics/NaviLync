@@ -32,9 +32,10 @@ const shoreLinkLatencyMs = ref<number | undefined>(undefined)
 let timer: ReturnType<typeof setInterval> | undefined
 let shoreProbeTimer: ReturnType<typeof setInterval> | undefined
 
-const SHORE_ADDRESS = '192.168.9.21'
+// Probe the USV-side MikroTik so the check actually traverses the Shore↔USV NV2 path.
+const USV_RADIO_ADDRESS = '192.168.9.10'
 
-const probeShoreLink = async (): Promise<void> => {
+const probeUsvLink = async (): Promise<void> => {
   const probe = window.electronAPI?.checkHostReachability
   if (!probe) {
     shoreLinkReachable.value = undefined
@@ -43,7 +44,7 @@ const probeShoreLink = async (): Promise<void> => {
   }
 
   try {
-    const result = await probe(SHORE_ADDRESS)
+    const result = await probe(USV_RADIO_ADDRESS)
     shoreLinkReachable.value = result.reachable
     shoreLinkLatencyMs.value = result.latencyMs
   } catch {
@@ -184,8 +185,8 @@ const reasonText = computed(() => {
 
 onMounted(() => {
   timer = setInterval(() => tick.value++, 500)
-  void probeShoreLink()
-  shoreProbeTimer = setInterval(() => void probeShoreLink(), 2000)
+  void probeUsvLink()
+  shoreProbeTimer = setInterval(() => void probeUsvLink(), 2000)
 })
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)

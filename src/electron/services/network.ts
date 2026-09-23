@@ -55,7 +55,7 @@ const isValidIpv4 = (address: string): boolean => {
 }
 
 export const parsePingLatencyMs = (output: string): number | undefined => {
-  const directMatch = output.match(/time[=<]\s*(\d+(?:[.,]\d+)?)\s*ms/i)
+  const directMatch = output.match(/(?:time|время)[=<]\s*(\d+(?:[.,]\d+)?)\s*(?:ms|мс)/i)
   if (directMatch) return Number(directMatch[1].replace(',', '.'))
 
   const windowsAverageMatch = output.match(/Average\s*=\s*(\d+)ms/i)
