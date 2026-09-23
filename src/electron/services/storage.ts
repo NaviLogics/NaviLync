@@ -41,9 +41,11 @@ const ensureCockpitFolder = (): void => {
   if (!fallbackDialogShown) {
     fallbackDialogShown = true
     const showWarning = (): void => {
-      dialog.showMessageBox({ type: 'warning', title: 'NaviLync folder unavailable', message: warnMessage }).then(() => {
-        fallbackDialogShown = false
-      })
+      dialog
+        .showMessageBox({ type: 'warning', title: 'NaviLync folder unavailable', message: warnMessage })
+        .then(() => {
+          fallbackDialogShown = false
+        })
     }
     if (app.isReady()) {
       showWarning()
