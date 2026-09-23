@@ -4,37 +4,27 @@
       <template #content>
         <div class="flex absolute top-0 right-0"><v-btn icon="mdi-close" variant="text" @click="closeDialog" /></div>
         <div class="flex flex-col justify-center align-center w-full h-full">
-          <div class="relative">
-            <img :src="CockpitLogo" alt="NaviLync Logo" class="w-64 my-4" />
-            <img
-              v-if="!isElectron()"
-              :src="lite"
-              alt="Cockpit lite"
-              class="absolute w-24 right-4 bottom-5 rotate-[-20deg] my-4"
-            />
+          <div class="my-5 text-center">
+            <div class="text-4xl font-bold tracking-[0.08em]">NaviLync</div>
+            <div class="mt-2 text-xs tracking-[0.28em] opacity-60">NAVIS ATLAS</div>
           </div>
           <div class="w-[90%] flex justify-between my-6 py-3">
             <div class="w-[45%] flex flex-col text-start">
-              <p class="mb-1">
-                NaviLync is the NaviLogics ground control station for NAVIS ATLAS and other supported remote vehicles.
-              </p>
-              <p class="my-3">NaviLync is based on the open-source Cockpit project created by Blue Robotics.</p>
-              <p class="mt-1">
-                NaviLync is derived from the Blue Robotics Cockpit project and retains upstream attribution and
-                licensing information.
-              </p>
+              <p class="mb-1">{{ t('about.description') }}</p>
+              <p class="my-3">{{ t('about.upstream') }}</p>
+              <p class="mt-1">{{ t('about.attribution') }}</p>
             </div>
             <div class="w-[45%] flex flex-col justify-end text-end">
               <p class="mb-1">
-                Version
+                {{ t('about.version') }}
                 <a :href="app_version.link" target="_blank" class="text-primary hover:underline">
                   {{ app_version.version }}
                 </a>
                 <br />
-                <span class="text-sm text-gray-500">Released: {{ app_version.date }}</span>
+                <span class="text-sm text-gray-500">{{ t('about.released', { date: app_version.date }) }}</span>
               </p>
-              <p class="my-3">NaviLync by NaviLogics · based on Cockpit by Blue Robotics</p>
-              <p class="mt-1">Licensed under AGPL-3.0-only or LicenseRef-Cockpit-Custom</p>
+              <p class="my-3">{{ t('about.credit') }}</p>
+              <p class="mt-1">{{ t('about.license') }}</p>
             </div>
           </div>
           <div class="mb-5 flex justify-center align-center">
@@ -71,11 +61,8 @@
 import { onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import CockpitLogo from '@/assets/cockpit-logo.avif'
-import lite from '@/assets/lite.avif'
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import { app_version } from '@/libs/cosmos'
-import { isElectron } from '@/libs/utils'
 
 const { t } = useI18n()
 const showDialog = ref(true)
