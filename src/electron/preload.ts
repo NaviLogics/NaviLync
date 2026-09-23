@@ -5,6 +5,7 @@ import type { FileDialogOptions, FileStats } from '@/types/storage'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getInfoOnSubnets: () => ipcRenderer.invoke('get-info-on-subnets'),
+  checkHostReachability: (address: string) => ipcRenderer.invoke('check-host-reachability', address),
   getResourceUsage: () => ipcRenderer.invoke('get-resource-usage'),
   onUpdateAvailable: (callback: (info: any) => void) =>
     ipcRenderer.on('update-available', (_event, info) => callback(info)),

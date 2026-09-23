@@ -23,9 +23,16 @@ export const DEFAULT_LOCALE: SupportedLocale = 'ru'
 function getSavedLocale(): SupportedLocale {
   // Check if we're in a browser environment
   if (typeof localStorage !== 'undefined') {
-    const savedLocale = localStorage.getItem('cockpit-locale')
+    const savedLocale = localStorage.getItem('navilync-locale')
     if (savedLocale && SUPPORTED_LOCALES.includes(savedLocale as SupportedLocale)) {
       return savedLocale as SupportedLocale
+    }
+
+    // Preserve the user's language preference when upgrading from Cockpit-based builds.
+    const legacyLocale = localStorage.getItem('cockpit-locale')
+    if (legacyLocale && SUPPORTED_LOCALES.includes(legacyLocale as SupportedLocale)) {
+      localStorage.setItem('navilync-locale', legacyLocale)
+      return legacyLocale as SupportedLocale
     }
   }
   return DEFAULT_LOCALE

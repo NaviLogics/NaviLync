@@ -1,5 +1,7 @@
+import { execFile } from 'child_process'
 import { ipcMain } from 'electron'
 import { networkInterfaces } from 'os'
+import { promisify } from 'util'
 
 import { NetworkInfo } from '../../types/network'
 
@@ -35,6 +37,54 @@ const isVirtualInterface = (interfaceName: string): boolean => {
 }
 
 const MAX_DISCOVERY_ADDRESSES = 4094
+const execFileAsync = promisify(execFile)
+
+/**
+ * Result of an ICMP reachability probe.
+ */
+export interface HostReachability {
+  /** Whether the target replied to the probe. */
+  reachable: boolean
+  /** Round-trip latency in milliseconds when available. */
+  latencyMs?: number
+}
+
+const isValidIpv4 = (address: string): boolean => {
+  const octets = address.split('.').map((part) => Number(part))
+  return octets.length === 4 && octets.every((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255)
+}
+
+export const parsePingLatencyMs = (output: string): number | undefined => {
+  const directMatch = output.match(/time[=<]\s*(\d+(?:[.,]\d+)?)\s*ms/i)
+  if (directMatch) return Number(directMatch[1].replace(',', '.'))
+
+  const windowsAverageMatch = output.match(/Average\s*=\s*(\d+)ms/i)
+  if (windowsAverageMatch) return Number(windowsAverageMatch[1])
+
+  return undefined
+}
+
+export const checkHostReachability = async (address: string): Promise<HostReachability> => {
+  if (!isValidIpv4(address)) throw new Error(`Invalid IPv4 address: ${address}`)
+
+  const args =
+    process.platform === 'win32'
+      ? ['-n', '1', '-w', '1000', address]
+      : process.platform === 'darwin'
+      ? ['-c', '1', '-W', '1000', address]
+      : ['-c', '1', '-W', '1', address]
+
+  const startedAt = performance.now()
+  try {
+    const { stdout } = await execFileAsync('ping', args, { windowsHide: true, timeout: 2000 })
+    return {
+      reachable: true,
+      latencyMs: parsePingLatencyMs(stdout) ?? Math.max(0, performance.now() - startedAt),
+    }
+  } catch {
+    return { reachable: false }
+  }
+}
 
 const ipv4ToInt = (address: string): number => {
   const octets = address.split('.').map((part) => Number(part))
@@ -128,4 +178,5 @@ const getInfoOnSubnets = (): NetworkInfo[] => {
  */
 export const setupNetworkService = (): void => {
   ipcMain.handle('get-info-on-subnets', getInfoOnSubnets)
+  ipcMain.handle('check-host-reachability', (_event, address: string) => checkHostReachability(address))
 }

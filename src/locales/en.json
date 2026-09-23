@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Cockpit",
+    "name": "NaviLync",
     "version": "Version {version}"
   },
   "menu": {
@@ -38,12 +38,12 @@
     "userSettings": {
       "title": "User settings",
       "description": "User related configuration. Here you can set the user that is currently set for this device as well as create a new user account.",
-      "pirateModeDescription": "Pirate mode allows Cockpit to expose advanced features, like setting the frequency of MAVLink messages. Take care when enabling this mode.",
+      "pirateModeDescription": "Pirate mode allows NaviLync to expose advanced features, like setting the frequency of MAVLink messages. Take care when enabling this mode.",
       "currentUser": "Current user:",
       "manageUsers": "Manage users",
       "showTutorial": "Show tutorial",
-      "openCockpitFolder": "Open Cockpit folder",
-      "manageCockpitSettings": "Manage Cockpit settings",
+      "openNaviLyncFolder": "Open NaviLync folder",
+      "manageNaviLyncSettings": "Manage NaviLync settings",
       "enablePirateMode": "Enable pirate mode",
       "disablePirateMode": "Disable pirate mode",
       "enableAdminMode": "Enable admin mode",
@@ -120,7 +120,7 @@
   "errors": {
     "couldNotUpdateConnection": "Could not update main connection. {error}.",
     "couldNotUpdateWebrtc": "Could not update WebRTC configuration. {error}.",
-    "desktopOnly": "This feature is only available in the desktop version of Cockpit."
+    "desktopOnly": "This feature is only available in the desktop version of NaviLync."
   },
   "interface": {
     "title": "Interface configuration",
@@ -178,12 +178,12 @@
     "generalSettings": {
       "title": "General settings",
       "info1": "View and configure your controller button and joystick behaviors, in a diagram and/or table display.",
-      "info2": "Button presses and joystick movements are highlighted, and can be assigned to vehicle functions or Cockpit Actions.",
+      "info2": "Button presses and joystick movements are highlighted, and can be assigned to vehicle functions or NaviLync Actions.",
       "info3": "Advanced configuration is available for setting axis limits."
     },
     "systemUpdate": {
       "title": "System update is recommended",
-      "message": "It seems like you're running versions of Mavlink2Rest (BlueOS) and/or ArduPilot that do not support the extended MAVLink MANUAL_CONTROL message. We strongly suggest upgrading both so you can have support for additional buttons and axes on the joystick. This is especially important if you sometimes use other control station software, like QGroundControl, as Cockpit can preferentially use the extended buttons to reduce configuration clashes. We recommend using BlueOS >= 1.2.0, and >= version 4.1.2 for ArduPilot-based autopilot firmware."
+      "message": "It seems like you're running versions of Mavlink2Rest (BlueOS) and/or ArduPilot that do not support the extended MAVLink MANUAL_CONTROL message. We strongly suggest upgrading both so you can have support for additional buttons and axes on the joystick. This is especially important if you sometimes use other control station software, like QGroundControl, as NaviLync can preferentially use the extended buttons to reduce configuration clashes. We recommend using BlueOS >= 1.2.0, and >= version 4.1.2 for ArduPilot-based autopilot firmware."
     },
     "communication": {
       "noConnection": "Could not establish communication with the vehicle.",
@@ -224,7 +224,7 @@
       "title": "Input mapping",
       "assignAsShift": "Assign as Shift",
       "unmapInput": "Unmap Input",
-      "cockpitAction": "Cockpit Action",
+      "cockpitAction": "NaviLync Action",
       "mavlinkManualControl": "MAVLink Manual Control",
       "dataLakeVariable": "Data Lake Variable",
       "searchActions": "Search actions...",
@@ -259,7 +259,7 @@
     },
     "streamsMapping": {
       "title": "Streams mapping",
-      "info": "Here you can map your external video streams to internal names and manage ignored streams. Active streams allow you to easily switch between different video sources in Cockpit. The widgets will be connected to the internal names, and the external video stream will be mapped to the internal name. Ignored streams (shown with \"--\" as internal name) can be restored by clicking the restore button.",
+      "info": "Here you can map your external video streams to internal names and manage ignored streams. Active streams allow you to easily switch between different video sources in NaviLync. The widgets will be connected to the internal names, and the external video stream will be mapped to the internal name. Ignored streams (shown with \"--\" as internal name) can be restored by clicking the restore button.",
       "internalName": "Internal name",
       "externalName": "External name",
       "videoSource": "Video source",
@@ -285,7 +285,7 @@
     "jitterBuffer": {
       "title": "RTP Jitter Buffer (Target) duration:",
       "info1": "Increasing the buffer duration causes additional video latency, but can help to compensate for network jitter and provide more consistent frame timing in the display.",
-      "info2": "Cockpit's default is zero milliseconds, but you can set a custom value, or leave the field empty to use your browser's default.",
+      "info2": "NaviLync's default is zero milliseconds, but you can set a custom value, or leave the field empty to use your browser's default.",
       "placeholder": "auto",
       "ruleMin": "Must be >= 0",
       "ruleMax": "Must be <= 4000"
@@ -297,7 +297,7 @@
       "info3": "Select whether video and subtitle files should be bundled together in a ZIP archive, or downloaded individually. Zipping allows a single download of a group of files, but requires waiting for the files to get zipped together. Depending on file sizes, the zipping process may complete within seconds or could take minutes.",
       "videoLibrary": "Video Library",
       "browserNotice": "Browser Version",
-      "browserNoticeText": "Video processing is not available in the browser version. Your recordings will be saved as raw chunks that can be downloaded and processed using the standalone version of Cockpit.",
+      "browserNoticeText": "Video processing is not available in the browser version. Your recordings will be saved as raw chunks that can be downloaded and processed using the standalone version of NaviLync.",
       "liveProcessing": "Live video processing (Electron)",
       "liveProcessingTooltip": "Process videos in real-time during recording for instant availability when recording stops",
       "liveProcessingDisabled": "Live video processing is only available in the standalone version",
@@ -558,13 +558,13 @@
     }
   },
   "about": {
-    "title": "About",
+    "description": "NaviLync is the NaviLogics ground control station for NAVIS ATLAS and other supported remote vehicles.",
+    "upstream": "NaviLync is based on the open-source Cockpit project created by Blue Robotics.",
+    "attribution": "NaviLync is derived from the Blue Robotics Cockpit project and retains upstream attribution and licensing information.",
     "version": "Version",
-    "license": "License",
-    "credits": "Credits",
-    "documentation": "Documentation",
-    "reportBug": "Report a bug",
-    "checkUpdates": "Check for updates"
+    "released": "Released: {date}",
+    "credit": "NaviLync by NaviLogics · based on Cockpit by Blue Robotics",
+    "license": "Licensed under AGPL-3.0-only or LicenseRef-Cockpit-Custom"
   },
   "vehicleDiscovery": {
     "title": "Vehicle Discovery",
@@ -757,19 +757,19 @@
     "close": "Close"
   },
   "tutorial": {
-    "welcomeTitle": "Welcome to Cockpit!",
+    "welcomeTitle": "Welcome to NaviLync!",
     "welcomeContent": "Thank you for trying our control station software - we hope you make it your own!",
     "welcomeOpposite": "This guide will assist you in connecting to your vehicle, and walk you through the available menu pages.",
     "mainMenuTitle": "Main Menu",
-    "mainMenuContent": "Cockpit's configuration options and tools are accessed through its sidebar.",
+    "mainMenuContent": "NaviLync's configuration options and tools are accessed through its sidebar.",
     "mainMenuOpposite": "Open it by clicking the highlighted tab on the left side of the screen.",
     "connectionsTitle": "Connections and Behaviour",
-    "connectionsOpposite": "The 'Settings' menu allows configuring Cockpit's connections and behavior.",
+    "connectionsOpposite": "The 'Settings' menu allows configuring NaviLync's connections and behavior.",
     "generalConfigTitle": "General Configuration",
     "generalConfigContent": "The 'General' page allows switching the active user, and the vehicle connection settings.",
     "generalConfigOpposite": "Each user can have their own settings, interface profiles, and joystick mappings, which can be stored on and synchronized through the connected vehicle.",
     "vehicleAddressTitle": "Vehicle Address",
-    "vehicleAddressContent": "Cockpit connects to a vehicle's network using a global address.",
+    "vehicleAddressContent": "NaviLync connects to a vehicle's network using a global address.",
     "vehicleAddressOpposite": "This is usually found automatically, but if necessary you can specify a custom domain to connect to and search for the relevant vehicle components.",
     "vehicleConnected": "Vehicle Connected",
     "interfaceConfigTitle": "Interface Configuration",
@@ -778,15 +778,15 @@
     "joystickConfigContent": "Connect a controller and move a joystick or press a button to see the current function mapping.",
     "joystickConfigOpposite": "Fully supported joysticks have a visual configuration interface available, but there's also a mapping table provided for custom or uncommon controllers. Actions can be related to vehicle functions, can influence the display, or can run custom requests or code.",
     "videoConfigTitle": "Video Configuration",
-    "videoConfigContent": "Video sources (from MAVLink Camera Manager / BlueOS) can be given custom names, and you can configure Cockpit's receiver settings to improve performance.",
+    "videoConfigContent": "Video sources (from MAVLink Camera Manager / BlueOS) can be given custom names, and you can configure NaviLync's receiver settings to improve performance.",
     "videoConfigOpposite": "There are also preferences for the video recording library, to automatically process recorded chunks into video files, and zip together files when downloading multiple videos or a video with telemetry subtitles.",
     "telemetryRecordingTitle": "Telemetry Recording",
     "telemetryRecordingOpposite": "Subtitle overlays of telemetry data can be recorded with videos. This panel allows choosing which variables to include, where they appear on the screen, how the subtitles are styled, and the update rate.",
     "alertsConfigTitle": "Alerts Configuration",
     "alertsConfigOpposite": "Voice alerts can announce notifications and issues during operation, without covering the screen. The voice and reported alert severities can be configured here.",
     "devSettingsTitle": "Dev Settings",
-    "devSettingsContent": "This section includes settings and Cockpit logs to help with development and advanced troubleshooting.",
-    "devSettingsOpposite": "We recommend leaving the default values, but if you prefer to you can stop Cockpit from synchronizing its settings with BlueOS vehicles, and/or disable sending the anonymous usage statistics and error messages that help the development team to find performance issues and bugs.",
+    "devSettingsContent": "This section includes settings and NaviLync logs to help with development and advanced troubleshooting.",
+    "devSettingsOpposite": "We recommend leaving the default values, but if you prefer to you can stop NaviLync from synchronizing its settings with BlueOS vehicles, and/or disable sending the anonymous usage statistics and error messages that help the development team to find performance issues and bugs.",
     "missionConfigTitle": "Mission Configuration",
     "missionConfigOpposite": "This panel allows selecting which vehicle commands require an extra confirmation step before sending, to avoid triggering mission- or safety-critical functions accidentally.",
     "completedTitle": "Tutorial Completed",
@@ -916,7 +916,7 @@
     "cannotStartRecording": "Cannot start recording.",
     "streamNotConnected": "Stream is not connected.",
     "couldNotLoadStream": "Could not load media stream.",
-    "recordingOngoing": "You have a video recording ongoing. Remember to stop it before closing Cockpit, or the record will be lost."
+    "recordingOngoing": "You have a video recording ongoing. Remember to stop it before closing NaviLync, or the record will be lost."
   },
   "genericIndicator": {
     "presets": "Presets",
@@ -940,10 +940,10 @@
     "singleCapture": "Single capture",
     "timedMultiCapture": "Timed multi-capture",
     "settings": "Snapshot settings",
-    "electronOnlyInfo": "Some features like \"Capturing Cockpit work area\" are only available in the Electron version.",
+    "electronOnlyInfo": "Some features like \"Capturing NaviLync work area\" are only available in the Electron version.",
     "streamsToCapture": "Streams to capture",
     "noStreamsAvailable": "No streams available.",
-    "captureWorkArea": "Capture Cockpit work area (Electron only)",
+    "captureWorkArea": "Capture NaviLync work area (Electron only)",
     "timedInterval": "Timed snapshot interval (seconds)",
     "close": "Close",
     "snapshotSuccess": "Snapshot recorded successfully.",
@@ -954,7 +954,7 @@
     "streamsNotAvailable": "Selected streams are not available anymore. Please check the currently available options."
   },
   "settingsManager": {
-    "title": "Cockpit settings manager",
+    "title": "NaviLync settings manager",
     "setting": "Setting",
     "value": "Value",
     "loadingSettings": "Loading settings...",
@@ -971,7 +971,7 @@
     "invalidConfigFile": "Invalid configuration file: content is not an object.",
     "configApplied": "Configuration file applied successfully.",
     "errorParsingConfig": "Error parsing configuration file: {error}",
-    "resetConfirmMessage": "Are you sure you want to reset Cockpit's stored browser settings to defaults? Settings on the vehicle will not be affected - once you connect back to the vehicle, the settings will be restored.",
+    "resetConfirmMessage": "Are you sure you want to reset NaviLync's stored browser settings to defaults? Settings on the vehicle will not be affected - once you connect back to the vehicle, the settings will be restored.",
     "resetSettings": "Reset settings",
     "settingsResetSuccess": "All settings have been reset to default values."
   },
@@ -999,7 +999,7 @@
     "save": "Save",
     "close": "Close",
     "validationNoSpaces": "Username cannot contain spaces.",
-    "validationNoCockpit": "Username cannot contain \"cockpit\" as it is reserved for internal use.",
+    "validationNoNaviLync": "Username cannot contain \"cockpit\" as it is reserved for internal use.",
     "validationNoFallback": "Username cannot contain \"fallback\" as it is reserved for internal use.",
     "validationMinLength": "Username must be at least 3 characters long.",
     "validationMaxLength": "Username must be at most 16 characters long.",
@@ -1152,10 +1152,10 @@
       "instruction4": "Reset to last saved state using the Reset button",
       "instruction5": "Your code runs in the widget's context and has access to the DOM",
       "instruction6": "You can use the console to debug your code",
-      "instruction7": "You can use the data-lake system to inject or consume data from Cockpit. Check the docs for more information around this.",
+      "instruction7": "You can use the data-lake system to inject or consume data from NaviLync. Check the docs for more information around this.",
       "instruction8": "Click on each editor's header to expand it to full size",
       "autoSave": "Auto Save",
-      "inheritStyles": "Inherit Cockpit interface styles",
+      "inheritStyles": "Inherit NaviLync interface styles",
       "close": "Close",
       "export": "Export",
       "import": "Import",
@@ -1247,11 +1247,11 @@
       "failedInitLiveProcessor": "Failed to initialize live processor for stream {streamName}: {error}",
       "failedInitRecording": "Failed to initiate recording. First chunk was lost. Try again.",
       "ipsBlockedTitle": "All available video stream IPs are being blocked",
-      "ipsBlockedMsg1": "Cockpit detected that none of the IPs that are streaming video from your server are in the allowed list. This will lead to no video being streamed.",
+      "ipsBlockedMsg1": "NaviLync detected that none of the IPs that are streaming video from your server are in the allowed list. This will lead to no video being streamed.",
       "ipsBlockedMsg2": "This can happen if you changed your network or the IP of your vehicle.",
       "ipsBlockedMsg3": "To solve this problem, please open the video configuration page (Main-menu > Settings > Video) and clear the selected IPs. Then, select an available IP from the list.",
       "multipleIpsTitle": "Video being routed from multiple IPs",
-      "multipleIpsMsg1": "Cockpit detected that the video streams are being routed from multiple IPs. This often leads to video stuttering, especially if one of the IPs is from a non-wired connection.",
+      "multipleIpsMsg1": "NaviLync detected that the video streams are being routed from multiple IPs. This often leads to video stuttering, especially if one of the IPs is from a non-wired connection.",
       "multipleIpsMsg2": "To prevent issues and achieve an optimal streaming experience, please open the video configuration page (Main-menu > Settings > Video) and select the IP address that should be used for the video streaming.",
       "preferredRoutesFetched": "Preferred video stream routes fetched from BlueOS.",
       "chunkNotSaved": "Oops, looks like a video chunk could not be saved. Retrying...",
@@ -1307,11 +1307,11 @@
       "buttonSlotsFull": "The autopilot's MAVLink Manual Control button slots are full - the {actionId} function cannot be assigned.\nConsider mapping it to a \"shift\"ed slot instead, or unmapping an unused autopilot button function first."
     },
     "utilsVue": {
-      "restartingCockpit": "Restarting Cockpit in {seconds} seconds..."
+      "restartingNaviLync": "Restarting NaviLync in {seconds} seconds..."
     }
   },
   "configActions": {
-    "title": "Cockpit actions configuration",
+    "title": "NaviLync actions configuration",
     "actions": "Actions",
     "info1": "View, manage, and create different types of actions.",
     "info2": "HTTP Request actions can be used to call external APIs, like servers, vehicles, cameras, etc.",
@@ -1369,11 +1369,11 @@
     "connectJoystick": "Connect a joystick and press any key.",
     "generalSettings": "General settings",
     "info1": "View and configure your controller button and joystick behaviors, in a diagram and/or table display.",
-    "info2": "Button presses and joystick movements are highlighted, and can be assigned to vehicle functions or Cockpit Actions.",
+    "info2": "Button presses and joystick movements are highlighted, and can be assigned to vehicle functions or NaviLync Actions.",
     "info3": "Advanced configuration is available for setting axis limits.",
     "warning": {
       "title": "System update is recommended",
-      "message": "It seems like you're running versions of Mavlink2Rest (BlueOS) and/or ArduPilot that do not support the extended MAVLink MANUAL_CONTROL message. We strongly suggest upgrading both so you can have support for additional buttons and axes on the joystick. This is especially important if you sometimes use other control station software, like QGroundControl, as Cockpit can preferentially use the extended buttons to reduce configuration clashes. We recommend using BlueOS ≥ 1.2.0, and ≥ version 4.1.2 for ArduPilot-based autopilot firmware."
+      "message": "It seems like you're running versions of Mavlink2Rest (BlueOS) and/or ArduPilot that do not support the extended MAVLink MANUAL_CONTROL message. We strongly suggest upgrading both so you can have support for additional buttons and axes on the joystick. This is especially important if you sometimes use other control station software, like QGroundControl, as NaviLync can preferentially use the extended buttons to reduce configuration clashes. We recommend using BlueOS ≥ 1.2.0, and ≥ version 4.1.2 for ArduPilot-based autopilot firmware."
     },
     "noVehicleComm": {
       "title": "Could not stablish communication with the vehicle.",
@@ -1421,7 +1421,7 @@
       "title": "Input mapping",
       "assignAsShift": "Assign as Shift",
       "unmapInput": "Unmap Input",
-      "cockpitAction": "Cockpit Action",
+      "cockpitAction": "NaviLync Action",
       "mavlinkControl": "MAVLink Manual Control",
       "dataLakeVariable": "Data Lake Variable",
       "searchPlaceholder": "Search actions...",
@@ -1591,6 +1591,29 @@
       "axis": "Axis {index}",
       "button": "Button {index} ({modifier})",
       "unassigned": "Unassigned"
+    }
+  },
+  "navisAtlasStatus": {
+    "systemStatus": "SYSTEM STATUS",
+    "readyPrefix": "READY",
+    "noData": "NO DATA",
+    "code": "CODE",
+    "rows": {
+      "shoreHealth": "SHORE RTK HEALTH",
+      "rtcmTransport": "RTCM transport",
+      "mavlink": "MAVLink",
+      "gnssRover": "GNSS Rover",
+      "rtkFixed": "RTK FIXED",
+      "missionReady": "MISSION READY",
+      "usvMode": "USV MODE",
+      "shoreLink": "SHORE↔USV LINK"
+    },
+    "values": {
+      "ok": "OK",
+      "fail": "FAIL",
+      "fixed": "FIXED",
+      "float": "FLOAT",
+      "ready": "READY"
     }
   }
 }

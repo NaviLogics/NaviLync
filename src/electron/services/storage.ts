@@ -41,9 +41,11 @@ const ensureCockpitFolder = (): void => {
   if (!fallbackDialogShown) {
     fallbackDialogShown = true
     const showWarning = (): void => {
-      dialog.showMessageBox({ type: 'warning', title: 'Cockpit folder unavailable', message: warnMessage }).then(() => {
-        fallbackDialogShown = false
-      })
+      dialog
+        .showMessageBox({ type: 'warning', title: 'NaviLync folder unavailable', message: warnMessage })
+        .then(() => {
+          fallbackDialogShown = false
+        })
     }
     if (app.isReady()) {
       showWarning()
@@ -163,7 +165,7 @@ export const setupFilesystemStorage = (): void => {
   ipcMain.handle('select-cockpit-folder', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],
-      title: 'Select Cockpit folder',
+      title: 'Select NaviLync folder',
       defaultPath: cockpitFolderPath,
     })
     if (result.canceled || result.filePaths.length === 0) {
