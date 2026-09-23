@@ -2226,20 +2226,20 @@ const updatePolygon = (): void => {
 }
 
 const checkAndRemoveSurveyPath = (): void => {
-  if (surveyPolygonVertexesPositions.value.length >= 4 || !surveyPathLayer.value) return
+  if (surveyPolygonVertexesPositions.value.length >= 3 || !surveyPathLayer.value) return
   planningMap.value?.removeLayer(surveyPathLayer.value as unknown as L.Layer)
   surveyPathLayer.value = null
 }
 
 const createSurveyPath = (): void => {
-  if (surveyPolygonVertexesPositions.value.length < 4) {
+  if (surveyPolygonVertexesPositions.value.length < 3) {
     checkAndRemoveSurveyPath()
     return
   }
 
   try {
     const adjustedAngle = 90 - surveyLinesAngle.value
-    const continuousPath = generateSurveyPath(
+    const { path: continuousPath } = generateSurveyPath(
       surveyPolygonVertexesPositions.value,
       distanceBetweenSurveyLines.value,
       adjustedAngle
@@ -2434,7 +2434,7 @@ const generateWaypointsFromSurvey = (): void => {
   }
 
   const adjustedAngle = 90 - surveyLinesAngle.value
-  const continuousPath = generateSurveyPath(
+  const { path: continuousPath } = generateSurveyPath(
     surveyPolygonVertexesPositions.value,
     distanceBetweenSurveyLines.value,
     adjustedAngle
@@ -2566,7 +2566,7 @@ const regenerateSurveyWaypoints = (angle?: number): void => {
     })
 
     const adjustedAngle = 90 - (angle || selectedSurvey.value.surveyLinesAngle)
-    const continuousPath = generateSurveyPath(
+    const { path: continuousPath } = generateSurveyPath(
       selectedSurvey.value.polygonCoordinates.map((coord) => L.latLng(coord[0], coord[1])),
       selectedSurvey.value.distanceBetweenLines,
       adjustedAngle
