@@ -27,6 +27,13 @@ function getSavedLocale(): SupportedLocale {
     if (savedLocale && SUPPORTED_LOCALES.includes(savedLocale as SupportedLocale)) {
       return savedLocale as SupportedLocale
     }
+
+    // Preserve the user's language preference when upgrading from Cockpit-based builds.
+    const legacyLocale = localStorage.getItem('cockpit-locale')
+    if (legacyLocale && SUPPORTED_LOCALES.includes(legacyLocale as SupportedLocale)) {
+      localStorage.setItem('navilync-locale', legacyLocale)
+      return legacyLocale as SupportedLocale
+    }
   }
   return DEFAULT_LOCALE
 }
