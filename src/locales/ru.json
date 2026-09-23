@@ -558,13 +558,13 @@
     }
   },
   "about": {
-    "title": "О программе",
+    "description": "NaviLync — наземная станция управления NaviLogics для NAVIS ATLAS и других поддерживаемых дистанционно управляемых аппаратов.",
+    "upstream": "NaviLync основан на проекте Cockpit с открытым исходным кодом, созданном Blue Robotics.",
+    "attribution": "NaviLync является производным от Blue Robotics Cockpit и сохраняет сведения об исходном проекте и лицензировании.",
     "version": "Версия",
-    "license": "Лицензия",
-    "credits": "Авторы",
-    "documentation": "Документация",
-    "reportBug": "Сообщить об ошибке",
-    "checkUpdates": "Проверить обновления"
+    "released": "Выпущено: {date}",
+    "credit": "NaviLync от NaviLogics · на основе Cockpit от Blue Robotics",
+    "license": "Лицензия: AGPL-3.0-only или LicenseRef-Cockpit-Custom"
   },
   "vehicleDiscovery": {
     "title": "Обнаружение аппарата",
