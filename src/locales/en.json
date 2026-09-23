@@ -558,13 +558,13 @@
     }
   },
   "about": {
-    "title": "About",
+    "description": "NaviLync is the NaviLogics ground control station for NAVIS ATLAS and other supported remote vehicles.",
+    "upstream": "NaviLync is based on the open-source Cockpit project created by Blue Robotics.",
+    "attribution": "NaviLync is derived from the Blue Robotics Cockpit project and retains upstream attribution and licensing information.",
     "version": "Version",
-    "license": "License",
-    "credits": "Credits",
-    "documentation": "Documentation",
-    "reportBug": "Report a bug",
-    "checkUpdates": "Check for updates"
+    "released": "Released: {date}",
+    "credit": "NaviLync by NaviLogics · based on Cockpit by Blue Robotics",
+    "license": "Licensed under AGPL-3.0-only or LicenseRef-Cockpit-Custom"
   },
   "vehicleDiscovery": {
     "title": "Vehicle Discovery",
