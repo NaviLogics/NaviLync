@@ -85,8 +85,18 @@ jobs:
             throw "Tag $env:GITHUB_REF_NAME does not match package version $version"
           }
           $asset = "dist/NaviLync-$version-portable-x64.exe"
-          if (gh release view $tag *> $null) {
+          # Do not use the native PowerShell success status of `gh release view` here:
+          # redirecting native command output can leave the condition unreliable on Windows runners.
+          # Query the release explicitly and branch on the process exit code instead.
+          gh release view $tag --json tagName 1>$null 2>$null
+          $releaseExists = $LASTEXITCODE -eq 0
+
+          if ($releaseExists) {
             gh release upload $tag $asset --clobber
           } else {
             gh release create $tag $asset --title "NaviLync $version" --generate-notes --verify-tag
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to publish NaviLync $version release asset."
           }
