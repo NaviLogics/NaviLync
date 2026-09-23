@@ -211,7 +211,7 @@ export const generateSurveyPath = (
   linesAngle: number,
   turnaroundDistance = 0
 ): SurveyPath => {
-  if (polygonPoints.length < 4) return { path: [], turnaroundSegments: [] }
+  if (polygonPoints.length < 3) return { path: [], turnaroundSegments: [] }
 
   const polygonCoords = polygonPoints.map((p) => [p.lng, p.lat])
   if (
