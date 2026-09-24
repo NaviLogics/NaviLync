@@ -548,7 +548,7 @@ import {
   setSurveyAreaSquareMeters,
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
-import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { MavAutopilot, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
 import { degrees } from '@/libs/utils'
@@ -651,7 +651,10 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     commands: makeDefaultNavCommands(),
   }
 
-  missionItemsToUpload.unshift(homeWaypoint)
+  // ArduPilot/Cockpit historically represents HOME as mission item 0. PX4 does not: QGC keeps planned home
+  // outside the mission-item sequence. Sending the synthetic HOME waypoint to PX4 can make the upload invalid.
+  const isPx4 = vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4
+  if (!isPx4) missionItemsToUpload.unshift(homeWaypoint)
 
   if (missionStore.defaultCruiseSpeed !== 1 && missionItemsToUpload.length > 1) {
     const firstMissionItem = missionItemsToUpload[1]
@@ -736,16 +739,18 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
   }
   try {
     const missionItemsInVehicle = await vehicleStore.fetchMission(loadingCallback)
+    const isPx4 = vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4
     missionItemsInVehicle.forEach((wp: Waypoint, index) => {
-      if (index === 0) {
+      // ArduPilot/Cockpit legacy transfers HOME as item 0. PX4 mission downloads contain only executable
+      // mission items, so discarding index 0 would silently remove the first real waypoint.
+      if (!isPx4 && index === 0) {
         home.value = wp.coordinates
         currentCursorGeoCoordinates.value = wp.coordinates
         setHomePosition()
+        return
       }
-      if (index > 0) {
-        missionStore.currentPlanningWaypoints.push(wp)
-        addWaypointMarker(wp)
-      }
+      missionStore.currentPlanningWaypoints.push(wp)
+      addWaypointMarker(wp)
     })
     updateWaypointMarkers()
 
