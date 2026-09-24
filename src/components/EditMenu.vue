@@ -40,14 +40,14 @@
           class="absolute flex justify-start flex-col top-full -mt-[1px] bg-transparent backdrop-blur-2xl z-10"
         >
           <div
-            v-for="profile in store.savedProfiles.filter((p) => p.hash !== store.currentProfile.hash)"
+            v-for="profile in availableDefaultProfiles.filter((p) => p.hash !== store.currentProfile.hash)"
             :key="profile.hash"
             variant="text"
             size="x-large"
             class="bg-[#FFFFFF33] 2xl:w-[280px] xl:w-[240px] w-[210px] p-3 text-white mb-[1px] border-[1px] border-[#FFFFFF11] text-none flex-nowrap rounded-sm hover:brightness-90 cursor-pointer"
             @click="
               () => {
-                store.loadProfile(profile)
+                store.loadViewsGroup(profile)
                 toggleDial()
                 isViewsPanelExpanded = false
               }
@@ -724,6 +724,7 @@ import MapImg from '@/assets/widgets/Map.png'
 import MiniWidgetsBarImg from '@/assets/widgets/MiniWidgetsBar.png'
 import PlotterImg from '@/assets/widgets/Plotter.png'
 import URLVideoPlayerImg from '@/assets/widgets/URLVideoPlayer.png'
+import { widgetProfiles } from '@/assets/defaults'
 import VideoPlayerImg from '@/assets/widgets/VideoPlayer.png'
 import VirtualHorizonImg from '@/assets/widgets/VirtualHorizon.png'
 import { useInteractionDialog } from '@/composables/interactionDialog'
@@ -764,6 +765,7 @@ const { t } = useI18n()
 const interfaceStore = useAppInterfaceStore()
 const store = useWidgetManagerStore()
 const mainVehicleStore = useMainVehicleStore()
+const availableDefaultProfiles = computed(() => widgetProfiles)
 
 const miniWidgetsBars = computed(() => {
   let regularContainers = store.miniWidgetContainersInCurrentView.filter(
