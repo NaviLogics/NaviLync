@@ -656,8 +656,9 @@ const uploadMissionToVehicle = async (): Promise<void> => {
   const isPx4 = vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4
   if (!isPx4) missionItemsToUpload.unshift(homeWaypoint)
 
-  if (missionStore.defaultCruiseSpeed !== 1 && missionItemsToUpload.length > 1) {
-    const firstMissionItem = missionItemsToUpload[1]
+  const firstExecutableItemIndex = isPx4 ? 0 : 1
+  if (missionStore.defaultCruiseSpeed !== 1 && missionItemsToUpload.length > firstExecutableItemIndex) {
+    const firstMissionItem = missionItemsToUpload[firstExecutableItemIndex]
     const existing = Array.isArray(firstMissionItem.commands) ? firstMissionItem.commands : []
 
     firstMissionItem.commands = [
