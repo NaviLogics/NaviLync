@@ -649,7 +649,7 @@ export const widgetProfiles: Profile[] = [
     ],
   },
   {
-    name: 'Boat default',
+    name: 'Boat / USV',
     hash: defaultBoatProfileHash,
     views: [
       {
