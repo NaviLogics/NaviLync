@@ -614,8 +614,8 @@ const defaultNavCommandsTemplate: MissionCommand[] = [
     param2: 5,
     param3: 0,
     // PX4 validates waypoint yaw. 999 was a legacy sentinel and is rejected as an invalid mission item.
-    // NaN means "heading not explicitly set" in PX4, so the rover follows its normal path-heading behaviour.
-    param4: Number.NaN,
+    // Surface rovers ignore independent yaw at a waypoint; use a valid numeric value instead of the old sentinel.
+    param4: 0,
   },
 ]
 
