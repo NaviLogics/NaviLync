@@ -1,7 +1,7 @@
 {
   "name": "navilync",
   "author": "NaviLogics",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "private": true,
   "main": "dist/electron/main.js",
   "description": "NaviLync ground control station for NAVIS ATLAS unmanned surface vehicles.",
@@ -28,7 +28,8 @@
     "test:unit": "vitest",
     "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
     "build:lib": "cross-env BUILD_MODE=library vite build",
-    "deploy:electron:windows:portable": "powershell -Command \"$v = (Get-Content package.json | ConvertFrom-Json).version; electron-builder --win portable --x64 --publish=never --config.extraMetadata.version=$v\""
+    "deploy:electron:windows:portable": "powershell -Command \"$v = (Get-Content package.json | ConvertFrom-Json).version; electron-builder --win portable --x64 --publish=never --config.extraMetadata.version=$v\",
+    "deploy:electron:windows:dir": "powershell -Command \"$v = (Get-Content package.json | ConvertFrom-Json).version; electron-builder --win --dir --x64 --publish=never --config.extraMetadata.version=$v\""
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.4.0",
