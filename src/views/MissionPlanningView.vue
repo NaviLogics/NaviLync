@@ -341,7 +341,7 @@
           v-if="missionStore.currentPlanningWaypoints.length > 0"
           :disabled="loading"
           class="h-auto py-1 px-1 m-2 mt-2 text-sm rounded-md elevation-1 bg-[#FFFFFF11] hover:bg-[#FFFFFF22] transition-colors duration-200"
-          @click="openCLearMissionDialog"
+          @click="clearCurrentMission"
         >
           <v-progress-circular v-if="loading" size="20" class="py-4" />
           <p v-else>{{ $t('missionPlanning.clearCurrentMissionBtn') }}</p>
@@ -589,8 +589,13 @@ const { height: windowHeight } = useWindowSize()
 const { showDialog, closeDialog } = useInteractionDialog()
 const { openSnackbar } = useSnackbar()
 
-const clearMissionOnVehicle = (): void => {
-  vehicleStore.clearMissions()
+const clearMissionOnVehicle = async (): Promise<void> => {
+  await vehicleStore.clearMissions()
+  // Vehicle mission and local planning draft are separate states. Clearing the FC must not leave a stale
+  // mission that silently reappears from local storage after restarting NaviLync.
+  clearCurrentMission()
+  missionStore.clearDraft()
+  hasUploadedMission.value = false
 }
 
 const calculatedHeight = computed(() => {
@@ -608,7 +613,9 @@ const defaultNavCommandsTemplate: MissionCommand[] = [
     param1: 0,
     param2: 5,
     param3: 0,
-    param4: 999,
+    // PX4 validates waypoint yaw. 999 was a legacy sentinel and is rejected as an invalid mission item.
+    // NaN means "heading not explicitly set" in PX4, so the rover follows its normal path-heading behaviour.
+    param4: Number.NaN,
   },
 ]
 
@@ -1064,6 +1071,8 @@ const planningPoiMarkers = shallowRef<{ [id: string]: L.Marker }>({})
 
 const clearCurrentMission = (): void => {
   missionStore.clearMission()
+  missionStore.clearDraft()
+  hasUploadedMission.value = false
   Object.values(waypointMarkers.value).forEach((marker) => {
     planningMap.value?.removeLayer(marker)
   })
