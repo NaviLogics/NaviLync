@@ -1098,34 +1098,6 @@ const clearCurrentMission = (): void => {
   clearAllSurveyAreas()
 }
 
-const openCLearMissionDialog = (): void => {
-  showDialog({
-    message: t('missionPlanning.clearCurrentMission'),
-    maxWidth: '400px',
-    variant: 'warning',
-    persistent: false,
-    actions: [
-      {
-        text: t('missionPlanning.cancel'),
-        action: () => {
-          closeDialog()
-        },
-      },
-      {
-        text: t('missionPlanning.clear'),
-        action: () => {
-          clearCurrentMission()
-          closeDialog()
-          openSnackbar({
-            variant: 'success',
-            message: t('missionPlanning.currentMissionCleared'),
-          })
-        },
-      },
-    ],
-  })
-}
-
 const enableUndoForCurrentSurvey = computed(() => {
   return (
     surveys.value.length > 0 &&
