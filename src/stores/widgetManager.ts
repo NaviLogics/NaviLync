@@ -354,7 +354,10 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
     currentViewIndex.value = 0
   }
 
-  /** Replace the active ViewsGroup and return to its first view. Used by the operator profile selector. */
+  /**
+   * Replace the active ViewsGroup and return to its first view. Used by the operator profile selector.
+   * @param profile ViewsGroup profile to activate.
+   */
   const loadViewsGroup = (profile: Profile): void => {
     viewsGroup.value = structuredClone(profile)
     currentViewIndex.value = 0
