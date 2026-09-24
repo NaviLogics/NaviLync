@@ -29,7 +29,7 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
     "build:lib": "cross-env BUILD_MODE=library vite build",
     "deploy:electron:windows:portable": "powershell -Command \"$v = (Get-Content package.json | ConvertFrom-Json).version; electron-builder --win portable --x64 --publish=never --config.extraMetadata.version=$v\",
-    "deploy:electron:windows:dir": "powershell -Command \"$v = (Get-Content package.json | ConvertFrom-Json).version; electron-builder --win --dir --x64 --publish=never --config.extraMetadata.version=$v\""
+    "deploy:electron:windows:dir": "powershell -Command \"$v = (Get-Content package.json | ConvertFrom-Json).version; electron-builder --win --dir --x64 --publish=never --config.extraMetadata.version=$v\\\""
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.4.0",
