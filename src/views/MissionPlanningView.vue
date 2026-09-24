@@ -341,7 +341,7 @@
           v-if="missionStore.currentPlanningWaypoints.length > 0"
           :disabled="loading"
           class="h-auto py-1 px-1 m-2 mt-2 text-sm rounded-md elevation-1 bg-[#FFFFFF11] hover:bg-[#FFFFFF22] transition-colors duration-200"
-          @click="openCLearMissionDialog"
+          @click="clearCurrentMission"
         >
           <v-progress-circular v-if="loading" size="20" class="py-4" />
           <p v-else>{{ $t('missionPlanning.clearCurrentMissionBtn') }}</p>
@@ -548,7 +548,7 @@ import {
   setSurveyAreaSquareMeters,
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
-import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { MavAutopilot, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
 import { degrees } from '@/libs/utils'
@@ -589,8 +589,13 @@ const { height: windowHeight } = useWindowSize()
 const { showDialog, closeDialog } = useInteractionDialog()
 const { openSnackbar } = useSnackbar()
 
-const clearMissionOnVehicle = (): void => {
-  vehicleStore.clearMissions()
+const clearMissionOnVehicle = async (): Promise<void> => {
+  await vehicleStore.clearMissions()
+  // Vehicle mission and local planning draft are separate states. Clearing the FC must not leave a stale
+  // mission that silently reappears from local storage after restarting NaviLync.
+  clearCurrentMission()
+  missionStore.clearDraft()
+  hasUploadedMission.value = false
 }
 
 const calculatedHeight = computed(() => {
@@ -608,7 +613,9 @@ const defaultNavCommandsTemplate: MissionCommand[] = [
     param1: 0,
     param2: 5,
     param3: 0,
-    param4: 999,
+    // PX4 validates waypoint yaw. 999 was a legacy sentinel and is rejected as an invalid mission item.
+    // Surface rovers ignore independent yaw at a waypoint; use a valid numeric value instead of the old sentinel.
+    param4: 0,
   },
 ]
 
@@ -644,10 +651,14 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     commands: makeDefaultNavCommands(),
   }
 
-  missionItemsToUpload.unshift(homeWaypoint)
+  // ArduPilot/Cockpit historically represents HOME as mission item 0. PX4 does not: QGC keeps planned home
+  // outside the mission-item sequence. Sending the synthetic HOME waypoint to PX4 can make the upload invalid.
+  const isPx4 = vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4
+  if (!isPx4) missionItemsToUpload.unshift(homeWaypoint)
 
-  if (missionStore.defaultCruiseSpeed !== 1 && missionItemsToUpload.length > 1) {
-    const firstMissionItem = missionItemsToUpload[1]
+  const firstExecutableItemIndex = isPx4 ? 0 : 1
+  if (missionStore.defaultCruiseSpeed !== 1 && missionItemsToUpload.length > firstExecutableItemIndex) {
+    const firstMissionItem = missionItemsToUpload[firstExecutableItemIndex]
     const existing = Array.isArray(firstMissionItem.commands) ? firstMissionItem.commands : []
 
     firstMissionItem.commands = [
@@ -729,16 +740,18 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
   }
   try {
     const missionItemsInVehicle = await vehicleStore.fetchMission(loadingCallback)
+    const isPx4 = vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4
     missionItemsInVehicle.forEach((wp: Waypoint, index) => {
-      if (index === 0) {
+      // ArduPilot/Cockpit legacy transfers HOME as item 0. PX4 mission downloads contain only executable
+      // mission items, so discarding index 0 would silently remove the first real waypoint.
+      if (!isPx4 && index === 0) {
         home.value = wp.coordinates
         currentCursorGeoCoordinates.value = wp.coordinates
         setHomePosition()
+        return
       }
-      if (index > 0) {
-        missionStore.currentPlanningWaypoints.push(wp)
-        addWaypointMarker(wp)
-      }
+      missionStore.currentPlanningWaypoints.push(wp)
+      addWaypointMarker(wp)
     })
     updateWaypointMarkers()
 
@@ -1064,6 +1077,8 @@ const planningPoiMarkers = shallowRef<{ [id: string]: L.Marker }>({})
 
 const clearCurrentMission = (): void => {
   missionStore.clearMission()
+  missionStore.clearDraft()
+  hasUploadedMission.value = false
   Object.values(waypointMarkers.value).forEach((marker) => {
     planningMap.value?.removeLayer(marker)
   })
@@ -1081,34 +1096,6 @@ const clearCurrentMission = (): void => {
   interfaceStore.configPanelVisible = false
   clearLiveMeasure()
   clearAllSurveyAreas()
-}
-
-const openCLearMissionDialog = (): void => {
-  showDialog({
-    message: t('missionPlanning.clearCurrentMission'),
-    maxWidth: '400px',
-    variant: 'warning',
-    persistent: false,
-    actions: [
-      {
-        text: t('missionPlanning.cancel'),
-        action: () => {
-          closeDialog()
-        },
-      },
-      {
-        text: t('missionPlanning.clear'),
-        action: () => {
-          clearCurrentMission()
-          closeDialog()
-          openSnackbar({
-            variant: 'success',
-            message: t('missionPlanning.currentMissionCleared'),
-          })
-        },
-      },
-    ],
-  })
 }
 
 const enableUndoForCurrentSurvey = computed(() => {

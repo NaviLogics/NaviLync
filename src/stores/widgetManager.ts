@@ -354,6 +354,15 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
     currentViewIndex.value = 0
   }
 
+  /**
+   * Replace the active ViewsGroup and return to its first view. Used by the operator profile selector.
+   * @param {Profile} profile ViewsGroup profile to activate.
+   */
+  const loadViewsGroup = (profile: Profile): void => {
+    viewsGroup.value = structuredClone(profile)
+    currentViewIndex.value = 0
+  }
+
   const exportViewsGroup = (profile: Profile): void => {
     const blob = new Blob([JSON.stringify(profile)], { type: 'text/plain;charset=utf-8' })
     saveAs(blob, `cockpit-views-group.json`)
@@ -762,6 +771,7 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
     viewsGroup,
     allowMovingAndResizing,
     resetViewsGroup,
+    loadViewsGroup,
     exportViewsGroup,
     importViewsGroup,
     addView,

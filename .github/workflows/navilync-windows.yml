@@ -61,22 +61,27 @@ jobs:
         run: yarn install --network-timeout 600000
       - name: Build renderer and Electron entrypoints
         run: yarn build
-      - name: Build NaviLync portable
-        run: yarn deploy:electron:windows:portable
-      - name: Verify exact portable executable
+      - name: Build NaviLync unpacked directory
+        run: yarn deploy:electron:windows:dir
+      - name: Package Windows x64 directory
         shell: pwsh
         run: |
           $version = (Get-Content package.json | ConvertFrom-Json).version
-          $expected = "dist/NaviLync-$version-portable-x64.exe"
-          if (-not (Test-Path $expected)) {
+          $source = "dist/win-unpacked"
+          $archive = "dist/NaviLync-$version-windows-x64.zip"
+          if (-not (Test-Path "$source/NaviLync.exe")) {
             Get-ChildItem dist | Select-Object Name, Length
-            throw "Expected portable executable was not produced: $expected"
+            throw "Expected unpacked NaviLync.exe was not produced."
           }
-      - name: Upload NaviLync Windows x64 portable
+          Compress-Archive -Path "$source/*" -DestinationPath $archive -CompressionLevel Optimal
+          if (-not (Test-Path $archive)) {
+            throw "Failed to package Windows x64 directory: $archive"
+          }
+      - name: Upload NaviLync Windows x64 directory package
         uses: actions/upload-artifact@v4
         with:
           name: NaviLync-Windows-x64
-          path: dist/NaviLync-*-portable-x64.exe
+          path: dist/NaviLync-*-windows-x64.zip
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -90,7 +95,7 @@ jobs:
           if ($env:GITHUB_REF -like 'refs/tags/*' -and $env:GITHUB_REF_NAME -ne $tag) {
             throw "Tag $env:GITHUB_REF_NAME does not match package version $version"
           }
-          $asset = "dist/NaviLync-$version-portable-x64.exe"
+          $asset = "dist/NaviLync-$version-windows-x64.zip"
           # Do not use the native PowerShell success status of `gh release view` here:
           # redirecting native command output can leave the condition unreliable on Windows runners.
           # Query the release explicitly and branch on the process exit code instead.

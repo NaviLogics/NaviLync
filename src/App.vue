@@ -137,7 +137,7 @@ import {
   registerActionCallback,
   unregisterActionCallback,
 } from '@/libs/joystick/protocols/cockpit-actions'
-import { isElectron, sleep } from '@/libs/utils'
+import { isElectron } from '@/libs/utils'
 import { useMissionStore } from '@/stores/mission'
 
 import About from './components/About.vue'
@@ -182,36 +182,21 @@ const handleShowAboutDialog = (): void => {
 // Main menu
 const isSlidingOut = ref(false)
 
-// Check if the user data in browser storage is the same as on blueOS; if not, keep the splash screen open for a maximum of 20 seconds.
-onBeforeMount(async () => {
+// Startup must never wait for BlueOS storage/network I/O. A one-shot similarity check is useful for
+// diagnostics, but it runs in the background; the operator UI becomes available immediately.
+onBeforeMount(() => {
   if (!devStore.showSplashScreenOnStartup) {
     interfaceStore.showSplashScreen = false
     return
   }
-  const minSplashDuration = 5000
-  const maxSplashDuration = 15000
-  const startTime = Date.now()
-  let isBlueOSUserDataSimilar = false
 
-  // Close splash screen no matter what, after 15 seconds
   setTimeout(() => {
     interfaceStore.showSplashScreen = false
-  }, maxSplashDuration)
+  }, 1500)
 
-  while (!isBlueOSUserDataSimilar && Date.now() - startTime < maxSplashDuration) {
-    try {
-      isBlueOSUserDataSimilar = await checkBlueOsUserDataSimilarity(vehicleStore.globalAddress, missionStore.username)
-    } catch (error) {
-      console.warn('[Startup] BlueOS settings similarity check failed; continuing without blocking startup.', error)
-      break
-    }
-    if (!isBlueOSUserDataSimilar && Date.now() - startTime < maxSplashDuration) await sleep(1000)
-  }
-
-  const elapsed = Date.now() - startTime
-  if (elapsed < minSplashDuration) await sleep(minSplashDuration - elapsed)
-
-  interfaceStore.showSplashScreen = false
+  void checkBlueOsUserDataSimilarity(vehicleStore.globalAddress, missionStore.username).catch((error) => {
+    console.warn('[Startup] BlueOS settings similarity check failed; startup is not blocked.', error)
+  })
 })
 
 watch(

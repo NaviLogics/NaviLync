@@ -40,14 +40,14 @@
           class="absolute flex justify-start flex-col top-full -mt-[1px] bg-transparent backdrop-blur-2xl z-10"
         >
           <div
-            v-for="profile in store.savedProfiles.filter((p) => p.hash !== store.currentProfile.hash)"
+            v-for="profile in availableDefaultProfiles.filter((p) => p.hash !== store.currentProfile.hash)"
             :key="profile.hash"
             variant="text"
             size="x-large"
             class="bg-[#FFFFFF33] 2xl:w-[280px] xl:w-[240px] w-[210px] p-3 text-white mb-[1px] border-[1px] border-[#FFFFFF11] text-none flex-nowrap rounded-sm hover:brightness-90 cursor-pointer"
             @click="
               () => {
-                store.loadProfile(profile)
+                store.loadViewsGroup(profile)
                 toggleDial()
                 isViewsPanelExpanded = false
               }
@@ -708,7 +708,7 @@ import { nextTick } from 'vue'
 import { type UseDraggableOptions, useDraggable, VueDraggable } from 'vue-draggable-plus'
 import { useI18n } from 'vue-i18n'
 
-import { defaultMiniWidgetManagerVars } from '@/assets/defaults'
+import { defaultMiniWidgetManagerVars, widgetProfiles } from '@/assets/defaults'
 import BoatThumb from '@/assets/vehicles/BlueBoat_thumb.png'
 import BlueRoboticsLogo from '@/assets/vehicles/BlueRoboticsLogo.png'
 import RovThumb from '@/assets/vehicles/BlueROV_thumb.png'
@@ -764,6 +764,7 @@ const { t } = useI18n()
 const interfaceStore = useAppInterfaceStore()
 const store = useWidgetManagerStore()
 const mainVehicleStore = useMainVehicleStore()
+const availableDefaultProfiles = computed(() => widgetProfiles)
 
 const miniWidgetsBars = computed(() => {
   let regularContainers = store.miniWidgetContainersInCurrentView.filter(

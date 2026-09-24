@@ -107,7 +107,11 @@ const state = (ok: boolean, known = true): { value: string; tone: string } =>
 const rows = computed(() => {
   tick.value
   const shoreKnown = metric('SHOREOK') !== undefined && metricFresh('SHOREOK')
-  const shoreLink = state(shoreLinkReachable.value === true, shoreLinkReachable.value !== undefined)
+  // A ping to the USV radio alone only proves that the laptop can reach the USV side. When the laptop is
+  // plugged directly into the USV network that does NOT prove a Shore↔USV NV2 link exists. Require the
+  // fresh Shore-agent health signal as the second end of the link before reporting Shore↔USV as OK.
+  const shoreLinkKnown = shoreLinkReachable.value !== undefined && shoreKnown
+  const shoreLink = state(shoreLinkReachable.value === true && metric('SHOREOK') === 1, shoreLinkKnown)
   const rtcmKnown = metric('RTCMOK') !== undefined && metricFresh('RTCMOK')
   const fix = metric('FIXTYPE')
   const gpsAge = metric('GPSAGE')
