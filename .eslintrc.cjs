@@ -133,6 +133,12 @@ module.exports = {
   },
   overrides: [
     {
+      files: ['src/tests/**/*.ts'],
+      rules: {
+        'jsdoc/require-jsdoc': 'off',
+      },
+    },
+    {
       files: ['src/components/**/*.vue', 'src/views/**/*.vue'],
       rules: {
         'no-restricted-syntax': [
