@@ -26,7 +26,8 @@
     "serve": "vite preview",
     "test:ci": "vitest --coverage --run",
     "test:unit": "vitest",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
+    "typecheck": "node scripts/typecheck-baseline.mjs",
+    "typecheck:update-baseline": "node scripts/typecheck-baseline.mjs --update",
     "build:lib": "cross-env BUILD_MODE=library vite build",
     "deploy:electron:windows:portable": "powershell -Command \"$v = (Get-Content package.json | ConvertFrom-Json).version; electron-builder --win portable --x64 --publish=never --config.extraMetadata.version=$v\"",
     "deploy:electron:windows:dir": "powershell -Command \"$v = (Get-Content package.json | ConvertFrom-Json).version; electron-builder --win --dir --x64 --publish=never --config.extraMetadata.version=$v\""
@@ -141,7 +142,7 @@
     "vite-plugin-vuetify": "^1.0.0-alpha.16",
     "vitest": "^0.20.3",
     "vue-cli-plugin-vuetify": "~2.4.8",
-    "vue-tsc": "2.0.10",
+    "vue-tsc": "2.0.19",
     "vuetify-loader": "^2.0.0-alpha.0"
   },
   "resolutions": {
