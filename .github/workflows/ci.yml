@@ -38,9 +38,11 @@ jobs:
         run: yarn lint
 
       - name: Typecheck
+        if: always()
         run: yarn typecheck
 
       - name: Unit tests
+        if: always()
         run: yarn test:unit --run
 
       - name: Build
