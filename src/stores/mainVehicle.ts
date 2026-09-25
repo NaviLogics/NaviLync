@@ -2,6 +2,7 @@ import { useStorage, useTimestamp } from '@vueuse/core'
 import { useThrottleFn } from '@vueuse/core'
 import { differenceInSeconds } from 'date-fns'
 import { defineStore } from 'pinia'
+import { v4 as uuid } from 'uuid'
 import { computed, reactive, ref, watch } from 'vue'
 
 import { defaultGlobalAddress, defaultVehicleBatteryPack } from '@/assets/defaults'
@@ -613,7 +614,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       isArmed.value = armed
 
       // Clear vehicle history on disarm/arm transition only when not persistent (persistent history is cleared only via map context menu)
-      if (wasArmed !== undefined && wasArmed !== armed && !isVehiclePositionHistoryPersistent.value) {
+      if (wasArmed !== undefined && wasArmed !== armed && !missionStore.isVehiclePositionHistoryPersistent) {
         missionStore.clearVehicleHistory()
       }
 
