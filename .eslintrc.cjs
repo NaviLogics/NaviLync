@@ -116,6 +116,19 @@ module.exports = {
   },
   overrides: [
     {
+      files: ['src/components/**/*.vue', 'src/views/**/*.vue'],
+      rules: {
+        'no-restricted-syntax': [
+          'error',
+          {
+            selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='setHomeWaypoint']",
+            message:
+              'Rendering and view code must not change vehicle HOME. Route explicit HOME changes through the dedicated action.',
+          },
+        ],
+      },
+    },
+    {
       files: ['*.vue'],
       rules: {
         'max-len': ['off'],
