@@ -135,11 +135,13 @@ export const createFakePx4 = (options: FakePx4Options = {}): FakePx4 => {
     if ('target_system' in message && message.target_system !== systemId) return
     if ('target_component' in message && ![0, componentId].includes(message.target_component)) return
 
-    partnerSystem = pack.header.system_id
-    partnerComponent = pack.header.component_id
-
     switch (message.type) {
       case MAVLinkType.MISSION_COUNT: {
+        if (state === 'receiving' && (pack.header.system_id !== partnerSystem || pack.header.component_id !== partnerComponent)) {
+          return
+        }
+        partnerSystem = pack.header.system_id
+        partnerComponent = pack.header.component_id
         const count = message as Message.MissionCount
         mission.length = 0
         expectedCount = count.count
@@ -156,6 +158,7 @@ export const createFakePx4 = (options: FakePx4Options = {}): FakePx4 => {
       }
       case MAVLinkType.MISSION_ITEM_INT: {
         if (state !== 'receiving') return
+        if (pack.header.system_id !== partnerSystem || pack.header.component_id !== partnerComponent) return
         const item = message as Message.MissionItemInt
         armTransferTimeout()
         retryGeneration += 1
@@ -182,10 +185,14 @@ export const createFakePx4 = (options: FakePx4Options = {}): FakePx4 => {
         break
       }
       case MAVLinkType.MISSION_CLEAR_ALL:
+        partnerSystem = pack.header.system_id
+        partnerComponent = pack.header.component_id
         mission.length = 0
         sendAck(MavMissionResult.MAV_MISSION_ACCEPTED)
         break
       case MAVLinkType.MISSION_REQUEST_LIST:
+        partnerSystem = pack.header.system_id
+        partnerComponent = pack.header.component_id
         send({
           type: MAVLinkType.MISSION_COUNT,
           target_system: partnerSystem,
@@ -195,7 +202,23 @@ export const createFakePx4 = (options: FakePx4Options = {}): FakePx4 => {
           opaque_id: 0,
         } as unknown as Package['message'])
         break
+      case MAVLinkType.MISSION_REQUEST_INT: {
+        partnerSystem = pack.header.system_id
+        partnerComponent = pack.header.component_id
+        const request = message as Message.MissionRequestInt
+        const item = mission[request.seq]
+        if (item !== undefined) {
+          send({
+            ...item,
+            target_system: partnerSystem,
+            target_component: partnerComponent,
+          } as unknown as Package['message'])
+        }
+        break
+      }
       case MAVLinkType.COMMAND_LONG: {
+        partnerSystem = pack.header.system_id
+        partnerComponent = pack.header.component_id
         const command = message as Message.CommandLong
         send({
           type: MAVLinkType.COMMAND_ACK,
@@ -203,8 +226,8 @@ export const createFakePx4 = (options: FakePx4Options = {}): FakePx4 => {
           result: { type: MavResult.MAV_RESULT_ACCEPTED },
           progress: 100,
           result_param2: 0,
-          targetSystem: partnerSystem,
-          targetComponent: partnerComponent,
+          target_system: partnerSystem,
+          target_component: partnerComponent,
         } as unknown as Package['message'])
         break
       }
