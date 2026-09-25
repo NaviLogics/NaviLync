@@ -214,8 +214,9 @@ import GlobalOriginDialog from '@/components/GlobalOriginDialog.vue'
 import MissionChecklist from '@/components/MissionChecklist.vue'
 import PoiManager from '@/components/poi/PoiManager.vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
+import { useSetHomeAction } from '@/composables/setHomeAction'
 import { openSnackbar } from '@/composables/snackbar'
-import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { MavAutopilot, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { degrees } from '@/libs/utils'
 import { createGridOverlay, TargetFollower, WhoToFollow } from '@/libs/utils-map'
@@ -253,7 +254,8 @@ const router = useRouter()
 const map = shallowRef<Map | undefined>()
 const zoom = ref(missionStore.defaultMapZoom)
 const mapCenter = ref<WaypointCoordinates>(missionStore.defaultMapCenter)
-const home = ref()
+// HOME is vehicle state: the map only shows what the vehicle reports in HOME_POSITION.
+const home = computed(() => vehicleStore.homePosition)
 const mapId = computed(() => `map-${widget.value.hash}`)
 const showButtons = computed(() => isMouseOver.value || downloadMenuOpen.value)
 const mapReady = ref(false)
@@ -943,18 +945,6 @@ const timeAgoSeenText = computed(() => {
 // Save vehicle position history
 const { history: vehiclePositionHistory } = useRefHistory(vehiclePosition)
 
-// Update home position when location is available
-// Try to update home position based on browser geolocation
-navigator?.geolocation?.watchPosition(
-  (position) => {
-    if (!home.value) {
-      home.value = [position.coords.latitude, position.coords.longitude]
-    }
-  },
-  (error) => console.error(`Failed to get position: (${error.code}) ${error.message}`),
-  { enableHighAccuracy: false, timeout: 5000, maximumAge: 0 }
-)
-
 // If home position is updated and map was not yet centered on it, center
 let mapNotYetCenteredInHome = true
 watch([home, map], async () => {
@@ -1045,7 +1035,6 @@ watch(home, () => {
   if (!homeMarker.value) {
     homeMarker.value = L.marker(position as LatLngTuple, {
       icon: L.divIcon({ className: 'marker-icon', iconSize: [24, 24], iconAnchor: [12, 12] }),
-      draggable: true,
     })
     const homeMarkerTooltip = L.tooltip({
       content: '<i class="mdi mdi-home-map-marker text-[18px] "></i>',
@@ -1055,11 +1044,6 @@ watch(home, () => {
       opacity: 1,
     })
     homeMarker.value.bindTooltip(homeMarkerTooltip)
-    homeMarker.value.on('dragend', (e: L.DragEndEvent) => {
-      const marker = e.target as L.Marker
-      const latlng = marker.getLatLng()
-      setHomePosition([latlng.lat, latlng.lng])
-    })
     map.value.addLayer(homeMarker.value)
   } else {
     homeMarker.value.setLatLng(position as LatLngTuple)
@@ -1347,15 +1331,12 @@ const onKeydown = (event: KeyboardEvent): void => {
   }
 }
 
+// ArduPilot missions carry HOME as item 0, which is not drawn as a waypoint (the HOME marker comes from HOME_POSITION).
+// PX4 missions hold only real mission items, so every item is drawn.
+const firstWaypointItemIndex = (): number => (vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4 ? 0 : 1)
+
 const drawMission = (missionItems: Waypoint[]): void => {
-  missionItems.forEach((wp, idx) => {
-    if (idx === 0) {
-      home.value = wp.coordinates
-      setHomePosition(wp.coordinates)
-    } else {
-      mapWaypoints.value.push(wp)
-    }
-  })
+  mapWaypoints.value.push(...missionItems.slice(firstWaypointItemIndex()))
 }
 
 // Allow fetching missions
@@ -1364,10 +1345,11 @@ const missionFetchProgress = ref(0)
 
 const rebuildMissionSeqMapping = (missionItems: Waypoint[]): void => {
   const remap: Record<number, number> = {}
+  const firstItemIndex = firstWaypointItemIndex()
   let seq = 0
 
   missionItems.forEach((wp, idx) => {
-    const markerSeq = idx === 0 ? undefined : idx
+    const markerSeq = idx < firstItemIndex ? undefined : idx - firstItemIndex + 1
 
     wp.commands.forEach((cmd) => {
       if (cmd.type !== 'MAVLINK_NAV_COMMAND' && cmd.type !== 'MAVLINK_NON_NAV_COMMAND') return // unchanged intent
@@ -1407,14 +1389,13 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
   }
 }
 
-const setHomePosition = async (homePosition: [number, number]): Promise<void> => {
-  const newHome: [number, number] = [homePosition[0], homePosition[1]]
-  home.value = newHome
+const { requestSetHome } = useSetHomeAction()
 
-  await vehicleStore.setHomeWaypoint(newHome, 0)
+const setHomePosition = async (homePosition: [number, number]): Promise<void> => {
   if (contextMenuVisible.value) {
     contextMenuVisible.value = false
   }
+  await requestSetHome([homePosition[0], homePosition[1]])
 }
 
 // Allow executing missions
