@@ -65,11 +65,21 @@ const baseConfig = {
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      ...(process.env.VITEST
+        ? {
+            'mavlink2rest-wasm/mavlink2rest_wasm_bg.wasm?url': path.resolve(
+              __dirname,
+              'src/tests/stubs/mavlink2rest-wasm-url.ts'
+            ),
+            'mavlink2rest-wasm': path.resolve(__dirname, 'src/tests/stubs/mavlink2rest-wasm.ts'),
+          }
+        : {}),
     },
   },
   test: {
     globals: true,
     environment: 'jsdom',
+    deps: { inline: ['vuetify'] },
   },
   server: {
     host: '0.0.0.0',

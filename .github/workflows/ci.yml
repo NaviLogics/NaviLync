@@ -37,10 +37,23 @@ jobs:
       - name: Lint
         run: yarn lint
 
+      - name: Plain TypeScript baseline
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          npx tsc --noEmit -p tsconfig.vitest.json --composite false 2>&1 | tee /tmp/typecheck-baseline.txt
+          TSC_EXIT=${PIPESTATUS[0]}
+          echo "plain_tsc_exit=${TSC_EXIT}"
+          echo "plain_tsc_error_count=$(grep -c 'error TS' /tmp/typecheck-baseline.txt || true)"
+          exit 0
+
       - name: Typecheck
+        if: always()
         run: yarn typecheck
 
       - name: Unit tests
+        if: always()
         run: yarn test:unit --run
 
       - name: Build
