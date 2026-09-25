@@ -106,7 +106,7 @@
       <v-tooltip location="top" :text="vehicleExecuteMissionButtonTooltipText">
         <template #activator="{ props: tooltipProps }">
           <v-btn
-            v-if="showButtons"
+            v-if="showButtons && vehicleStore.canCommandModes"
             :style="[interfaceStore.globalGlassMenuStyles, !vehicleStore.isVehicleOnline ? { color: '#FFFFFF33' } : {}]"
             v-bind="tooltipProps"
             class="absolute mb-3 ml-1 bottom-button right-[52px] bg-slate-50 text-[14px]"
@@ -1158,7 +1158,10 @@ const menuItems = computed(() => [
     action: () => onMenuOptionSelect('place-poi'),
     icon: 'mdi-map-marker-plus',
   },
-  { item: t('widgetConfig.map.goTo'), action: () => onMenuOptionSelect('goto'), icon: 'mdi-crosshairs-gps' },
+  // "Go to" switches the vehicle to a guided mode first, so it is a mode command as well
+  ...(vehicleStore.canCommandModes
+    ? [{ item: t('widgetConfig.map.goTo'), action: () => onMenuOptionSelect('goto'), icon: 'mdi-crosshairs-gps' }]
+    : []),
   {
     item: t('widgetConfig.map.setDefaultMapPosition'),
     action: () => onMenuOptionSelect('set-default-map-position'),

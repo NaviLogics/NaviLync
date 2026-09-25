@@ -21,6 +21,7 @@
         </template>
       </v-tooltip>
       <v-tooltip
+        v-if="vehicleStore.canCommandModes"
         location="top"
         open-delay="800"
         :text="missionStore.isMissionRunning ? t('miniMission.pause') : t('miniMission.startResume')"
@@ -50,7 +51,12 @@
           />
         </template>
       </v-tooltip>
-      <v-tooltip location="top" open-delay="800" :text="t('miniMission.returnHome')">
+      <v-tooltip
+        v-if="vehicleStore.canCommandModes"
+        location="top"
+        open-delay="800"
+        :text="t('miniMission.returnHome')"
+      >
         <template #activator="{ props: homeProps }">
           <v-btn
             v-bind="homeProps"

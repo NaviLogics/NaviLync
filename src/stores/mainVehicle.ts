@@ -127,6 +127,9 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
    */
   const hasVehicleBeenOnlineThisSession = ref(false)
   const firmwareType = ref<MavAutopilot>()
+  // Mode, mission start/pause/return and takeoff/land commands are offered only for a known ArduPilot. On the PX4
+  // pilot the mode is changed on the RC transmitter or in QGC, and NaviLync only shows it.
+  const canCommandModes = computed(() => firmwareType.value === MavAutopilot.MAV_AUTOPILOT_ARDUPILOTMEGA)
   const vehicleType = ref<MavType>()
   const altitude: Altitude = reactive({} as Altitude)
   const attitude: Attitude = reactive({} as Attitude)
@@ -1055,6 +1058,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     cpuLoad,
     lastHeartbeat,
     firmwareType,
+    canCommandModes,
     vehicleType,
     altitude,
     attitude,
