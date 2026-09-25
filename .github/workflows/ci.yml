@@ -39,24 +39,17 @@ jobs:
 
       - name: Typecheck
         if: always()
+        run: yarn typecheck --listFiles
+
+      - name: TypeScript / Volar resolution diagnostics
+        if: always()
         shell: bash
         run: |
-          set +e
-          yarn typecheck --listFiles 2>&1 | tee /tmp/typecheck-canary.log
-          TYPECHECK_EXIT=${PIPESTATUS[0]}
-          echo "=== TYPESCRIPT RESOLUTION DIAGNOSTICS ==="
-          echo "root_typescript=$(node -p \"require('typescript/package.json').version\")"
-          echo "vue_tsc_typescript=$(node -p \"require(require.resolve('typescript/package.json', { paths: [require.resolve('vue-tsc/package.json')] })).version\")"
-          echo "root_typescript_path=$(node -p \"require.resolve('typescript/package.json')\")"
-          echo "vue_tsc_typescript_path=$(node -p \"require.resolve('typescript/package.json', { paths: [require.resolve('vue-tsc/package.json')] })\")"
-          echo "=== TYPECHECK CANARY DIAGNOSTICS ==="
-          echo "typecheck_exit=${TYPECHECK_EXIT}"
-          echo "src_file_count=$(grep -c '/src/' /tmp/typecheck-canary.log || true)"
-          echo "px4_mission_matches:"
-          grep 'px4-mission' /tmp/typecheck-canary.log || true
-          echo "typescript_errors:"
-          grep 'error TS' /tmp/typecheck-canary.log || true
-          exit ${TYPECHECK_EXIT}
+          node ci/ts-diag.cjs
+          yarn why typescript || true
+          yarn why @vue/language-core || true
+          yarn why @volar/typescript || true
+          npx vue-tsc --version || true
 
       - name: Unit tests
         if: always()
