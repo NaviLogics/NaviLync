@@ -2,10 +2,10 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
+import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
 import { AltitudeReferenceType, MissionCommandType, type Waypoint } from '@/types/mission'
-import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 
 const waypoint = (id: string): Waypoint => ({
   id,
@@ -57,5 +57,4 @@ describe('T0 V1 PX4 plan-to-seq regressions', () => {
 
   // Single-waypoint disappearance is a Map.vue rendering defect, not a mission-store defect.
   // It moves to T1, where drawMission is extracted behind the MissionSequenceModel and becomes directly testable.
-
 })
