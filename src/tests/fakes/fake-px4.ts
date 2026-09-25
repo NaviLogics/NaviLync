@@ -3,7 +3,6 @@ import { vi } from 'vitest'
 import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
 import {
   MavAutopilot,
-  MavCmd,
   MavFrame,
   MAVLinkType,
   MavMissionResult,
@@ -75,7 +74,7 @@ export const createFakePx4 = (options: FakePx4Options = {}): FakePx4 => {
     ({
       header: { system_id: systemId, component_id: componentId, sequence: sequence++ & 0xff },
       message,
-    }) as Package
+    } as Package)
 
   const deliver = (direction: Direction, action: () => void): void => {
     if (lossRandom[direction]() < (options.lossRate ?? 0)) return
