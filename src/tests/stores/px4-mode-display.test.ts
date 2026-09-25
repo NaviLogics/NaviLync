@@ -88,6 +88,9 @@ describe('PX4 mode in the main vehicle and mission stores', () => {
   beforeAll(async () => {
     // jsdom has no Gamepad API, and the joystick manager polls it as soon as the stores are imported.
     Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true })
+    // Heartbeats bring the store online, and it then dispatches a CustomEvent on window. Under vitest the global
+    // CustomEvent is Node's, which jsdom's dispatchEvent rejects, so use jsdom's own.
+    Object.defineProperty(globalThis, 'CustomEvent', { value: document.defaultView?.CustomEvent, configurable: true })
     PX4Class = (await import('@/libs/vehicle/px4/px4')).PX4
     vehicleFactory = (await import('@/libs/vehicle/vehicle-factory')).VehicleFactory
     createMainVehicleStore = (await import('@/stores/mainVehicle')).useMainVehicleStore

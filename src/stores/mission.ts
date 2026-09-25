@@ -425,8 +425,9 @@ export const useMissionStore = defineStore('mission', () => {
     return navigationSequence
   })
 
+  // AUTO and GUIDED are ArduPilot modes; PX4 reports a running mission as Mission (AUTO.MISSION)
   const isMissionRunning = computed<boolean>(
-    () => mainVehicleStore.mode === 'AUTO' || mainVehicleStore.mode === 'GUIDED'
+    () => mainVehicleStore.mode === 'AUTO' || mainVehicleStore.mode === 'GUIDED' || mainVehicleStore.mode === 'Mission'
   )
 
   // Keeps track of the current active waypoint on the mission
