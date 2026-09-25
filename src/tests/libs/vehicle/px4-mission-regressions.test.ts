@@ -134,26 +134,37 @@ describe('T0 PX4 mission safety regressions', () => {
     const sendCommand = vi.spyOn(vehicle, 'sendCommandLong').mockResolvedValue()
 
     const start = vehicle.startMission()
+    const rejection = expect(start).rejects.toThrow(/arm/i)
     await vi.advanceTimersByTimeAsync(5200)
-    await start
 
+    await rejection
     expect(sendCommand).not.toHaveBeenCalledWith(MavCmd.MAV_CMD_MISSION_START, 0, 0)
   })
 
-  test('K4: clearMissions rejects when no MISSION_ACK is received', async () => {
+  test('K4: clearMissions stays pending until MISSION_ACK and rejects on negative ACK', async () => {
     const vehicle = new PX4(Vehicle.Type.Rover, 1)
-    const fake = createFakePx4({ lossRate: 1, seed: 44 })
-    const decoder = new TextDecoder()
-    const unsubscribe = fake.onSend((pack) => vehicle.onIncomingMessage(encode(pack)))
-    const forward = (bytes: Uint8Array): void => fake.receive(JSON.parse(decoder.decode(bytes)) as Package)
-    ConnectionManager.onWrite.add(forward)
-
     const clear = vehicle.clearMissions()
-    await fake.advance(5200)
+    let settled = false
+    void clear.finally(() => {
+      settled = true
+    })
 
-    await expect(clear).rejects.toThrow(/ack|timeout/i)
-    unsubscribe()
-    ConnectionManager.onWrite.remove(forward)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(settled).toBe(false)
+
+    vehicle.onIncomingMessage(
+      encode(
+        packageFromPx4({
+          type: MAVLinkType.MISSION_ACK,
+          target_system: ownGcsSystemId,
+          target_component: ownGcsComponentId,
+          mavtype: { type: MavMissionResult.MAV_MISSION_ERROR },
+          mission_type: { type: MavMissionType.MAV_MISSION_TYPE_MISSION },
+          opaque_id: 0,
+        } as unknown as Package['message'])
+      )
+    )
+    await expect(clear).rejects.toThrow()
   })
 
   test('T4: upload ignores MISSION_REQUEST_INT addressed to another GCS system', async () => {
@@ -168,12 +179,16 @@ describe('T0 PX4 mission safety regressions', () => {
     const upload = vehicle.uploadMission([simpleWaypoint()], async () => undefined, 1000)
     await vi.advanceTimersByTimeAsync(2)
 
+    const ownGcsSystemId = 255
+    const ownGcsComponentId = 190
+    const foreignGcsSystemId = ownGcsSystemId === 255 ? 254 : 255
+
     vehicle.onIncomingMessage(
       encode(
         packageFromPx4({
           type: MAVLinkType.MISSION_REQUEST_INT,
-          target_system: 42,
-          target_component: 190,
+          target_system: foreignGcsSystemId,
+          target_component: ownGcsComponentId,
           seq: 0,
           mission_type: { type: MavMissionType.MAV_MISSION_TYPE_MISSION },
         } as unknown as Package['message'])
