@@ -84,6 +84,9 @@ const simpleWaypoint = (): Waypoint => ({
   ],
 })
 
+const typecheckCanary: number = 'T0_TYPECHECK_CANARY'
+void typecheckCanary
+
 describe('T0 PX4 mission safety regressions', () => {
   beforeEach(() => {
     vi.useFakeTimers()
