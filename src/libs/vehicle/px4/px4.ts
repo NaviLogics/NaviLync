@@ -43,24 +43,18 @@ export enum AutoSubMode {
   LAND = 6,
 }
 
-// The PX4 modes NaviLync names on screen. Anything else is shown as Unknown(main/sub) rather than guessed.
-const namedModes: {
-  /**
-cccccccccccccccccccc *
-cccccccccccccccccccc
-   */
+/** A PX4 mode NaviLync names on screen */
+interface NamedPx4Mode {
+  /** Name shown to the operator */
   name: string
-  /**
-nnnnnnnnnnnnnn *
-nnnnnnnnnnnnnn
-   */
+  /** PX4 main mode (custom_mode bits 16-23) */
   mainMode: CustomMode
-  /**
-mmmmmmmmmmmmmmmmmmmmmm *
-mmmmmmmmmmmmmmmmmmmmmm
-   */
+  /** PX4 sub mode (custom_mode bits 24-31), 0 when the main mode has none */
   subMode: number
-}[] = [
+}
+
+// The PX4 modes NaviLync names on screen. Anything else is shown as Unknown(main/sub) rather than guessed.
+const namedModes: NamedPx4Mode[] = [
   { name: 'Manual', mainMode: CustomMode.MANUAL, subMode: 0 },
   { name: 'Position', mainMode: CustomMode.POSCTL, subMode: 0 },
   { name: 'Mission', mainMode: CustomMode.AUTO, subMode: AutoSubMode.MISSION },
