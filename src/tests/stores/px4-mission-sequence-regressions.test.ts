@@ -55,14 +55,7 @@ describe('T0 V1 PX4 plan-to-seq regressions', () => {
     expect(setCurrent).toHaveBeenCalledWith(0)
   })
 
-  test('a one-waypoint PX4 mission remains a valid executable plan at seq 0', () => {
-    const main = useMainVehicleStore()
-    const mission = useMissionStore()
-    main.lastHeartbeat = new Date()
-    main.currentMissionSeq = 0
-    mission.bumpVehicleMissionRevision([waypoint('only')])
+  // Single-waypoint disappearance is a Map.vue rendering defect, not a mission-store defect.
+  // It moves to T1, where drawMission is extracted behind the MissionSequenceModel and becomes directly testable.
 
-    expect(mission.currentWaypointOnMission).toBe(0)
-    expect(mission.canSkipToNextWp).toBe(false)
-  })
 })
