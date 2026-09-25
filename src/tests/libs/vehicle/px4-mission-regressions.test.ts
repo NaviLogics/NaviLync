@@ -156,8 +156,8 @@ describe('T0 PX4 mission safety regressions', () => {
       encode(
         packageFromPx4({
           type: MAVLinkType.MISSION_ACK,
-          target_system: ownGcsSystemId,
-          target_component: ownGcsComponentId,
+          target_system: 255,
+          target_component: 240,
           mavtype: { type: MavMissionResult.MAV_MISSION_ERROR },
           mission_type: { type: MavMissionType.MAV_MISSION_TYPE_MISSION },
           opaque_id: 0,
@@ -169,19 +169,26 @@ describe('T0 PX4 mission safety regressions', () => {
 
   test('T4: upload ignores MISSION_REQUEST_INT addressed to another GCS system', async () => {
     const vehicle = new PX4(Vehicle.Type.Rover, 1)
-    const sentTypes: string[] = []
+    const sent: Package[] = []
     const decoder = new TextDecoder()
     const capture = (bytes: Uint8Array): void => {
-      sentTypes.push((JSON.parse(decoder.decode(bytes)) as Package).message.type)
+      sent.push(JSON.parse(decoder.decode(bytes)) as Package)
     }
     ConnectionManager.onWrite.add(capture)
 
     const upload = vehicle.uploadMission([simpleWaypoint()], async () => undefined, 1000)
     await vi.advanceTimersByTimeAsync(2)
 
-    const ownGcsSystemId = 255
-    const ownGcsComponentId = 190
-    const foreignGcsSystemId = ownGcsSystemId === 255 ? 254 : 255
+    const count = sent.find((pack) => pack.message.type === MAVLinkType.MISSION_COUNT)
+    expect(count).toBeDefined()
+    const ownGcsSystemId = count?.header.system_id
+    const ownGcsComponentId = count?.header.component_id
+    expect(ownGcsSystemId).toBeDefined()
+    expect(ownGcsComponentId).toBeDefined()
+    const foreignGcsSystemId = ownGcsSystemId === 1 ? 2 : 1
+    const itemCountBeforeForeignRequest = sent.filter(
+      (pack) => pack.message.type === MAVLinkType.MISSION_ITEM_INT
+    ).length
 
     vehicle.onIncomingMessage(
       encode(
@@ -196,22 +203,14 @@ describe('T0 PX4 mission safety regressions', () => {
     )
     await vi.advanceTimersByTimeAsync(5)
 
-    expect(sentTypes).not.toContain(MAVLinkType.MISSION_ITEM_INT)
-
-    vehicle.onIncomingMessage(
-      encode(
-        packageFromPx4({
-          type: MAVLinkType.MISSION_ACK,
-          target_system: 255,
-          target_component: 190,
-          mavtype: { type: MavMissionResult.MAV_MISSION_ACCEPTED },
-          mission_type: { type: MavMissionType.MAV_MISSION_TYPE_MISSION },
-          opaque_id: 0,
-        } as unknown as Package['message'])
-      )
+    expect(sent.filter((pack) => pack.message.type === MAVLinkType.MISSION_ITEM_INT)).toHaveLength(
+      itemCountBeforeForeignRequest
     )
-    await vi.advanceTimersByTimeAsync(5)
-    await upload
+
+    // Do not await the legacy upload transaction here: current production code does not
+    // filter requests by GCS target and T0 must expose that defect without coupling this
+    // regression to the legacy transaction's timeout/completion mechanics.
+    void upload.catch(() => undefined)
   })
 
   test('fake PX4 retries the expected MISSION_REQUEST_INT every 250 ms', async () => {
