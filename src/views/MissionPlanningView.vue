@@ -541,6 +541,7 @@ import WaypointConfigPanel from '@/components/mission-planning/WaypointConfigPan
 import PoiManager from '@/components/poi/PoiManager.vue'
 import SideConfigPanel from '@/components/SideConfigPanel.vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
+import { useSetHomeAction } from '@/composables/setHomeAction'
 import { useSnackbar } from '@/composables/snackbar'
 import {
   clearAllSurveyAreas,
@@ -630,7 +631,10 @@ const cloneCommands = (commands?: MissionCommand[]): MissionCommand[] => {
 }
 
 const uploadMissionToVehicle = async (): Promise<void> => {
-  if (!home.value) {
+  // ArduPilot/Cockpit historically represents HOME as mission item 0. PX4 does not: QGC keeps planned home
+  // outside the mission-item sequence. Sending the synthetic HOME waypoint to PX4 can make the upload invalid.
+  const isPx4 = vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4
+  if (!isPx4 && !home.value) {
     showHomePositionNotSetDialog.value = true
     return
   }
@@ -643,18 +647,15 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     missionUploadProgress.value = loadingPerc
   }
 
-  const homeWaypoint: Waypoint = {
-    id: uuid(),
-    coordinates: home.value,
-    altitude: 0,
-    altitudeReferenceType: currentWaypointAltitudeRefType.value,
-    commands: makeDefaultNavCommands(),
+  if (!isPx4 && home.value) {
+    missionItemsToUpload.unshift({
+      id: uuid(),
+      coordinates: home.value,
+      altitude: 0,
+      altitudeReferenceType: currentWaypointAltitudeRefType.value,
+      commands: makeDefaultNavCommands(),
+    })
   }
-
-  // ArduPilot/Cockpit historically represents HOME as mission item 0. PX4 does not: QGC keeps planned home
-  // outside the mission-item sequence. Sending the synthetic HOME waypoint to PX4 can make the upload invalid.
-  const isPx4 = vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4
-  if (!isPx4) missionItemsToUpload.unshift(homeWaypoint)
 
   const firstExecutableItemIndex = isPx4 ? 0 : 1
   if (missionStore.defaultCruiseSpeed !== 1 && missionItemsToUpload.length > firstExecutableItemIndex) {
@@ -744,12 +745,7 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
     missionItemsInVehicle.forEach((wp: Waypoint, index) => {
       // ArduPilot/Cockpit legacy transfers HOME as item 0. PX4 mission downloads contain only executable
       // mission items, so discarding index 0 would silently remove the first real waypoint.
-      if (!isPx4 && index === 0) {
-        home.value = wp.coordinates
-        currentCursorGeoCoordinates.value = wp.coordinates
-        setHomePosition()
-        return
-      }
+      if (!isPx4 && index === 0) return
       missionStore.currentPlanningWaypoints.push(wp)
       addWaypointMarker(wp)
     })
@@ -771,7 +767,8 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
 
 const planningMap = shallowRef<Map | undefined>()
 const mapCenter = ref<WaypointCoordinates>(missionStore.defaultMapCenter)
-const home = ref<WaypointCoordinates | undefined>(undefined)
+// HOME is vehicle state: the planner only shows what the vehicle reports in HOME_POSITION.
+const home = computed(() => vehicleStore.homePosition)
 const zoom = ref(missionStore.defaultMapZoom)
 const followerTarget = ref<WhoToFollow | undefined>(undefined)
 const currentWaypointAltitude = ref(0)
@@ -1587,22 +1584,11 @@ const hideContextMenu = (): void => {
   selectedSurveyId.value = ''
 }
 
+const { requestSetHome } = useSetHomeAction()
+
 const setHomePosition = async (): Promise<void> => {
   if (!currentCursorGeoCoordinates.value) return
-  const newHome: [number, number] = [currentCursorGeoCoordinates.value[0], currentCursorGeoCoordinates.value[1]]
-  try {
-    home.value = newHome
-    await vehicleStore.setHomeWaypoint(newHome, 0)
-    openSnackbar({
-      variant: 'success',
-      message: t('missionPlanning.homePositionSet', { lat: newHome[0].toFixed(2), lon: newHome[1].toFixed(2) }),
-    })
-  } catch (error) {
-    openSnackbar({
-      variant: 'error',
-      message: t('missionPlanning.failedSetHomePosition', { error }),
-    })
-  }
+  await requestSetHome([currentCursorGeoCoordinates.value[0], currentCursorGeoCoordinates.value[1]])
 }
 
 const toggleSimplePath = (): void => {
@@ -2899,24 +2885,6 @@ const applySelectedWaypointMarkerVisual = (newWaypointId?: string, oldWaypointId
   refreshSurveyEntryExitMarkers() // keep entry/exit green after selection updates
 }
 
-let homeRetryTimer: ReturnType<typeof setInterval> | null = null
-const tryFetchHome = async (): Promise<void> => {
-  const MAX_ATTEMPTS = 30
-  let attempts = 0
-  if (vehicleStore.isVehicleOnline) {
-    try {
-      const wp = await vehicleStore.fetchHomeWaypoint()
-      home.value = [...wp.coordinates] as [number, number]
-      clearInterval(homeRetryTimer!)
-    } catch (err) {
-      console.warn('HOME fetch failed, will retry…', err)
-    }
-  }
-  if (++attempts >= MAX_ATTEMPTS) {
-    clearInterval(homeRetryTimer!)
-  }
-}
-
 const loadDraftMission = async (mission: CockpitMission): Promise<void> => {
   clearCurrentMission()
 
@@ -2928,10 +2896,6 @@ const loadDraftMission = async (mission: CockpitMission): Promise<void> => {
     missionStore.defaultCruiseSpeed = mission.settings.defaultCruiseSpeed
 
     drawMissionOnTheMap(mission.waypoints)
-    if (!home.value) {
-      await tryFetchHome()
-      homeRetryTimer = setInterval(tryFetchHome, 1000)
-    }
     openSnackbar({ variant: 'success', message: t('missionPlanning.draftMissionLoaded'), duration: 2000 })
   } catch (error) {
     openSnackbar({ variant: 'error', message: t('missionPlanning.failedLoadDraftMission', { error }), duration: 3000 })
@@ -3336,7 +3300,6 @@ watch(home, () => {
   if (!homeMarker.value) {
     homeMarker.value = L.marker(position as LatLngTuple, {
       icon: L.divIcon({ className: 'marker-icon', iconSize: [24, 24], iconAnchor: [12, 12] }),
-      draggable: true,
     })
     const homeMarkerTooltip = L.tooltip({
       content: '<i class="mdi mdi-home-map-marker text-[18px]"></i>',
@@ -3346,12 +3309,6 @@ watch(home, () => {
       opacity: 1,
     })
     homeMarker.value.bindTooltip(homeMarkerTooltip)
-    homeMarker.value.on('dragend', (e: L.DragEndEvent) => {
-      const marker = e.target as L.Marker
-      const latlng = marker.getLatLng()
-      currentCursorGeoCoordinates.value = [latlng.lat, latlng.lng]
-      setHomePosition()
-    })
     planningMap.value.addLayer(homeMarker.value)
   } else {
     homeMarker.value.setLatLng(position as LatLngTuple)

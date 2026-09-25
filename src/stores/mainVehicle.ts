@@ -25,7 +25,13 @@ import {
 import * as Connection from '@/libs/connection/connection'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
 import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
-import { MavAutopilot, MAVLinkType, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import {
+  getMAVLinkMessageId,
+  MavAutopilot,
+  MavCmd,
+  MAVLinkType,
+  MavType,
+} from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
 import eventTracker from '@/libs/external-telemetry/event-tracking'
 import { availableCockpitActions, registerActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
@@ -136,6 +142,9 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const velocity: Velocity = reactive({} as Velocity)
   const mainVehicle = ref<ArduPilot | undefined>(undefined)
   const isArmed = ref<boolean | undefined>(undefined)
+  // HOME exactly as the autopilot reports it in HOME_POSITION. It is never assigned from the UI: the only way to change
+  // it is `setHomeWaypoint`, and even then the value changes only when the vehicle reports its new HOME.
+  const homePosition = ref<[number, number] | undefined>(undefined)
   const flying = ref<boolean | undefined>(undefined)
   const icon = ref<string | undefined>(undefined)
   const configurationPages = ref<PageDescription[]>([])
@@ -485,17 +494,52 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   }
 
   /**
-   * Set home waypoint on vehicle
+   * Set home waypoint on vehicle. UI code must go through `useSetHomeAction`, which asks the operator first.
    * @param { [ number, number ] } coordinate of the home waypoint
    * @param { number } height of the home waypoint
-   * @returns { Promise<void> }
+   * @returns { Promise<void> } Resolves once the vehicle reports the new HOME in HOME_POSITION, and rejects when the
+   * command is refused or the vehicle does not report the new HOME in time
    */
   async function setHomeWaypoint(coordinate: [number, number], height: number): Promise<void> {
     if (!mainVehicle.value) {
       throw new Error('No vehicle available to set home waypoint.')
     }
     await mainVehicle.value.setHomeWaypoint(coordinate, height)
+    await waitForReportedHome(coordinate)
   }
+
+  // An accepted COMMAND_ACK only says the command was understood; the new HOME is in effect once the vehicle reports it
+  // in HOME_POSITION, which PX4 sends right after HOME changes. MAV_CMD_DO_SET_HOME travels in COMMAND_LONG as float32,
+  // so the reported coordinates can differ from the requested ones by a few decimetres.
+  const homeConfirmationTimeoutMs = 5000
+  const homeConfirmationToleranceDeg = 1e-5
+
+  const isReportedHomeAt = (coordinate: [number, number]): boolean =>
+    homePosition.value !== undefined &&
+    Math.abs(homePosition.value[0] - coordinate[0]) < homeConfirmationToleranceDeg &&
+    Math.abs(homePosition.value[1] - coordinate[1]) < homeConfirmationToleranceDeg
+
+  const waitForReportedHome = (coordinate: [number, number]): Promise<void> =>
+    new Promise((resolve, reject) => {
+      if (isReportedHomeAt(coordinate)) {
+        resolve()
+        return
+      }
+      const timeout = setTimeout(() => {
+        stopWatching()
+        reject(new Error('The vehicle did not report the new HOME position.'))
+      }, homeConfirmationTimeoutMs)
+      const stopWatching = watch(
+        homePosition,
+        () => {
+          if (!isReportedHomeAt(coordinate)) return
+          clearTimeout(timeout)
+          stopWatching()
+          resolve()
+        },
+        { flush: 'sync' }
+      )
+    })
 
   /**
    * Clear all missions that are on the vehicle
@@ -658,6 +702,14 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     mainVehicle.value.onMissionItemReached.add((sequence: number) => {
       markMissionItemAsReached(sequence)
     })
+    mainVehicle.value.onIncomingMAVLinkMessage.add(MAVLinkType.HOME_POSITION, (pack: Package) => {
+      if (pack.header.component_id !== 1) return
+      const reportedHome = pack.message as Message.HomePosition
+      homePosition.value = [reportedHome.latitude / 1e7, reportedHome.longitude / 1e7]
+    })
+    mainVehicle.value
+      .sendCommandLong(MavCmd.MAV_CMD_REQUEST_MESSAGE, getMAVLinkMessageId(MAVLinkType.HOME_POSITION))
+      .catch((error) => console.warn(`Could not request HOME_POSITION from the vehicle. ${error}`))
     mainVehicle.value.onIncomingMAVLinkMessage.add(MAVLinkType.HEARTBEAT, (pack: Package) => {
       if (pack.header.component_id != 1) {
         return
@@ -1082,6 +1134,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     reachedMissionItemSequences,
     clearReachedMissionItems,
     fetchHomeWaypoint,
+    homePosition,
     setHomeWaypoint,
     vehiclePayloadParameters,
     vehiclePositionMaxSampleRate,
