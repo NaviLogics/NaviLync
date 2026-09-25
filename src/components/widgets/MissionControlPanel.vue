@@ -27,7 +27,12 @@
             style="border-radius: 3px"
           >
             <div class="flex justify-around items-center w-full">
-              <v-tooltip location="top" open-delay="800" text="Skip to previous waypoint">
+              <v-tooltip
+                v-if="vehicleStore.canCommandModes"
+                location="top"
+                open-delay="800"
+                text="Skip to previous waypoint"
+              >
                 <template #activator="{ props: skipPrevProps }">
                   <v-btn
                     v-bind="skipPrevProps"
@@ -58,7 +63,12 @@
                   />
                 </template>
               </v-tooltip>
-              <v-tooltip location="top" open-delay="800" text="Skip to next waypoint">
+              <v-tooltip
+                v-if="vehicleStore.canCommandModes"
+                location="top"
+                open-delay="800"
+                text="Skip to next waypoint"
+              >
                 <template #activator="{ props: skipNextProps }">
                   <v-btn
                     v-bind="skipNextProps"

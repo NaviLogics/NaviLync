@@ -7,7 +7,12 @@
       class="flex gap-1 items-center overflow-hidden"
       :class="!vehicleStore.isVehicleOnline ? 'active-events-on-disabled' : ''"
     >
-      <v-tooltip location="top" open-delay="800" :text="t('miniMission.skipPrevious')">
+      <v-tooltip
+        v-if="vehicleStore.canCommandModes"
+        location="top"
+        open-delay="800"
+        :text="t('miniMission.skipPrevious')"
+      >
         <template #activator="{ props: skipPrevProps }">
           <v-btn
             v-bind="skipPrevProps"
@@ -38,7 +43,7 @@
           />
         </template>
       </v-tooltip>
-      <v-tooltip location="top" open-delay="800" :text="t('miniMission.skipNext')">
+      <v-tooltip v-if="vehicleStore.canCommandModes" location="top" open-delay="800" :text="t('miniMission.skipNext')">
         <template #activator="{ props: skipNextProps }">
           <v-btn
             v-bind="skipNextProps"
