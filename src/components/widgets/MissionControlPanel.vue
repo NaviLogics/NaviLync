@@ -27,7 +27,12 @@
             style="border-radius: 3px"
           >
             <div class="flex justify-around items-center w-full">
-              <v-tooltip location="top" open-delay="800" text="Skip to previous waypoint">
+              <v-tooltip
+                v-if="vehicleStore.canCommandModes"
+                location="top"
+                open-delay="800"
+                text="Skip to previous waypoint"
+              >
                 <template #activator="{ props: skipPrevProps }">
                   <v-btn
                     v-bind="skipPrevProps"
@@ -41,6 +46,7 @@
                 </template>
               </v-tooltip>
               <v-tooltip
+                v-if="vehicleStore.canCommandModes"
                 location="top"
                 open-delay="800"
                 :text="missionStore.isMissionRunning ? 'Pause mission' : 'Start / resume mission'"
@@ -57,7 +63,12 @@
                   />
                 </template>
               </v-tooltip>
-              <v-tooltip location="top" open-delay="800" text="Skip to next waypoint">
+              <v-tooltip
+                v-if="vehicleStore.canCommandModes"
+                location="top"
+                open-delay="800"
+                text="Skip to next waypoint"
+              >
                 <template #activator="{ props: skipNextProps }">
                   <v-btn
                     v-bind="skipNextProps"
@@ -71,7 +82,7 @@
                 </template>
               </v-tooltip>
               <v-divider vertical class="h-[25px] mt-[3px] mx-1 opacity-10" />
-              <v-tooltip location="top" open-delay="800" text="Return to home">
+              <v-tooltip v-if="vehicleStore.canCommandModes" location="top" open-delay="800" text="Return to home">
                 <template #activator="{ props: homeProps }">
                   <v-btn
                     v-bind="homeProps"

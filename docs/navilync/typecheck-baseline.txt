@@ -178,8 +178,8 @@ src/components/mini-widgets/SnapshotTool.vue(91,24) TS2339
 src/components/mini-widgets/SnapshotTool.vue(108,14) TS2339
 src/components/mini-widgets/SnapshotTool.vue(113,17) TS2339
 src/components/mini-widgets/SnapshotTool.vue(130,14) TS2339
-src/components/mini-widgets/TakeoffLandCommander.vue(11,13) TS2339
 src/components/mini-widgets/TakeoffLandCommander.vue(12,13) TS2339
+src/components/mini-widgets/TakeoffLandCommander.vue(13,13) TS2339
 src/components/mini-widgets/VeryGenericIndicator.vue(35,16) TS2339
 src/components/mini-widgets/VeryGenericIndicator.vue(42,16) TS2339
 src/components/mini-widgets/VeryGenericIndicator.vue(50,68) TS2339
@@ -322,7 +322,7 @@ src/components/widgets/Map.vue(171,8) TS2339
 src/components/widgets/Map.vue(193,10) TS2339
 src/components/widgets/Map.vue(498,15) TS2540
 src/components/widgets/Map.vue(975,18) TS2345
-src/components/widgets/Map.vue(1491,38) TS2345
+src/components/widgets/Map.vue(1494,38) TS2345
 src/components/widgets/NavisAtlasStatus.vue(39,37) TS2339
 src/components/widgets/Plotter.vue(6,8) TS2339
 src/components/widgets/Plotter.vue(13,13) TS2339
@@ -407,7 +407,7 @@ src/libs/joystick/manager.ts(384,11) TS2741
 src/libs/joystick/manager.ts(577,32) TS2339
 src/libs/utils-data-lake.ts(80,3) TS2322
 src/migration/profile-migrations.ts(25,46) TS2344
-src/stores/mainVehicle.ts(829,9) TS2353
+src/stores/mainVehicle.ts(832,9) TS2353
 src/stores/video.ts(71,47) TS2345
 src/stores/video.ts(576,45) TS2345
 src/views/ConfigurationActionsView.vue(25,17) TS2322
