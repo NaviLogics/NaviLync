@@ -70,6 +70,7 @@ const baseConfig = {
   test: {
     globals: true,
     environment: 'jsdom',
+    deps: { inline: ['vuetify'] },
   },
   server: {
     host: '0.0.0.0',
