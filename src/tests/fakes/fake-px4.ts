@@ -1,3 +1,5 @@
+import { vi } from 'vitest'
+
 import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
 import {
   MavAutopilot,
