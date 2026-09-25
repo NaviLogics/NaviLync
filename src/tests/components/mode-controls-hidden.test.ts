@@ -81,22 +81,32 @@ describe('mode and mission commands are not offered where NaviLync does not comm
     vehicleStore.canCommandModes = false
   })
 
-  test.each(missionControlPanels)('%s hides start/pause and return home', async (_name, path, props) => {
-    const wrapper = await mountWithStubs(path, props)
+  test.each(missionControlPanels)(
+    '%s hides start/pause, return home and skipping between waypoints',
+    async (_name, path, props) => {
+      const wrapper = await mountWithStubs(path, props)
 
-    expect(wrapper.find('[data-icon="mdi-play"]').exists()).toBe(false)
-    expect(wrapper.find('[data-icon="mdi-pause"]').exists()).toBe(false)
-    expect(wrapper.find('[data-icon="mdi-home-circle"]').exists()).toBe(false)
-    expect(wrapper.find('[data-icon="mdi-skip-next"]').exists()).toBe(true)
-  })
+      expect(wrapper.find('[data-icon="mdi-play"]').exists()).toBe(false)
+      expect(wrapper.find('[data-icon="mdi-pause"]').exists()).toBe(false)
+      expect(wrapper.find('[data-icon="mdi-home-circle"]').exists()).toBe(false)
+      // Skipping sends MAV_CMD_DO_SET_MISSION_CURRENT with a seq from the ArduPilot mission model (В1, fixed in T1)
+      expect(wrapper.find('[data-icon="mdi-skip-previous"]').exists()).toBe(false)
+      expect(wrapper.find('[data-icon="mdi-skip-next"]').exists()).toBe(false)
+    }
+  )
 
-  test.each(missionControlPanels)('%s keeps start/pause and return home for ArduPilot', async (_name, path, props) => {
-    vehicleStore.canCommandModes = true
-    const wrapper = await mountWithStubs(path, props)
+  test.each(missionControlPanels)(
+    '%s keeps start/pause, return home and skipping for ArduPilot',
+    async (_name, path, props) => {
+      vehicleStore.canCommandModes = true
+      const wrapper = await mountWithStubs(path, props)
 
-    expect(wrapper.find('[data-icon="mdi-play"]').exists()).toBe(true)
-    expect(wrapper.find('[data-icon="mdi-home-circle"]').exists()).toBe(true)
-  })
+      expect(wrapper.find('[data-icon="mdi-play"]').exists()).toBe(true)
+      expect(wrapper.find('[data-icon="mdi-home-circle"]').exists()).toBe(true)
+      expect(wrapper.find('[data-icon="mdi-skip-previous"]').exists()).toBe(true)
+      expect(wrapper.find('[data-icon="mdi-skip-next"]').exists()).toBe(true)
+    }
+  )
 
   test('TakeoffLandCommander shows no takeoff/land button', async () => {
     const wrapper = await mountWithStubs('@/components/mini-widgets/TakeoffLandCommander.vue')
