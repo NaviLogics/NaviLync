@@ -39,7 +39,19 @@ jobs:
 
       - name: Typecheck
         if: always()
-        run: yarn typecheck
+        shell: bash
+        run: |
+          set +e
+          yarn typecheck --listFiles 2>&1 | tee /tmp/typecheck-canary.log
+          TYPECHECK_EXIT=${PIPESTATUS[0]}
+          echo "=== TYPECHECK CANARY DIAGNOSTICS ==="
+          echo "typecheck_exit=${TYPECHECK_EXIT}"
+          echo "src_file_count=$(grep -c '/src/' /tmp/typecheck-canary.log || true)"
+          echo "px4_mission_matches:"
+          grep 'px4-mission' /tmp/typecheck-canary.log || true
+          echo "typescript_errors:"
+          grep 'error TS' /tmp/typecheck-canary.log || true
+          exit ${TYPECHECK_EXIT}
 
       - name: Unit tests
         if: always()
