@@ -18,6 +18,7 @@ import { PX4 } from '@/libs/vehicle/px4/px4'
 import * as Vehicle from '@/libs/vehicle/vehicle'
 import { VehicleFactory } from '@/libs/vehicle/vehicle-factory'
 import { createFakePx4 } from '@/tests/fakes/fake-px4'
+import { advanceTimers } from '@/tests/helpers/advance-timers'
 import { AltitudeReferenceType, MissionCommandType, type Waypoint } from '@/types/mission'
 
 const encode = (pack: Package): Uint8Array => new TextEncoder().encode(JSON.stringify(pack))
@@ -134,7 +135,7 @@ describe('T0 PX4 mission safety regressions', () => {
 
     const start = vehicle.startMission()
     const rejection = expect(start).rejects.toThrow(/arm/i)
-    await vi.advanceTimersByTimeAsync(5200)
+    await advanceTimers(5200)
 
     await rejection
     expect(sendCommand).not.toHaveBeenCalledWith(MavCmd.MAV_CMD_MISSION_START, 0, 0)
@@ -148,7 +149,7 @@ describe('T0 PX4 mission safety regressions', () => {
       settled = true
     })
 
-    await vi.advanceTimersByTimeAsync(100)
+    await advanceTimers(100)
     expect(settled).toBe(false)
 
     vehicle.onIncomingMessage(
@@ -176,7 +177,7 @@ describe('T0 PX4 mission safety regressions', () => {
     ConnectionManager.onWrite.add(capture)
 
     const upload = vehicle.uploadMission([simpleWaypoint()], async () => undefined, 1000)
-    await vi.advanceTimersByTimeAsync(2)
+    await advanceTimers(2)
 
     const count = sent.find((pack) => pack.message.type === MAVLinkType.MISSION_COUNT)
     expect(count).toBeDefined()
@@ -200,7 +201,7 @@ describe('T0 PX4 mission safety regressions', () => {
         } as unknown as Package['message'])
       )
     )
-    await vi.advanceTimersByTimeAsync(5)
+    await advanceTimers(5)
 
     expect(sent.filter((pack) => pack.message.type === MAVLinkType.MISSION_ITEM_INT)).toHaveLength(
       itemCountBeforeForeignRequest
