@@ -37,19 +37,29 @@ jobs:
       - name: Lint
         run: yarn lint
 
-      - name: Typecheck
-        if: always()
-        run: yarn typecheck --listFiles
-
-      - name: TypeScript / Volar resolution diagnostics
+      - name: TypeScript resolution diagnostics
         if: always()
         shell: bash
         run: |
-          node ci/ts-diag.cjs
-          yarn why typescript || true
-          yarn why @vue/language-core || true
-          yarn why @volar/typescript || true
-          npx vue-tsc --version || true
+          set +e
+          node -e 'const p=require.resolve("typescript/package.json");console.log("root_ts", require(p).version, p)'
+          node -e 'const b=require.resolve("vue-tsc/package.json");const p=require.resolve("typescript/package.json",{paths:[b]});console.log("vue_tsc_ts", require(p).version, p)'
+          node -e 'console.log("vue_tsc", require("vue-tsc/package.json").version)'
+          yarn why typescript
+          yarn why @volar/typescript
+          yarn why @vue/language-core
+          ls node_modules/typescript/package.json node_modules/vue-tsc/node_modules/typescript/package.json 2>&1
+          npx tsc --version
+          npx tsc --noEmit -p tsconfig.vitest.json --composite false 2>&1 | tee /tmp/plain-tsc.log | tail -40
+          PLAIN_TSC_EXIT=${PIPESTATUS[0]}
+          echo "plain_tsc_canary_matches:"
+          grep -E 'T0_(TYPECHECK|PROD_TYPECHECK)_CANARY|px4-mission-regressions\.test\.ts|src/libs/utils\.ts' /tmp/plain-tsc.log || true
+          echo "plain_tsc_exit=${PLAIN_TSC_EXIT}"
+          exit 0
+
+      - name: Typecheck
+        if: always()
+        run: yarn typecheck --listFiles
 
       - name: Unit tests
         if: always()
