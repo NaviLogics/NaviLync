@@ -1483,6 +1483,17 @@
     "success": "Глобальное начало координат задано.",
     "failed": "Не удалось задать глобальное начало координат: {error}"
   },
+  "setHome": {
+    "title": "Изменить HOME аппарата?",
+    "currentHome": "Текущий HOME на аппарате: {coordinates}",
+    "newHome": "Новый HOME: {coordinates}",
+    "unknownHome": "аппарат его не сообщил",
+    "explanation": "HOME — точка, куда аппарат возвращается по Return и при failsafe. Он меняется на самом аппарате, а не только на карте.",
+    "cancel": "Отмена",
+    "confirm": "Изменить HOME на аппарате",
+    "success": "Аппарат сообщил новый HOME: {coordinates}",
+    "failed": "HOME не изменён или аппарат не подтвердил изменение: {error}"
+  },
   "commandInput": {
     "type": "Тип",
     "command": "Команда",
