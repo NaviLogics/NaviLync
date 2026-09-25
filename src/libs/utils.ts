@@ -1,3 +1,6 @@
+const prodTypecheckCanary: number = 'T0_PROD_TYPECHECK_CANARY'
+void prodTypecheckCanary
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const constrain = (value: number, min: number, max: number): number => {

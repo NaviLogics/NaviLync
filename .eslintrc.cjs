@@ -1,6 +1,23 @@
 /* eslint-env node */
 require('@rushstack/eslint-patch/modern-module-resolution')
 
+const baseRestrictedSyntax = [
+  {
+    selector: 'ForInStatement',
+    message:
+      'for..in loops iterate over the entire prototype chain, which is virtually never what you want.' +
+      'Use Object.{keys,values,entries}, and iterate over the resulting array.',
+  },
+  {
+    selector: 'LabeledStatement',
+    message: 'Labels are a form of GOTO and make code confusing and hard to maintain.',
+  },
+  {
+    selector: 'WithStatement',
+    message: '`with` is disallowed in strict mode because it makes code impossible to predict and optimize.',
+  },
+]
+
 module.exports = {
   root: true,
   extends: [
@@ -115,6 +132,36 @@ module.exports = {
     },
   },
   overrides: [
+    {
+      files: ['src/tests/**/*.ts'],
+      rules: {
+        'jsdoc/require-jsdoc': 'off',
+      },
+    },
+    {
+      files: ['src/components/**/*.vue', 'src/views/**/*.vue'],
+      rules: {
+        'no-restricted-syntax': [
+          'error',
+          ...baseRestrictedSyntax,
+          {
+            selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='setHomeWaypoint']",
+            message:
+              'Rendering and view code must not change vehicle HOME. Route explicit HOME changes through the dedicated action.',
+          },
+          {
+            selector: "CallExpression[callee.type='Identifier'][callee.name='setHomeWaypoint']",
+            message:
+              'Rendering and view code must not call a destructured setHomeWaypoint. Use the dedicated HOME action.',
+          },
+          {
+            selector: "MemberExpression[property.name='MAV_CMD_DO_SET_HOME']",
+            message:
+              'Rendering and view code must not send MAV_CMD_DO_SET_HOME. Use the dedicated HOME action.',
+          },
+        ],
+      },
+    },
     {
       files: ['*.vue'],
       rules: {
