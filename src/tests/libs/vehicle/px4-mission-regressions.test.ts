@@ -1,8 +1,44 @@
-import { describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
-import { MavCmd, MavFrame } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
+import {
+  MavAutopilot,
+  MavCmd,
+  MavFrame,
+  MAVLinkType,
+  MavMissionResult,
+  MavMissionType,
+  MavModeFlag,
+  MavState,
+  MavType,
+} from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
+import { ConnectionManager } from '@/libs/connection/connection-manager'
 import { convertCockpitWaypointsToMavlink } from '@/libs/vehicle/mavlink/types'
+import { PX4 } from '@/libs/vehicle/px4/px4'
+import * as Vehicle from '@/libs/vehicle/vehicle'
+import { VehicleFactory } from '@/libs/vehicle/vehicle-factory'
+import { createFakePx4 } from '@/tests/fakes/fake-px4'
 import { AltitudeReferenceType, MissionCommandType, type Waypoint } from '@/types/mission'
+
+const encode = (pack: Package): Uint8Array => new TextEncoder().encode(JSON.stringify(pack))
+
+const packageFromPx4 = (message: Package['message']): Package =>
+  ({
+    header: { system_id: 1, component_id: 1, sequence: 1 },
+    message,
+  }) as Package
+
+const heartbeat = (mavtype: MavType, customMode = 0): Package =>
+  packageFromPx4({
+    type: MAVLinkType.HEARTBEAT,
+    custom_mode: customMode,
+    mavtype: { type: mavtype },
+    autopilot: { type: MavAutopilot.MAV_AUTOPILOT_PX4 },
+    base_mode: { bits: MavModeFlag.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED },
+    system_status: { type: MavState.MAV_STATE_ACTIVE },
+    mavlink_version: 3,
+  } as unknown as Package['message'])
 
 const waypointWithSpeedCommand = (): Waypoint => ({
   id: 'wp-1',
@@ -32,21 +68,156 @@ const waypointWithSpeedCommand = (): Waypoint => ({
   ],
 })
 
+const simpleWaypoint = (): Waypoint => ({
+  id: 'wp',
+  coordinates: [55.75, 37.61],
+  altitude: 0,
+  altitudeReferenceType: AltitudeReferenceType.RELATIVE_TO_HOME,
+  commands: [
+    {
+      type: MissionCommandType.MAVLINK_NAV_COMMAND,
+      command: MavCmd.MAV_CMD_NAV_WAYPOINT,
+      param1: 0,
+      param2: 2,
+      param3: 0,
+      param4: 0,
+    },
+  ],
+})
+
 describe('T0 PX4 mission safety regressions', () => {
-  test('serializes NON_NAV commands in MAV_FRAME_MISSION with zero coordinates (K3)', () => {
-    const [speed] = convertCockpitWaypointsToMavlink([waypointWithSpeedCommand()], 1)
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    ConnectionManager.onWrite.clear()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  test('K3: NON_NAV uses MAV_FRAME_MISSION/zero coordinates while NAV keeps global frame/coordinates', () => {
+    const [speed, nav] = convertCockpitWaypointsToMavlink([waypointWithSpeedCommand()], 1)
 
     expect(speed.command.type).toBe(MavCmd.MAV_CMD_DO_CHANGE_SPEED)
     expect(speed.frame.type).toBe(MavFrame.MAV_FRAME_MISSION)
     expect([speed.x, speed.y, speed.z]).toEqual([0, 0, 0])
+
+    expect(nav.command.type).toBe(MavCmd.MAV_CMD_NAV_WAYPOINT)
+    expect(nav.frame.type).toBe(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT)
+    expect([nav.x, nav.y]).toEqual([557500000, 376100000])
   })
 
-  test.todo('maps a three-waypoint PX4 plan to MAVLink seq [0, 1, 2] (V1)')
-  test.todo('resets a stopped PX4 mission to seq 0 (V1)')
-  test.todo('keeps a one-waypoint PX4 mission executable (V1)')
-  test.todo('creates PX4 ground rover heartbeat as a surface vehicle, not Copter (V5)')
-  test.todo('decodes PX4 custom_mode main/sub modes used by NAVIS ATLAS (K2)')
-  test.todo('does not send MISSION_START when arming is not confirmed (V4)')
-  test.todo('fails mission clear when MISSION_ACK is not received (K4)')
-  test.todo('ignores MISSION_REQUEST_INT addressed to another GCS (T4)')
+  test('V5: PX4 ground-rover heartbeat creates a Rover, not a Copter', () => {
+    VehicleFactory._vehicles = []
+    ConnectionManager.onRead.emit_value(encode(heartbeat(MavType.MAV_TYPE_GROUND_ROVER)))
+
+    const vehicle = VehicleFactory.vehicles()[0]?.deref()
+    expect(vehicle).toBeDefined()
+    expect(vehicle?.type()).toBe(Vehicle.Type.Rover)
+  })
+
+  test('K2: PX4 AUTO/MISSION custom_mode is decoded as Mission mode', () => {
+    const vehicle = new PX4(Vehicle.Type.Rover, 1)
+    const autoMission = (4 << 16) | (4 << 24)
+
+    vehicle.onIncomingMessage(encode(heartbeat(MavType.MAV_TYPE_GROUND_ROVER, autoMission)))
+
+    expect(String(vehicle.mode())).toBe('Mission')
+  })
+
+  test('V4: startMission must not send MAV_CMD_MISSION_START when arming never becomes confirmed', async () => {
+    const vehicle = new PX4(Vehicle.Type.Rover, 1)
+    vi.spyOn(vehicle as unknown as { resetMode: () => Promise<void> }, 'resetMode').mockResolvedValue()
+    vi.spyOn(vehicle, 'isArmed').mockReturnValue(false)
+    vi.spyOn(vehicle, 'arm').mockResolvedValue()
+    const sendCommand = vi.spyOn(vehicle, 'sendCommandLong').mockResolvedValue()
+
+    const start = vehicle.startMission()
+    await vi.advanceTimersByTimeAsync(5200)
+    await start
+
+    expect(sendCommand).not.toHaveBeenCalledWith(MavCmd.MAV_CMD_MISSION_START, 0, 0)
+  })
+
+  test('K4: clearMissions rejects when no MISSION_ACK is received', async () => {
+    const vehicle = new PX4(Vehicle.Type.Rover, 1)
+    const fake = createFakePx4({ lossRate: 1, seed: 44 })
+    const decoder = new TextDecoder()
+    const unsubscribe = fake.onSend((pack) => vehicle.onIncomingMessage(encode(pack)))
+    const forward = (bytes: Uint8Array): void => fake.receive(JSON.parse(decoder.decode(bytes)) as Package)
+    ConnectionManager.onWrite.add(forward)
+
+    const clear = vehicle.clearMissions()
+    await fake.advance(5200)
+
+    await expect(clear).rejects.toThrow(/ack|timeout/i)
+    unsubscribe()
+    ConnectionManager.onWrite.remove(forward)
+  })
+
+  test('T4: upload ignores MISSION_REQUEST_INT addressed to another GCS system', async () => {
+    const vehicle = new PX4(Vehicle.Type.Rover, 1)
+    const sentTypes: string[] = []
+    const decoder = new TextDecoder()
+    const capture = (bytes: Uint8Array): void => {
+      sentTypes.push((JSON.parse(decoder.decode(bytes)) as Package).message.type)
+    }
+    ConnectionManager.onWrite.add(capture)
+
+    const upload = vehicle.uploadMission([simpleWaypoint()], async () => undefined, 1000)
+    await vi.advanceTimersByTimeAsync(2)
+
+    vehicle.onIncomingMessage(
+      encode(
+        packageFromPx4({
+          type: MAVLinkType.MISSION_REQUEST_INT,
+          target_system: 42,
+          target_component: 190,
+          seq: 0,
+          mission_type: { type: MavMissionType.MAV_MISSION_TYPE_MISSION },
+        } as unknown as Package['message'])
+      )
+    )
+    await vi.advanceTimersByTimeAsync(5)
+
+    expect(sentTypes).not.toContain(MAVLinkType.MISSION_ITEM_INT)
+
+    vehicle.onIncomingMessage(
+      encode(
+        packageFromPx4({
+          type: MAVLinkType.MISSION_ACK,
+          target_system: 255,
+          target_component: 190,
+          mavtype: { type: MavMissionResult.MAV_MISSION_ACCEPTED },
+          mission_type: { type: MavMissionType.MAV_MISSION_TYPE_MISSION },
+          opaque_id: 0,
+        } as unknown as Package['message'])
+      )
+    )
+    await vi.advanceTimersByTimeAsync(5)
+    await upload
+  })
+
+  test('fake PX4 retries the expected MISSION_REQUEST_INT every 250 ms', async () => {
+    const fake = createFakePx4({ seed: 7 })
+    const sent: Package[] = []
+    fake.onSend((pack) => sent.push(pack))
+    fake.receive({
+      header: { system_id: 255, component_id: 190, sequence: 0 },
+      message: {
+        type: MAVLinkType.MISSION_COUNT,
+        target_system: 1,
+        target_component: 1,
+        count: 1,
+        mission_type: { type: MavMissionType.MAV_MISSION_TYPE_MISSION },
+        opaque_id: 0,
+      } as unknown as Package['message'],
+    } as Package)
+
+    await fake.advance(1)
+    expect(sent.filter((pack) => pack.message.type === MAVLinkType.MISSION_REQUEST_INT)).toHaveLength(1)
+    await fake.advance(250)
+    expect(sent.filter((pack) => pack.message.type === MAVLinkType.MISSION_REQUEST_INT)).toHaveLength(2)
+  })
 })
