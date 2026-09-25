@@ -12,7 +12,6 @@ import {
   MavState,
   MavType,
 } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
 import { convertCockpitWaypointsToMavlink } from '@/libs/vehicle/mavlink/types'
 import { PX4 } from '@/libs/vehicle/px4/px4'
@@ -27,7 +26,7 @@ const packageFromPx4 = (message: Package['message']): Package =>
   ({
     header: { system_id: 1, component_id: 1, sequence: 1 },
     message,
-  }) as Package
+  } as Package)
 
 const heartbeat = (mavtype: MavType, customMode = 0): Package =>
   packageFromPx4({
@@ -172,7 +171,7 @@ describe('T0 PX4 mission safety regressions', () => {
     const sent: Package[] = []
     const decoder = new TextDecoder()
     const capture = (bytes: Uint8Array): void => {
-      sent.push(JSON.parse(decoder.decode(bytes)) as Package)
+      sent.push(JSON.parse(decoder.decode(bytes) as Package))
     }
     ConnectionManager.onWrite.add(capture)
 
