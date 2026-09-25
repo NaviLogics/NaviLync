@@ -1,5 +1,3 @@
-import { vi } from 'vitest'
-
 import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
 import {
   MavAutopilot,
@@ -14,6 +12,7 @@ import {
   MavType,
 } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
+import { advanceTimers } from '@/tests/helpers/advance-timers'
 
 export interface FakePx4Options {
   lossRate?: number
@@ -243,7 +242,7 @@ export const createFakePx4 = (options: FakePx4Options = {}): FakePx4 => {
   }
 
   const advance = async (ms: number): Promise<void> => {
-    await vi.advanceTimersByTimeAsync(ms)
+    await advanceTimers(ms)
   }
 
   const heartbeat = (mavtype = MavType.MAV_TYPE_GROUND_ROVER, customMode = 0): void => {
