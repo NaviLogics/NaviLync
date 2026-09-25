@@ -730,10 +730,12 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAutoPilot(vehicles).onMode.add((vehicleMode: any) => {
-      mode.value = [...(modes.value?.entries() ?? [])]
-        .filter(([, value]) => value === vehicleMode)
-        .map(([key]) => key)
-        .first()
+      // PX4 reports its mode by name, including Unknown(main/sub) for modes NaviLync cannot name; show those as well
+      mode.value =
+        [...(modes.value?.entries() ?? [])]
+          .filter(([, value]) => value === vehicleMode)
+          .map(([key]) => key)
+          .first() ?? (typeof vehicleMode === 'string' ? vehicleMode : undefined)
     })
 
     // Get the ID for the currently connected vehicle, or create one if it does not exist
