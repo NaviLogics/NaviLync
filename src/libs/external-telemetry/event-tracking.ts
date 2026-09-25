@@ -54,9 +54,9 @@ class EventTracker {
    * Initialize the event tracking system
    */
   constructor() {
-    // The basic telemetry baseline cannot be opted out of, so the tracker is enabled in every
-    // production build. Detailed hardware specifications are gated separately at the call site.
-    EventTracker.enableEventTracking = import.meta.env.PROD
+    // NaviLync does not report to the Cockpit (Blue Robotics) PostHog project in any build: no usage telemetry
+    // leaves the station for a third-party analytics service.
+    EventTracker.enableEventTracking = false
 
     if (!EventTracker.enableEventTracking) {
       console.info('Event tracking is disabled. Not initializing event tracker.')

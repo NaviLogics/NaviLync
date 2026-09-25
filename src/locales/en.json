@@ -1483,6 +1483,17 @@
     "success": "Global origin set successfully.",
     "failed": "Failed to set global origin: {error}"
   },
+  "setHome": {
+    "title": "Change vehicle HOME?",
+    "currentHome": "Current HOME on the vehicle: {coordinates}",
+    "newHome": "New HOME: {coordinates}",
+    "unknownHome": "not reported by the vehicle",
+    "explanation": "HOME is where the vehicle returns on Return and on failsafe. It is changed on the vehicle itself, not only on the map.",
+    "cancel": "Cancel",
+    "confirm": "Change HOME on the vehicle",
+    "success": "The vehicle reports the new HOME: {coordinates}",
+    "failed": "HOME was not changed or not confirmed by the vehicle: {error}"
+  },
   "commandInput": {
     "type": "Type",
     "command": "Command",
