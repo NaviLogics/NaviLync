@@ -143,16 +143,29 @@ describe('explicit "Set HOME" action (K1, P7)', () => {
     expect(lastSnackbar()).toMatchObject({ variant: 'error', message: t('setHome.needsGpsFix') })
   })
 
-  test.each([MavResult.MAV_RESULT_TEMPORARILY_REJECTED, MavResult.MAV_RESULT_DENIED])(
-    'when PX4 answers %s, says a GPS fix is needed',
-    async (result) => {
-      vehicleStore.setHomeWaypoint.mockRejectedValue(new CommandRejectedError(MavCmd.MAV_CMD_DO_SET_HOME, result))
+  test('when PX4 answers TEMPORARILY_REJECTED, says a GPS fix is needed', async () => {
+    vehicleStore.setHomeWaypoint.mockRejectedValue(
+      new CommandRejectedError(MavCmd.MAV_CMD_DO_SET_HOME, MavResult.MAV_RESULT_TEMPORARILY_REJECTED)
+    )
 
-      await expect(confirmSetHome([55.76, 37.62])).resolves.toBe(false)
+    await expect(confirmSetHome([55.76, 37.62])).resolves.toBe(false)
 
-      expect(lastSnackbar()).toMatchObject({ variant: 'error', message: t('setHome.needsGpsFix') })
-    }
-  )
+    expect(lastSnackbar()).toMatchObject({ variant: 'error', message: t('setHome.needsGpsFix') })
+  })
+
+  // PX4 1.17 Commander answers DENIED to DO_SET_HOME when lat/lon/alt are not finite, which says nothing about GPS
+  test('when PX4 answers DENIED, says the vehicle refused the HOME coordinates or altitude, with the result', async () => {
+    vehicleStore.setHomeWaypoint.mockRejectedValue(
+      new CommandRejectedError(MavCmd.MAV_CMD_DO_SET_HOME, MavResult.MAV_RESULT_DENIED)
+    )
+
+    await expect(confirmSetHome([55.76, 37.62])).resolves.toBe(false)
+
+    expect(lastSnackbar().variant).toBe('error')
+    expect(lastSnackbar().message).not.toBe(t('setHome.needsGpsFix'))
+    expect(lastSnackbar().message).toBe(t('setHome.invalidHome', { result: MavResult.MAV_RESULT_DENIED }))
+    expect(lastSnackbar().message).toContain('MAV_RESULT_DENIED')
+  })
 
   test('when PX4 refuses for another reason, says it was refused and why', async () => {
     vehicleStore.setHomeWaypoint.mockRejectedValue(

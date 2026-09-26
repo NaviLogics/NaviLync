@@ -8,9 +8,6 @@ import { useMainVehicleStore } from '@/stores/mainVehicle'
 const formatCoordinates = (coordinates: [number, number]): string =>
   `${coordinates[0].toFixed(7)}, ${coordinates[1].toFixed(7)}`
 
-// PX4 answers MAV_CMD_DO_SET_HOME with these results while it has no global position to validate the new HOME against
-const resultsMeaningNoGpsFix = [MavResult.MAV_RESULT_TEMPORARILY_REJECTED, MavResult.MAV_RESULT_DENIED]
-
 /**
  * The explicit "Set HOME" action, the only way for the UI to change the vehicle HOME. The operator confirms in a
  * dialog showing the current and the new HOME, and success is reported only once the vehicle itself reports the new
@@ -68,9 +65,16 @@ export const useSetHomeAction = (): {
 
   const failureMessage = (error: unknown): string => {
     if (error instanceof CommandRejectedError) {
-      return resultsMeaningNoGpsFix.includes(error.result)
-        ? t('setHome.needsGpsFix')
-        : t('setHome.rejected', { result: error.result })
+      // PX4 1.17 Commander answers MAV_CMD_DO_SET_HOME with TEMPORARILY_REJECTED while it has no global position to
+      // validate the new HOME against, and with DENIED when the sent lat/lon/alt are not finite
+      switch (error.result) {
+        case MavResult.MAV_RESULT_TEMPORARILY_REJECTED:
+          return t('setHome.needsGpsFix')
+        case MavResult.MAV_RESULT_DENIED:
+          return t('setHome.invalidHome', { result: error.result })
+        default:
+          return t('setHome.rejected', { result: error.result })
+      }
     }
     return t('setHome.failed', { error: error instanceof Error ? error.message : String(error) })
   }
