@@ -1,6 +1,6 @@
 import { isBrowser } from 'browser-or-node'
 
-import { type ElectronLog } from '@/types/electron-general'
+import { type ElectronLog, type FinishedDownload } from '@/types/electron-general'
 import { ElectronStorageDB } from '@/types/general'
 import type { ElectronSDLJoystickControllerStateEventData } from '@/types/joystick'
 import { NetworkInfo } from '@/types/network'
@@ -341,6 +341,11 @@ declare global {
        * Capture the workspace area of the application
        */
       captureWorkspace(rect?: Electron.Rectangle): Promise<Uint8Array>
+      /**
+       * Register a callback for every file download Electron finishes (e.g. an exported profile)
+       * @param callback - Called with where the file was saved and how the download ended
+       */
+      onDownloadFinished: (callback: (download: FinishedDownload) => void) => void
       /**
        * Open a link connection
        */
