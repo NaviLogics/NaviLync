@@ -525,8 +525,8 @@ export const useVideoStore = defineStore('video', () => {
           showDialog({
             message:
               'It looks like some of your video-related widgets (e.g.: video player, mini video recorder, snapshot tool)' +
-              ' are connected to RTSP streams, which are not supported in Cockpit Lite. To make sure those widgets work,' +
-              ' re-configure them to only use WebRTC, or upgrade to Cockpit Standalone, which supports both WebRTC and RTSP streams.',
+              ' are connected to RTSP streams, which are not supported in NaviLync Lite. To make sure those widgets work,' +
+              ' re-configure them to only use WebRTC, or upgrade to NaviLync Standalone, which supports both WebRTC and RTSP streams.',
             variant: 'error',
           })
         }
@@ -561,8 +561,8 @@ export const useVideoStore = defineStore('video', () => {
           if (rtspActivationBackoff.registerFailure(streamName)) {
             // Nothing in the try above reaches the camera, so a failure here is always local to Cockpit
             const msg =
-              `Could not start video stream '${displayName}'. Cockpit's video service is not responding.` +
-              ' Restart Cockpit and try again.'
+              `Could not start video stream '${displayName}'. NaviLync's video service is not responding.` +
+              ' Restart NaviLync and try again.'
             showDialog({ message: msg, variant: 'error' })
           }
         } finally {
@@ -582,7 +582,7 @@ export const useVideoStore = defineStore('video', () => {
 
       const codecNames = codecs.map(readableVideoCodecName).join(' or ')
       const message =
-        `Stream '${streamName}' sends video as ${codecNames}, which Cockpit cannot play.` +
+        `Stream '${streamName}' sends video as ${codecNames}, which NaviLync cannot play.` +
         ' Set the camera to H.264 to watch it.'
       alertStore.pushAlert(new Alert(AlertLevel.Error, message))
 
@@ -958,7 +958,7 @@ export const useVideoStore = defineStore('video', () => {
         const fileStats = await window.electronAPI?.getFileStats(fileName, ['videos'])
         if (!fileStats || !fileStats.exists) {
           showRecordingHealthDialog(
-            `Cockpit cannot find the file for the recording of stream '${streamLabel}', which means the recording may be lost. We recommend stopping it and starting a new one.`,
+            `NaviLync cannot find the file for the recording of stream '${streamLabel}', which means the recording may be lost. We recommend stopping it and starting a new one.`,
             true
           )
           return

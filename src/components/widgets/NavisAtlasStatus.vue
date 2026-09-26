@@ -2,7 +2,8 @@
   <div class="navis-status">
     <div class="header">
       <span>NAVIS ATLAS</span>
-      <span class="subtitle">{{ t('navisAtlasStatus.systemStatus') }}</span>
+      <span v-if="vehicle.isVehicleOnline" class="subtitle">{{ t('navisAtlasStatus.systemStatus') }}</span>
+      <span v-else class="no-link fail">{{ t('navisAtlasStatus.noLink') }}</span>
     </div>
     <div v-for="row in rows" :key="row.label" class="row">
       <span class="label">{{ row.label }}</span>
@@ -136,11 +137,12 @@ const rows = computed(() => {
       }
   const ready = state(metric('READY') === 1, readyKnown)
 
-  return [
+  const allRows = [
     {
       label: t('navisAtlasStatus.rows.shoreLink'),
+      // A latency only means something for a link that works; next to FAIL it read as if the link were up
       value:
-        shoreLinkReachable.value && shoreLinkLatencyMs.value !== undefined
+        shoreLink.tone === 'ok' && shoreLinkLatencyMs.value !== undefined
           ? `${shoreLink.value} ${shoreLinkLatencyMs.value.toFixed(0)} ms`
           : shoreLink.value,
       tone: shoreLink.tone,
@@ -161,6 +163,10 @@ const rows = computed(() => {
       tone: vehicle.isVehicleOnline ? 'mode' : 'unknown',
     },
   ]
+
+  // Without a link to the vehicle every value would be a stale leftover, so none is shown
+  if (!vehicle.isVehicleOnline) return allRows.map((row) => ({ ...row, value: '—', tone: 'unknown' }))
+  return allRows
 })
 
 const reasonMap: Record<number, string> = {
@@ -181,6 +187,7 @@ const reasonMap: Record<number, string> = {
 
 const reasonText = computed(() => {
   tick.value
+  if (!vehicle.isVehicleOnline) return '—'
   const code = metric('RDYCODE')
   return code === undefined
     ? t('navisAtlasStatus.noData')
@@ -220,6 +227,10 @@ onBeforeUnmount(() => {
 .subtitle {
   font-size: 11px;
   opacity: 0.55;
+  letter-spacing: 0.08em;
+}
+.no-link {
+  font-size: 12px;
   letter-spacing: 0.08em;
 }
 .row {

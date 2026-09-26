@@ -148,6 +148,7 @@ import SlideToConfirm from './components/SlideToConfirm.vue'
 import SplashScreen from './components/SplashScreen.vue'
 import WidgetBar from './components/WidgetBar.vue'
 import { openMainMenuIfSafeOrDesired } from './composables/armSafetyDialog'
+import { reportFinishedDownloads } from './composables/downloadNotifications'
 import { useSnackbar } from './composables/snackbar'
 import { useVehicleDefaultsAutoImport } from './composables/vehicleDefaults/vehicleDefaultsAutoImport'
 import { checkBlueOsUserDataSimilarity } from './libs/blueos'
@@ -235,6 +236,7 @@ const handleEscKey = (event: KeyboardEvent): void => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleEscKey)
+  reportFinishedDownloads()
 })
 
 onBeforeUnmount(() => {

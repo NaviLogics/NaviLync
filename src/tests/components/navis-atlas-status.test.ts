@@ -84,7 +84,8 @@ describe('NAVIS ATLAS status widget (bench)', () => {
     const shown = wrapper.findAll('.row .value').map((value) => value.text())
     expect(shown.length).toBeGreaterThan(0)
     expect(shown.every((value) => value === '—')).toBe(true)
-    expect(wrapper.text()).not.toMatch(/\bOK\b|FAIL|FIXED|READY|\d+ ms/)
+    // Labels such as "MISSION READY" stay; only values and the readiness line are checked
+    expect(wrapper.find('.reason').text()).not.toMatch(/\bOK\b|FAIL|STARTUP|STALE|\d/)
   })
 
   test('with the link, the header shows the system status as before', async () => {

@@ -651,7 +651,8 @@ const uploadMissionToVehicle = async (): Promise<void> => {
       throw t('missionPlanning.vehicleOffline')
     }
     await vehicleStore.uploadMission(missionItemsToUpload, loadingCallback)
-    const message = t('missionPlanning.goToFlightModeMessage')
+    // Modes are commanded from the RC transmitter on PX4 (P3 hides the start button), so no "Start" to press here
+    const message = isPx4 ? t('missionPlanning.startMissionWithRcSwitch') : t('missionPlanning.goToFlightModeMessage')
 
     if (missionStore.alwaysSwitchToFlightMode) {
       router.push('/')

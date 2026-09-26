@@ -242,7 +242,7 @@
                           <!-- Video Info -->
                           <div class="flex-1 ml-4">
                             <div class="font-medium text-white">
-                              {{ parseDateFromTitle(video.fileName) || 'Cockpit video' }}
+                              {{ parseDateFromTitle(video.fileName) || 'NaviLync video' }}
                             </div>
                             <div class="text-sm text-white/70 mt-1">
                               {{ video.fileName }}

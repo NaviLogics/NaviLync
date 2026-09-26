@@ -3,6 +3,7 @@ import { join } from 'path'
 
 import { setupAutoUpdater } from './services/auto-update'
 import store from './services/config-store'
+import { setupDownloadsService } from './services/downloads'
 import { setupElectronLogService } from './services/electron-log'
 import { setupGo2RTCService } from './services/go2rtc'
 import { setupHardwareTelemetryService } from './services/hardware-telemetry'
@@ -52,6 +53,7 @@ function createWindow(): void {
   })
 
   linkService.setMainWindow(mainWindow)
+  setupDownloadsService(mainWindow)
 
   mainWindow.on('move', () => {
     const windowBounds = mainWindow!.getBounds()

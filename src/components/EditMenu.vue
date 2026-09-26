@@ -96,11 +96,11 @@
             <v-list-item class="hover:bg-white/[0.04]">
               <label class="flex w-full h-full cursor-pointer justify-between">
                 <v-list-item-title>{{ $t('editMenu.import') }}</v-list-item-title>
-                <input type="file" accept="application/json" hidden @change="(e: Event) => store.importProfile(e)" />
+                <input type="file" accept="application/json" hidden @change="(e: Event) => store.importViewsGroup(e)" />
                 <v-icon size="20">mdi-upload</v-icon>
               </label>
             </v-list-item>
-            <v-list-item @click="store.exportProfile(store.currentProfile)">
+            <v-list-item @click="store.exportViewsGroup(store.currentProfile)">
               <div class="flex w-full justify-between">
                 <v-list-item-title>{{ $t('editMenu.export') }}</v-list-item-title>
                 <v-icon size="20">mdi-download</v-icon>
