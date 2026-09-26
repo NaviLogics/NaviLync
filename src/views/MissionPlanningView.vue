@@ -355,10 +355,9 @@
       <template #activator="{ props: tooltipProps }">
         <v-btn
           v-bind="tooltipProps"
-          class="absolute right-[180px] w-[140px] m-3 mb-[13px] bottom-12 bg-slate-50 text-[12px] font-bold"
+          class="absolute right-[180px] w-[140px] m-3 mb-[13px] bottom-12 bg-slate-50 text-[12px] font-bold tracking-normal px-2"
           elevation="8"
           :text="$t('missionPlanning.flightMode')"
-          append-icon="mdi-send"
           :style="interfaceStore.globalGlassMenuStyles"
           hide-details
           size="small"
