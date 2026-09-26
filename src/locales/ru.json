@@ -1504,7 +1504,8 @@
     "persistsAcrossArming": "Этот HOME сохранится на аппарате и не изменится при арме.",
     "cancelled": "HOME не изменён: отменено.",
     "needsGpsFix": "Аппарат не принял HOME: нужна GPS-позиция (fix)",
-    "rejected": "Аппарат отклонил новый HOME ({result})."
+    "rejected": "Аппарат отклонил новый HOME ({result}).",
+    "invalidHome": "Аппарат отклонил координаты/высоту HOME ({result})."
   },
   "commandInput": {
     "type": "Тип",

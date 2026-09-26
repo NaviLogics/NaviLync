@@ -1504,7 +1504,8 @@
     "persistsAcrossArming": "This HOME is kept on the vehicle and does not change when the vehicle arms.",
     "cancelled": "HOME was not changed: cancelled.",
     "needsGpsFix": "The vehicle did not accept HOME: it needs a GPS position (fix).",
-    "rejected": "The vehicle refused the new HOME ({result})."
+    "rejected": "The vehicle refused the new HOME ({result}).",
+    "invalidHome": "The vehicle refused the HOME coordinates/altitude ({result})."
   },
   "commandInput": {
     "type": "Type",
