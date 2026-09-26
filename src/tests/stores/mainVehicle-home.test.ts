@@ -54,12 +54,12 @@ let vehicleFactory: typeof VehicleFactory
 let createMainVehicleStore: typeof useMainVehicleStore
 let VehicleType: typeof import('@/libs/vehicle/vehicle').Type
 
-const homePositionPackage = (latitude: number, longitude: number, componentId = 1): Package => {
+const homePositionPackage = (latitude: number, longitude: number, componentId = 1, altitudeMm = 0): Package => {
   const message: Message.HomePosition = {
     type: MAVLinkType.HOME_POSITION,
     latitude: Math.round(latitude * 1e7),
     longitude: Math.round(longitude * 1e7),
-    altitude: 0,
+    altitude: altitudeMm,
     x: 0,
     y: 0,
     z: 0,
@@ -113,13 +113,15 @@ describe('main vehicle store HOME (K1)', () => {
     const [vehicle, mainVehicleStore] = setupStoreWithPx4()
     expect(mainVehicleStore.homePosition).toBeUndefined()
 
-    vehicle.onIncomingMAVLinkMessage.emit_value(MAVLinkType.HOME_POSITION, homePositionPackage(55.75, 37.61))
-    expect(mainVehicleStore.homePosition?.[0]).toBeCloseTo(55.75, 7)
-    expect(mainVehicleStore.homePosition?.[1]).toBeCloseTo(37.61, 7)
+    vehicle.onIncomingMAVLinkMessage.emit_value(MAVLinkType.HOME_POSITION, homePositionPackage(55.75, 37.61, 1, 12_500))
+    expect(mainVehicleStore.homePosition?.latitude).toBeCloseTo(55.75, 7)
+    expect(mainVehicleStore.homePosition?.longitude).toBeCloseTo(37.61, 7)
+    // HOME_POSITION.altitude is in millimetres above mean sea level
+    expect(mainVehicleStore.homePosition?.altitude).toBeCloseTo(12.5, 3)
 
     vehicle.onIncomingMAVLinkMessage.emit_value(MAVLinkType.HOME_POSITION, homePositionPackage(10, 20, 190))
-    expect(mainVehicleStore.homePosition?.[0]).toBeCloseTo(55.75, 7)
-    expect(mainVehicleStore.homePosition?.[1]).toBeCloseTo(37.61, 7)
+    expect(mainVehicleStore.homePosition?.latitude).toBeCloseTo(55.75, 7)
+    expect(mainVehicleStore.homePosition?.longitude).toBeCloseTo(37.61, 7)
   })
 
   test('setHomeWaypoint succeeds only once the vehicle reports the new HOME', async () => {
@@ -148,6 +150,6 @@ describe('main vehicle store HOME (K1)', () => {
     vi.advanceTimersByTime(10_000)
 
     await rejection
-    expect(mainVehicleStore.homePosition?.[0]).toBeCloseTo(55.75, 7)
+    expect(mainVehicleStore.homePosition?.latitude).toBeCloseTo(55.75, 7)
   })
 })

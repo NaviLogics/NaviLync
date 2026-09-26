@@ -86,6 +86,18 @@ const defaultRtcConfiguration = {
 
 const { openSnackbar } = useSnackbar()
 
+/**
+ * HOME as the autopilot reports it in HOME_POSITION
+ */
+export interface VehicleHomePosition {
+  /** Latitude, in degrees */
+  latitude: number
+  /** Longitude, in degrees */
+  longitude: number
+  /** Altitude above mean sea level, in meters */
+  altitude: number
+}
+
 export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const controllerStore = useControllerStore()
   const missionStore = useMissionStore()
@@ -148,7 +160,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const isArmed = ref<boolean | undefined>(undefined)
   // HOME exactly as the autopilot reports it in HOME_POSITION. It is never assigned from the UI: the only way to change
   // it is `setHomeWaypoint`, and even then the value changes only when the vehicle reports its new HOME.
-  const homePosition = ref<[number, number] | undefined>(undefined)
+  const homePosition = ref<VehicleHomePosition | undefined>(undefined)
   const flying = ref<boolean | undefined>(undefined)
   const icon = ref<string | undefined>(undefined)
   const configurationPages = ref<PageDescription[]>([])
@@ -548,8 +560,8 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
 
   const isReportedHomeAt = (coordinate: [number, number]): boolean =>
     homePosition.value !== undefined &&
-    Math.abs(homePosition.value[0] - coordinate[0]) < homeConfirmationToleranceDeg &&
-    Math.abs(homePosition.value[1] - coordinate[1]) < homeConfirmationToleranceDeg
+    Math.abs(homePosition.value.latitude - coordinate[0]) < homeConfirmationToleranceDeg &&
+    Math.abs(homePosition.value.longitude - coordinate[1]) < homeConfirmationToleranceDeg
 
   const waitForReportedHome = (coordinate: [number, number]): Promise<void> =>
     new Promise((resolve, reject) => {
@@ -737,7 +749,12 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     mainVehicle.value.onIncomingMAVLinkMessage.add(MAVLinkType.HOME_POSITION, (pack: Package) => {
       if (pack.header.component_id !== 1) return
       const reportedHome = pack.message as Message.HomePosition
-      homePosition.value = [reportedHome.latitude / 1e7, reportedHome.longitude / 1e7]
+      // HOME_POSITION carries degrees * 1e7 and millimetres above mean sea level
+      homePosition.value = {
+        latitude: reportedHome.latitude / 1e7,
+        longitude: reportedHome.longitude / 1e7,
+        altitude: reportedHome.altitude / 1000,
+      }
     })
     mainVehicle.value
       .sendCommandLong(MavCmd.MAV_CMD_REQUEST_MESSAGE, getMAVLinkMessageId(MAVLinkType.HOME_POSITION))

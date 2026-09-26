@@ -255,7 +255,9 @@ const map = shallowRef<Map | undefined>()
 const zoom = ref(missionStore.defaultMapZoom)
 const mapCenter = ref<WaypointCoordinates>(missionStore.defaultMapCenter)
 // HOME is vehicle state: the map only shows what the vehicle reports in HOME_POSITION.
-const home = computed(() => vehicleStore.homePosition)
+const home = computed((): WaypointCoordinates | undefined =>
+  vehicleStore.homePosition ? [vehicleStore.homePosition.latitude, vehicleStore.homePosition.longitude] : undefined
+)
 const mapId = computed(() => `map-${widget.value.hash}`)
 const showButtons = computed(() => isMouseOver.value || downloadMenuOpen.value)
 const mapReady = ref(false)

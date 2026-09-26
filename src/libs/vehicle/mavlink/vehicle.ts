@@ -30,6 +30,7 @@ import { type Message } from '@/libs/connection/m2r/messages/mavlink2rest-messag
 import { settingsManager } from '@/libs/settings-management'
 import { Signal, SignalTyped } from '@/libs/signal'
 import { degrees, frequencyHzToIntervalUs, isEqual, round, sleep } from '@/libs/utils'
+import { CommandRejectedError } from '@/libs/vehicle/mavlink/command-rejected-error'
 import { defaultMessageIntervalsOptions } from '@/libs/vehicle/mavlink/defaults'
 import {
   type MAVLinkParameterSetData,
@@ -188,7 +189,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       return
     }
 
-    throw new Error(`Command '${commandAck.command.type}' failed with result '${commandAck.result.type}'.`)
+    throw new CommandRejectedError(commandAck.command.type, commandAck.result.type)
   }
 
   /**
