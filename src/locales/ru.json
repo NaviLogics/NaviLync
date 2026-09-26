@@ -1218,8 +1218,8 @@
       "goToRequestFailed": "Запрос перехода к точке не удался: {error}",
       "cannotPlacePoi": "Невозможно разместить точку интереса без координат карты.",
       "poiManagerNotAvailable": "Менеджер точек интереса (виджет карты) недоступен.",
-      "missionDownloadSuccess": "Загрузка миссии выполнена успешно!",
-      "missionDownloadFailed": "Загрузка миссии не удалась",
+      "missionDownloadSuccess": "Миссия скачана с аппарата.",
+      "missionDownloadFailed": "Не удалось скачать миссию",
       "failedStartMission": "Не удалось запустить миссию.",
       "downloadMissionTooltip": "Загрузить миссию, хранящуюся в аппарате.",
       "cannotDownloadOffline": "Невозможно загрузить миссию (аппарат не подключён).",
@@ -1485,6 +1485,12 @@
     "success": "Глобальное начало координат задано.",
     "failed": "Не удалось задать глобальное начало координат: {error}"
   },
+  "missionTransfer": {
+    "busy": "Уже идёт другая передача миссии ({running}). Дождитесь её завершения.",
+    "upload": "загрузка на аппарат",
+    "download": "скачивание с аппарата",
+    "clear": "очистка на аппарате"
+  },
   "setHome": {
     "title": "Изменить HOME аппарата?",
     "currentHome": "Текущий HOME на аппарате: {coordinates}",
@@ -1498,7 +1504,8 @@
     "persistsAcrossArming": "Этот HOME сохранится на аппарате и не изменится при арме.",
     "cancelled": "HOME не изменён: отменено.",
     "needsGpsFix": "Аппарат не принял HOME: нужна GPS-позиция (fix)",
-    "rejected": "Аппарат отклонил новый HOME ({result})."
+    "rejected": "Аппарат отклонил новый HOME ({result}).",
+    "invalidHome": "Аппарат отклонил координаты/высоту HOME ({result})."
   },
   "commandInput": {
     "type": "Тип",

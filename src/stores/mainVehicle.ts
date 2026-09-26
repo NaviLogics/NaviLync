@@ -59,7 +59,8 @@ import { Coordinates } from '@/libs/vehicle/types'
 import * as Vehicle from '@/libs/vehicle/vehicle'
 import { VehicleFactory } from '@/libs/vehicle/vehicle-factory'
 import { canSuggestCabledLink, createWirelessTrafficWatcher } from '@/libs/wireless-traffic-warning'
-import type { MissionLoadingCallback, Waypoint } from '@/types/mission'
+import { i18n } from '@/plugins/i18n'
+import type { MissionLoadingCallback, MissionTransferKind, Waypoint } from '@/types/mission'
 
 import { useControllerStore } from './controller'
 import { useMissionStore } from './mission'
@@ -475,6 +476,28 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     mainVehicle.value?.sendGcsHeartbeat()
   }
 
+  const missionTransferInProgress = ref<MissionTransferKind | undefined>(undefined)
+
+  /**
+   * Run a mission transfer only when no other one is in progress. Mission uploads, downloads and clears all use the
+   * vehicle's single mission protocol state, so two at once would interleave their messages and corrupt both.
+   * @param {MissionTransferKind} kind Which transfer this is, shown to the operator if another one is refused meanwhile
+   * @param {() => Promise<T>} transfer The transfer itself
+   * @returns {Promise<T>} The result of the transfer; rejects without starting it when another transfer is in progress
+   */
+  async function runMissionTransfer<T>(kind: MissionTransferKind, transfer: () => Promise<T>): Promise<T> {
+    if (missionTransferInProgress.value !== undefined) {
+      const { t } = i18n.global
+      throw new Error(t('missionTransfer.busy', { running: t(`missionTransfer.${missionTransferInProgress.value}`) }))
+    }
+    missionTransferInProgress.value = kind
+    try {
+      return await transfer()
+    } finally {
+      missionTransferInProgress.value = undefined
+    }
+  }
+
   /**
    * Upload mission items to vehicle
    * @param { Waypoint[] } items Mission items that will be sent
@@ -482,7 +505,10 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
    * @returns { Promise<Waypoint[]> } Mission items that were on the vehicle
    */
   async function uploadMission(items: Waypoint[], loadingCallback: MissionLoadingCallback): Promise<void> {
-    return await mainVehicle.value?.uploadMission(items, loadingCallback)
+    return await runMissionTransfer(
+      'upload',
+      async () => await mainVehicle.value?.uploadMission(items, loadingCallback)
+    )
   }
 
   /**
@@ -491,7 +517,10 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
    * @returns { Promise<Waypoint[]> } Mission items that were on the vehicle
    */
   async function fetchMission(loadingCallback: MissionLoadingCallback): Promise<Waypoint[]> {
-    return (await mainVehicle.value?.fetchMission(loadingCallback)) ?? []
+    return await runMissionTransfer(
+      'download',
+      async () => (await mainVehicle.value?.fetchMission(loadingCallback)) ?? []
+    )
   }
 
   /**
@@ -560,7 +589,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
    * Clear all missions that are on the vehicle
    */
   async function clearMissions(): Promise<void> {
-    mainVehicle.value?.clearMissions()
+    await runMissionTransfer('clear', async () => await mainVehicle.value?.clearMissions())
     openSnackbar({ message: 'Mission deleted from vehicle', variant: 'info' })
   }
 
@@ -1112,6 +1141,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     fetchMission,
     uploadMission,
     clearMissions,
+    missionTransferInProgress,
     startMission,
     pauseMission,
     returnHome,

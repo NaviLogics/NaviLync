@@ -214,6 +214,7 @@ import GlobalOriginDialog from '@/components/GlobalOriginDialog.vue'
 import MissionChecklist from '@/components/MissionChecklist.vue'
 import PoiManager from '@/components/poi/PoiManager.vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
+import { useMissionRefreshWhenIdle } from '@/composables/missionRefreshWhenIdle'
 import { useSetHomeAction } from '@/composables/setHomeAction'
 import { openSnackbar } from '@/composables/snackbar'
 import { MavAutopilot, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
@@ -713,7 +714,7 @@ onMounted(async () => {
   }
 
   mapReady.value = true
-  await refreshMission()
+  await requestMissionRefresh()
 })
 
 const confirmDownloadDialog =
@@ -856,17 +857,20 @@ const refreshMission = async (): Promise<void> => {
   }
 }
 
+// Automatic refreshes wait for a mission transfer in progress: "online" flaps on a weak link, and each flap asks again
+const requestMissionRefresh = useMissionRefreshWhenIdle(refreshMission)
+
 watch(
   () => vehicleStore.isVehicleOnline,
   () => {
-    refreshMission()
+    requestMissionRefresh()
   }
 )
 
 watch(
   () => missionStore.vehicleMissionRevision,
   () => {
-    refreshMission()
+    requestMissionRefresh()
   }
 )
 
@@ -1366,11 +1370,11 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
 
     openSnackbar({ variant: 'success', message: t('widgetConfig.map.missionDownloadSuccess'), duration: 3000 })
   } catch (error) {
-    showDialog({
+    // Most downloads here are automatic (map opened, vehicle back online), so no modal dialog for them
+    openSnackbar({
       variant: 'error',
-      title: t('widgetConfig.map.missionDownloadFailed'),
-      message: error as string,
-      timer: 5000,
+      message: `${t('widgetConfig.map.missionDownloadFailed')}: ${error instanceof Error ? error.message : error}`,
+      duration: 5000,
     })
   } finally {
     fetchingMission.value = false

@@ -584,8 +584,15 @@ const { height: windowHeight } = useWindowSize()
 const { showDialog, closeDialog } = useInteractionDialog()
 const { openSnackbar } = useSnackbar()
 
+const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
+
 const clearMissionOnVehicle = async (): Promise<void> => {
-  await vehicleStore.clearMissions()
+  try {
+    await vehicleStore.clearMissions()
+  } catch (error) {
+    openSnackbar({ variant: 'error', message: errorMessage(error), duration: 5000 })
+    return
+  }
   // Vehicle mission and local planning draft are separate states. Clearing the FC must not leave a stale
   // mission that silently reappears from local storage after restarting NaviLync.
   clearCurrentMission()
@@ -684,7 +691,7 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     showDialog({
       variant: 'error',
       title: t('missionPlanning.missionUploadFailed'),
-      message: error as string,
+      message: errorMessage(error),
       timer: 3000,
       persistent: false,
     })
@@ -696,7 +703,6 @@ const uploadMissionToVehicle = async (): Promise<void> => {
 
 // Allow fetching missions
 const downloadMissionFromVehicle = async (): Promise<void> => {
-  clearCurrentMission()
   loading.value = true
   fetchingMission.value = true
 
@@ -705,6 +711,8 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
   }
   try {
     const missionItemsInVehicle = await vehicleStore.fetchMission(loadingCallback)
+    // Replace the planned mission only once the download succeeded, so a refused or failed download keeps it
+    clearCurrentMission()
     const isPx4 = vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4
     // ArduPilot/Cockpit legacy transfers HOME as item 0. PX4 mission downloads contain only executable
     // mission items, so discarding index 0 would silently remove the first real waypoint.
@@ -723,7 +731,7 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
     showDialog({
       variant: 'error',
       title: t('missionPlanning.missionDownloadFailed'),
-      message: error as string,
+      message: errorMessage(error),
       timer: 5000,
     })
   } finally {
