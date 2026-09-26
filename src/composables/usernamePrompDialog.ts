@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid'
 import { createApp } from 'vue'
 
 import UserNameInputDialog from '@/components/UserNameInputDialog.vue'
+import { i18n } from '@/plugins/i18n'
 import vuetify from '@/plugins/vuetify'
 import router from '@/router'
 
@@ -24,6 +25,8 @@ export const askForUsername = (): Promise<string | undefined> => {
     })
     dialogApp.use(vuetify)
     dialogApp.use(router)
+    // The dialog runs as its own app, so it needs its own i18n install; without it useI18n() throws in setup
+    dialogApp.use(i18n)
     dialogApp.mount(mountPoint)
   })
 }

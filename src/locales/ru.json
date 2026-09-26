@@ -718,7 +718,9 @@
     "nothingToUndo": "Нечего отменять.",
     "undoSuccessful": "Отмена выполнена успешно.",
     "draftMissionLoaded": "Черновик миссии загружен.",
-    "failedLoadDraftMission": "Не удалось загрузить черновик миссии: {error}"
+    "failedLoadDraftMission": "Не удалось загрузить черновик миссии: {error}",
+    "homePointChecklist": "Домашняя точка",
+    "setHomeManually": "Задать вручную"
   },
   "missionChecklist": {
     "title": "Внимание! Ваш аппарат будет взведён",
@@ -1492,7 +1494,11 @@
     "cancel": "Отмена",
     "confirm": "Изменить HOME на аппарате",
     "success": "Аппарат сообщил новый HOME: {coordinates}",
-    "failed": "HOME не изменён или аппарат не подтвердил изменение: {error}"
+    "failed": "HOME не изменён или аппарат не подтвердил изменение: {error}",
+    "persistsAcrossArming": "Этот HOME сохранится на аппарате и не изменится при арме.",
+    "cancelled": "HOME не изменён: отменено.",
+    "needsGpsFix": "Аппарат не принял HOME: нужна GPS-позиция (fix)",
+    "rejected": "Аппарат отклонил новый HOME ({result})."
   },
   "commandInput": {
     "type": "Тип",
