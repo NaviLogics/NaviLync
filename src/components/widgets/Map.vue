@@ -214,6 +214,7 @@ import GlobalOriginDialog from '@/components/GlobalOriginDialog.vue'
 import MissionChecklist from '@/components/MissionChecklist.vue'
 import PoiManager from '@/components/poi/PoiManager.vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
+import { useMissionRefreshWhenIdle } from '@/composables/missionRefreshWhenIdle'
 import { useSetHomeAction } from '@/composables/setHomeAction'
 import { openSnackbar } from '@/composables/snackbar'
 import { MavAutopilot, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
@@ -712,7 +713,7 @@ onMounted(async () => {
   }
 
   mapReady.value = true
-  await refreshMission()
+  await requestMissionRefresh()
 })
 
 const confirmDownloadDialog =
@@ -855,17 +856,20 @@ const refreshMission = async (): Promise<void> => {
   }
 }
 
+// Automatic refreshes wait for a mission transfer in progress: "online" flaps on a weak link, and each flap asks again
+const requestMissionRefresh = useMissionRefreshWhenIdle(refreshMission)
+
 watch(
   () => vehicleStore.isVehicleOnline,
   () => {
-    refreshMission()
+    requestMissionRefresh()
   }
 )
 
 watch(
   () => missionStore.vehicleMissionRevision,
   () => {
-    refreshMission()
+    requestMissionRefresh()
   }
 )
 
