@@ -49,10 +49,17 @@ export class WebRTCManager {
   private selectedICEProtocols: string[] = []
   private JitterBufferTarget = 0
 
+  // Set only by close(): the manager is done and must not start anything again. A stopped session is not an end.
   private hasEnded = false
   private signaller: Signaller
   private waitingForAvailableStreamsAnswer = false
   private waitingForSessionStart = false
+  private waitingForConsumerId = false
+  // Removes the signalling listeners of the current session; the negotiation one is never removed otherwise
+  private removeSessionListeners: (() => void)[] = []
+  private lastTimeHealthy = Date.now()
+  private lastStreamsAnswerTime = 0
+  private healthWatchdog: ReturnType<typeof setInterval>
 
   /**
    *
@@ -65,11 +72,62 @@ export class WebRTCManager {
     this.signaller = new Signaller(
       webRTCSignallingURI,
       true,
-      (): void => {
-        this.startConsumer()
-      },
+      (): void => this.onSignallerOpen(),
       (status: string): void => this.updateSignallerStatus(status)
     )
+    this.healthWatchdog = setInterval(() => this.checkHealth(), WebRTCManager.healthCheckIntervalMs)
+  }
+
+  // A stream that is selected but has had no connected peer for this long is reconnected from scratch. After a link
+  // loss the signalling WebSocket can stay half-open without ever closing, so nothing else would notice.
+  private static readonly reconnectAfterUnhealthyMs = 15000
+  private static readonly healthCheckIntervalMs = 2000
+  // The list of streams is asked for every second, so a longer silence means the signalling is not getting through
+  private static readonly signallingSilenceMs = 5000
+
+  /**
+   * Reconnects the signalling when a selected stream has had no connected peer for too long; the reconnection then
+   * starts a new session (see onSignallerOpen)
+   */
+  private checkHealth(): void {
+    // A signalling server that answers but does not offer the stream (e.g. camera off) is not helped by reconnecting
+    const signallingAnswers = Date.now() - this.lastStreamsAnswerTime < WebRTCManager.signallingSilenceMs
+    const streamOffered = this.availableStreams.value.some((stream) => stream.name === this.streamName)
+    if (
+      this.hasEnded ||
+      this.streamName === undefined ||
+      this.session?.isConnected() ||
+      (signallingAnswers && !streamOffered)
+    ) {
+      this.lastTimeHealthy = Date.now()
+      return
+    }
+    if (Date.now() - this.lastTimeHealthy < WebRTCManager.reconnectAfterUnhealthyMs) return
+
+    this.lastTimeHealthy = Date.now()
+    const msg = `No video for ${
+      WebRTCManager.reconnectAfterUnhealthyMs / 1000
+    } s, reconnecting to the signalling server`
+    console.warn('[WebRTC] ' + msg)
+    this.updateStreamStatus(msg)
+    this.signaller.reconnect()
+  }
+
+  /**
+   * Called on every (re)connection of the signalling WebSocket. The signalling server forgets the consumer and the
+   * sessions of a closed connection, so after a reconnection both are requested again.
+   */
+  private onSignallerOpen(): void {
+    if (this.hasEnded) return
+
+    this.stopSession('Signalling (re)connected')
+    // Listeners of requests made on the old connection would wait forever, or all fire on the next answer
+    this.signaller.removeAllListeners('message', true)
+    this.waitingForAvailableStreamsAnswer = false
+    this.consumerId = undefined
+    this.waitingForConsumerId = false
+    this.startConsumer()
+    if (this.streamName !== undefined) this.startSession()
   }
 
   /**
@@ -78,6 +136,7 @@ export class WebRTCManager {
    */
   public close(reason: string): void {
     this.hasEnded = true
+    clearInterval(this.healthWatchdog)
     this.signaller.onOpen = undefined
     this.stopSession(reason)
     this.signaller.end(reason)
@@ -187,10 +246,11 @@ export class WebRTCManager {
   private startConsumer(): void {
     if (this.hasEnded) return
 
-    this.hasEnded = false
-    // Requests a new consumer ID
-    if (this.consumerId === undefined) {
+    // Requests a new consumer ID, one request at a time
+    if (this.consumerId === undefined && !this.waitingForConsumerId) {
+      this.waitingForConsumerId = true
       this.signaller.requestConsumerId((newConsumerId: string): void => {
+        this.waitingForConsumerId = false
         this.consumerId = newConsumerId
       })
     }
@@ -222,6 +282,7 @@ export class WebRTCManager {
         }
         this.waitingForAvailableStreamsAnswer = false
         this.availableStreams.value = availableStreams
+        this.lastStreamsAnswerTime = Date.now()
 
         this.updateStreamsAvailable()
       })
@@ -288,8 +349,6 @@ export class WebRTCManager {
     this.signaller.requestSessionId(consumerId, stream.id, (receivedSessionId: string): void => {
       this.onSessionIdReceived(stream, stream.id, receivedSessionId)
     })
-
-    this.hasEnded = false
   }
 
   /**
@@ -361,6 +420,10 @@ export class WebRTCManager {
    * @param {string} receivedSessionId
    */
   private onSessionIdReceived(stream: Stream, producerId: string, receivedSessionId: string): void {
+    if (this.hasEnded) return
+    // Two restarts can overlap (e.g. a reconnection and a stream change); only the newest session is kept
+    this.stopSession(`Replaced by session ${receivedSessionId}`)
+
     // Create a new Session with the received Session ID
     this.session = new Session(
       receivedSessionId,
@@ -380,20 +443,28 @@ export class WebRTCManager {
     this.session.onUnreceivableVideo = (codecs: string[]): void => this.onUnreceivableVideo?.(codecs)
 
     // Registers Session callback for the Signaller endSession parser
-    this.signaller.parseEndSessionQuestion(this.consumerId!, producerId, this.session.id, (sessionId, reason) => {
-      console.debug(`[WebRTC] Session ${sessionId} ended. Reason: ${reason}`)
-      this.session = undefined
-      this.hasEnded = true
-    })
+    const removeEndSessionListener = this.signaller.parseEndSessionQuestion(
+      this.consumerId!,
+      producerId,
+      this.session.id,
+      (sessionId, reason) => {
+        console.debug(`[WebRTC] Session ${sessionId} ended. Reason: ${reason}`)
+        // A late endSession for a session already replaced must not drop the current one
+        if (this.session?.id !== sessionId) return
+        this.stopSession(reason)
+        this.startSession()
+      }
+    )
 
     // Registers Session callbacks for the Signaller Negotiation parser
-    this.signaller.parseNegotiation(
+    const removeNegotiationListener = this.signaller.parseNegotiation(
       this.consumerId!,
       producerId,
       this.session.id,
       this.session.onIncomingICE.bind(this.session),
       this.session.onIncomingSDP.bind(this.session)
     )
+    this.removeSessionListeners = [removeEndSessionListener, removeNegotiationListener]
 
     const msg = `Session ${this.session.id} successfully started`
     console.debug('[WebRTC] ' + msg)
@@ -415,6 +486,7 @@ export class WebRTCManager {
 
     this.session.end()
     this.session = undefined
-    this.hasEnded = true
+    this.removeSessionListeners.forEach((removeListener) => removeListener())
+    this.removeSessionListeners = []
   }
 }
