@@ -231,6 +231,12 @@ export const instanceOfCockpitMission = (maybeMission: any): maybeMission is Coc
 }
 
 export type MissionLoadingCallback = (loadingPercentage: number) => Promise<void>
+
+/**
+ * A transfer of the mission between NaviLync and the vehicle
+ */
+export type MissionTransferKind = 'upload' | 'download' | 'clear'
+
 export const defaultLoadingCallback: MissionLoadingCallback = async (): Promise<void> => {
   return
 }

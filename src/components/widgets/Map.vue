@@ -1381,7 +1381,7 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
     showDialog({
       variant: 'error',
       title: t('widgetConfig.map.missionDownloadFailed'),
-      message: error as string,
+      message: error instanceof Error ? error.message : (error as string),
       timer: 5000,
     })
   } finally {
