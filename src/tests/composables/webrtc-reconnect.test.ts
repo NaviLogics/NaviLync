@@ -8,7 +8,7 @@ import type { Stream } from '@/libs/webrtc/signalling_protocol'
 // A fake network and a fake Mavlink Camera Manager on BlueOS. While the link is down nothing reaches the server and
 // nothing comes back, and the signalling WebSocket does not notice it (a half-open TCP connection, as after pulling
 // the Ethernet cable): only a new connection, made once the link is back, reaches the server again.
-const network = { up: true }
+const network = { up: true, cameraOffersStream: true }
 let consumerCount = 0
 let sessionCount = 0
 
@@ -56,7 +56,7 @@ class FakeSignaller {
     if (!network.up || !this.streamsCallback) return
     const callback = this.streamsCallback
     this.streamsCallback = undefined
-    callback([cameraStream])
+    callback(network.cameraOffersStream ? [cameraStream] : [])
   }
 
   /**
@@ -205,6 +205,7 @@ describe('WebRTC video comes back on its own after the link to the vehicle was l
   beforeEach(() => {
     vi.useFakeTimers()
     network.up = true
+    network.cameraOffersStream = true
     signallers = []
     sessions = []
   })
@@ -290,6 +291,16 @@ describe('WebRTC video comes back on its own after the link to the vehicle was l
     await advance(20_000)
 
     expect(latestSession()).toBe(session)
+    expect(signallers[0].reconnects).toBe(0)
+  })
+
+  test('a camera that stops offering the stream does not make it reconnect the signalling over and over', async () => {
+    manager = await startVideo()
+    network.cameraOffersStream = false
+    latestSession()?.end()
+
+    await advance(60_000)
+
     expect(signallers[0].reconnects).toBe(0)
   })
 

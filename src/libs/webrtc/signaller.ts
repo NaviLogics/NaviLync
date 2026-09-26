@@ -532,9 +532,10 @@ export class Signaller {
   }
 
   /**
-   * Reconnects to the signalling server
+   * Reconnects to the signalling server with a new WebSocket, also when the current one looks open: after a link loss
+   * it can stay half-open and never close on its own
    */
-  private reconnect(): void {
+  public reconnect(): void {
     const status = `Reconnecting to signalling`
     console.debug('[WebRTC] [Signaller] ' + status)
     this.onStatusChange?.(status)
