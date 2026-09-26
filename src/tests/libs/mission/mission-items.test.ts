@@ -91,10 +91,20 @@ describe('mission item serialization for PX4 (K3, P5)', () => {
     expect(speeds[0].param2).toBe(2)
   })
 
-  test('at 1 m/s no speed item is sent', () => {
+  // Without the item PX4 would run at its own speed parameter, not the 1 m/s the operator sees in NaviLync
+  test('at 1 m/s the speed item is sent as well', () => {
     const items = convertCockpitWaypointsToMavlink(withCruiseSpeed(line(2), 1), systemId)
 
-    expect(items.map((item) => item.command.type)).toEqual([MavCmd.MAV_CMD_NAV_WAYPOINT, MavCmd.MAV_CMD_NAV_WAYPOINT])
+    expect(items.map((item) => item.command.type)).toEqual([
+      MavCmd.MAV_CMD_DO_CHANGE_SPEED,
+      MavCmd.MAV_CMD_NAV_WAYPOINT,
+      MavCmd.MAV_CMD_NAV_WAYPOINT,
+    ])
+    expect(items[0].param2).toBe(1)
+  })
+
+  test('a mission without waypoints gets no speed item', () => {
+    expect(withCruiseSpeed([], 2)).toEqual([])
   })
 
   test('on download, the speed item is restored as the cruise speed of the mission', () => {
