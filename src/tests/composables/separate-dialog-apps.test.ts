@@ -22,10 +22,13 @@ vi.mock('@/stores/mission', () => ({ useMissionStore: () => ({ username: undefin
 const setupErrors: string[] = []
 let warnSpy: ReturnType<typeof vi.spyOn>
 
-const flushRendering = async (): Promise<void> => {
-  for (let i = 0; i < 5; i += 1) {
+// Waits until the text is on the page, or up to 2 s: under a loaded test run, mounting a separate app with
+// Vuetify can take more than a few ticks
+const flushRendering = async (expectedText?: string): Promise<void> => {
+  for (let i = 0; i < 200; i += 1) {
     await nextTick()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    if (i >= 5 && (expectedText === undefined || document.body.textContent?.includes(expectedText))) return
   }
 }
 
@@ -57,7 +60,7 @@ describe('dialogs mounted as separate apps render', () => {
       variant: 'warning',
       actions: [{ text: 'Probe action', action: vi.fn() }],
     })
-    await flushRendering()
+    await flushRendering('Probe action')
 
     expect(setupErrors).toEqual([])
     expect(document.body.textContent).toContain('Probe message')
@@ -68,7 +71,7 @@ describe('dialogs mounted as separate apps render', () => {
     const { openMainMenuIfSafeOrDesired } = await import('@/composables/armSafetyDialog')
 
     openMainMenuIfSafeOrDesired()
-    await flushRendering()
+    await flushRendering(i18n.global.t('armSafety.title'))
 
     expect(setupErrors).toEqual([])
     expect(document.body.textContent).toContain(i18n.global.t('armSafety.title'))
