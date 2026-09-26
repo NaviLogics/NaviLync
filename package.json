@@ -193,11 +193,13 @@
     "afterSign": "scripts/notarize.mjs",
     "win": {
       "target": "portable",
-      "icon": "public/pwa-512x512.png"
+      "icon": "public/navilync.ico"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/navilync.ico",
+      "uninstallerIcon": "public/navilync.ico"
     },
     "linux": {
       "icon": "public/pwa-512x512.png",

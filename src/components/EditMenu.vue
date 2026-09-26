@@ -722,6 +722,8 @@ import IFrameImg from '@/assets/widgets/IFrame.png'
 import ImageViewImg from '@/assets/widgets/ImageView.png'
 import MapImg from '@/assets/widgets/Map.png'
 import MiniWidgetsBarImg from '@/assets/widgets/MiniWidgetsBar.png'
+import MissionControlPanelImg from '@/assets/widgets/MissionControlPanel.svg'
+import NavisAtlasStatusImg from '@/assets/widgets/NavisAtlasStatus.png'
 import PlotterImg from '@/assets/widgets/Plotter.png'
 import URLVideoPlayerImg from '@/assets/widgets/URLVideoPlayer.png'
 import VideoPlayerImg from '@/assets/widgets/VideoPlayer.png'
@@ -942,6 +944,8 @@ const widgetImages = {
   ImageView: ImageViewImg,
   Map: MapImg,
   MiniWidgetsBar: MiniWidgetsBarImg,
+  MissionControlPanel: MissionControlPanelImg,
+  NavisAtlasStatus: NavisAtlasStatusImg,
   Plotter: PlotterImg,
   URLVideoPlayer: URLVideoPlayerImg,
   VideoPlayer: VideoPlayerImg,

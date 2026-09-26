@@ -35,7 +35,8 @@ let displaySleepPowerSaveBlockerId: number | undefined
  */
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    icon: join(ROOT_PATH.dist, 'pwa-512x512.png'),
+    // Windows shows the window and taskbar icon from an .ico best (several sizes in one file)
+    icon: join(ROOT_PATH.dist, process.platform === 'win32' ? 'navilync.ico' : 'pwa-512x512.png'),
     backgroundColor: '#333333',
     webPreferences: {
       preload: join(ROOT_PATH.dist, 'electron/preload.js'),

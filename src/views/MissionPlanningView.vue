@@ -523,9 +523,6 @@ import { v4 as uuid } from 'uuid'
 import { type InstanceType, computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import blueboatMarkerImage from '@/assets/blueboat-marker.png'
-import brov2MarkerImage from '@/assets/brov2-marker.png'
-import genericVehicleMarkerImage from '@/assets/generic-vehicle-marker.png'
 import ContextMenu from '@/components/mission-planning/ContextMenu.vue'
 import HomeChecklistItem from '@/components/mission-planning/HomeChecklistItem.vue'
 import HomePositionSettingHelp from '@/components/mission-planning/HomePositionSettingHelp.vue'
@@ -544,12 +541,13 @@ import {
   setSurveyAreaSquareMeters,
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
-import { MavAutopilot, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
 import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
 import { degrees } from '@/libs/utils'
 import { createGridOverlay, TargetFollower, WhoToFollow } from '@/libs/utils-map'
 import { generateSurveyPath } from '@/libs/utils-map'
+import { vehicleMarkerIconOptions, vehicleMarkerRotation } from '@/libs/vehicle-marker'
 import router from '@/router'
 import { SubMenuComponentName, SubMenuName, useAppInterfaceStore } from '@/stores/appInterface'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
@@ -3205,28 +3203,16 @@ const vehiclePosition = computed((): [number, number] | undefined =>
     : undefined
 )
 
-// Create marker for the vehicle
+// Create marker for the vehicle whenever its position is known: also when the map appears, not only when the vehicle
+// moves (a boat standing still would otherwise have no marker)
 const vehicleMarker = shallowRef<L.Marker>()
-watch(vehicleStore.coordinates, () => {
+watch([vehicleStore.coordinates, planningMap], () => {
   if (!planningMap.value || !vehiclePosition.value) return
 
   if (vehicleMarker.value === undefined) {
-    let vehicleIconUrl = genericVehicleMarkerImage
-
-    if (vehicleStore.vehicleType === MavType.MAV_TYPE_SURFACE_BOAT) {
-      vehicleIconUrl = blueboatMarkerImage
-    } else if (vehicleStore.vehicleType === MavType.MAV_TYPE_SUBMARINE) {
-      vehicleIconUrl = brov2MarkerImage
-    }
-
-    const vehicleMarkerIcon = L.divIcon({
-      className: 'vehicle-marker',
-      html: `<img src="${vehicleIconUrl}" style="width: 64px; height: 64px;">`,
-      iconSize: [64, 64],
-      iconAnchor: [32, 32],
+    vehicleMarker.value = L.marker(vehiclePosition.value, {
+      icon: L.divIcon(vehicleMarkerIconOptions(vehicleHeading.value)),
     })
-
-    vehicleMarker.value = L.marker(vehiclePosition.value, { icon: vehicleMarkerIcon })
 
     const vehicleMarkerTooltip = L.tooltip({
       content: 'No data available',
@@ -3263,7 +3249,7 @@ watch([vehiclePosition, vehicleHeading, timeAgoSeenText, () => vehicleStore.isAr
   // Update the rotation
   const iconElement = vehicleMarker.value.getElement()?.querySelector('img')
   if (iconElement) {
-    iconElement.style.transform = `rotate(${vehicleHeading.value}deg)`
+    iconElement.style.transform = vehicleMarkerRotation(vehicleHeading.value)
   }
 })
 
