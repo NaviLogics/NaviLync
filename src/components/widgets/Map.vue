@@ -218,6 +218,7 @@ import { useMissionRefreshWhenIdle } from '@/composables/missionRefreshWhenIdle'
 import { useSetHomeAction } from '@/composables/setHomeAction'
 import { openSnackbar } from '@/composables/snackbar'
 import { MavAutopilot, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { markerNumberByMissionSeq } from '@/libs/mission/mission-sequence'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { degrees } from '@/libs/utils'
 import { createGridOverlay, TargetFollower, WhoToFollow } from '@/libs/utils-map'
@@ -1350,22 +1351,7 @@ const fetchingMission = ref(false)
 const missionFetchProgress = ref(0)
 
 const rebuildMissionSeqMapping = (missionItems: Waypoint[]): void => {
-  const remap: Record<number, number> = {}
-  const firstItemIndex = firstWaypointItemIndex()
-  let seq = 0
-
-  missionItems.forEach((wp, idx) => {
-    const markerSeq = idx < firstItemIndex ? undefined : idx - firstItemIndex + 1
-
-    wp.commands.forEach((cmd) => {
-      if (cmd.type !== 'MAVLINK_NAV_COMMAND' && cmd.type !== 'MAVLINK_NON_NAV_COMMAND') return // unchanged intent
-
-      if (markerSeq !== undefined) remap[seq] = markerSeq
-      seq += 1
-    })
-  })
-
-  missionSeqToMarkerSeq.value = remap
+  missionSeqToMarkerSeq.value = markerNumberByMissionSeq(missionItems, firstWaypointItemIndex())
 }
 
 // Allow fetching missions

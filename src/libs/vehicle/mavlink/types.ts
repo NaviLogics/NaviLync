@@ -4,7 +4,7 @@ import type { MavParamType } from '@/libs/connection/m2r/dialects/ardupilotmega/
 import { type Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
 import { round } from '@/libs/utils'
 import { AlertLevel } from '@/types/alert'
-import { type Waypoint, AltitudeReferenceType, MissionCommandType } from '@/types/mission'
+import { type MissionCommand, type Waypoint, AltitudeReferenceType, MissionCommandType } from '@/types/mission'
 
 import { MavFrame, MAVLinkType, MavMissionType, MavSeverity } from '../../connection/m2r/messages/mavlink2rest-enum'
 import type { VehicleConfigurationSettings } from '../types'
@@ -37,21 +37,16 @@ export const convertCockpitWaypointsToMavlink = (
           waypointCommand.type
         )
       ) {
-        const frameType =
-          mavlinkFrameFromCockpitAltRef(cockpitWaypoint.altitudeReferenceType) ||
-          MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
-        const x =
-          waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND
-            ? round(cockpitWaypoint.coordinates[0] * Math.pow(10, 7))
-            : waypointCommand.x
-        const y =
-          waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND
-            ? round(cockpitWaypoint.coordinates[1] * Math.pow(10, 7))
-            : waypointCommand.y
-        const z =
-          waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND
-            ? Number(cockpitWaypoint.altitude)
-            : waypointCommand.z
+        const isNav = waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND
+        // PX4 rejects DO items outside MAV_FRAME_MISSION. The DO items NaviLync plans (the mission speed) take no
+        // position, so x/y/z are 0.
+        const frameType = isNav
+          ? mavlinkFrameFromCockpitAltRef(cockpitWaypoint.altitudeReferenceType) ||
+            MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+          : MavFrame.MAV_FRAME_MISSION
+        const x = isNav ? round(cockpitWaypoint.coordinates[0] * Math.pow(10, 7)) : 0
+        const y = isNav ? round(cockpitWaypoint.coordinates[1] * Math.pow(10, 7)) : 0
+        const z = isNav ? Number(cockpitWaypoint.altitude) : 0
         mavlinkWaypoints.push({
           target_system: system_id,
           target_component: 1,
@@ -79,6 +74,8 @@ export const convertCockpitWaypointsToMavlink = (
 
 export const convertMavlinkWaypointsToCockpit = (mavlinkWaypoints: Message.MissionItemInt[]): Waypoint[] => {
   const cockpitWaypoints: Waypoint[] = []
+  // DO items that come before the first waypoint (e.g. the mission speed) run at its start, so they go on it
+  const commandsBeforeFirstWaypoint: MissionCommand[] = []
   mavlinkWaypoints.forEach((mavlinkWaypoint) => {
     // Split into navigation waypoints (not at the global origin), and commands triggered at them
     if (mavlinkWaypoint.command.type.includes('MAV_CMD_NAV') && !(mavlinkWaypoint.x == 0 && mavlinkWaypoint.y == 0)) {
@@ -90,6 +87,7 @@ export const convertMavlinkWaypointsToCockpit = (mavlinkWaypoints: Message.Missi
         altitude: mavlinkWaypoint.z,
         altitudeReferenceType,
         commands: [
+          ...commandsBeforeFirstWaypoint.splice(0),
           {
             type: MissionCommandType.MAVLINK_NAV_COMMAND,
             command: mavlinkWaypoint.command.type,
@@ -100,8 +98,12 @@ export const convertMavlinkWaypointsToCockpit = (mavlinkWaypoints: Message.Missi
           },
         ],
       })
-    } else if (cockpitWaypoints.length > 0) {
-      cockpitWaypoints[cockpitWaypoints.length - 1].commands.push({
+    } else {
+      const commands =
+        cockpitWaypoints.length > 0
+          ? cockpitWaypoints[cockpitWaypoints.length - 1].commands
+          : commandsBeforeFirstWaypoint
+      commands.push({
         type: MissionCommandType.MAVLINK_NON_NAV_COMMAND,
         command: mavlinkWaypoint.command.type,
         param1: mavlinkWaypoint.param1,
