@@ -31,5 +31,5 @@ test('a failed mission download on the flight map is reported in a snackbar, not
   const download = functionBody('downloadMissionFromVehicle')
 
   expect(download).not.toContain('showDialog(')
-  expect(download).toMatch(/catch \(error\) \{\s*openSnackbar\(\{\s*variant: 'error'/)
+  expect(download).toMatch(/catch \(error\) \{(\s*\/\/.*)*\s*openSnackbar\(\{\s*variant: 'error'/)
 })

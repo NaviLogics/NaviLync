@@ -1384,11 +1384,11 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
 
     openSnackbar({ variant: 'success', message: t('widgetConfig.map.missionDownloadSuccess'), duration: 3000 })
   } catch (error) {
-    showDialog({
+    // Most downloads here are automatic (map opened, vehicle back online), so no modal dialog for them
+    openSnackbar({
       variant: 'error',
-      title: t('widgetConfig.map.missionDownloadFailed'),
-      message: error instanceof Error ? error.message : (error as string),
-      timer: 5000,
+      message: `${t('widgetConfig.map.missionDownloadFailed')}: ${error instanceof Error ? error.message : error}`,
+      duration: 5000,
     })
   } finally {
     fetchingMission.value = false
