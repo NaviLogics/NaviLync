@@ -345,13 +345,14 @@ export class Signaller {
    * @param {string} producerId - Unique ID of the producer, given by the signalling server
    * @param {string} sessionId - Unique ID of the session, given by the signalling server
    * @param {OnSessionEndCallback} onSessionEnd - A callback for when an "endSession" message is received
+   * @returns {() => void} Removes the listener, if it is still registered
    */
   public parseEndSessionQuestion(
     consumerId: string,
     producerId: string,
     sessionId: string,
     onSessionEnd: OnSessionEndCallback
-  ): void {
+  ): () => void {
     console.debug(
       '[WebRTC] [Signaller] Registering parseEndSessionQuestion callbacks for ' +
         `Consumer "${consumerId}", ` +
@@ -360,7 +361,8 @@ export class Signaller {
     )
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const signaller = this
-    this.addEventListener('message', function endSessionListener(ev: MessageEvent): void {
+    let isRegistered = true
+    const endSessionListener = (ev: MessageEvent): void => {
       try {
         const message: Message = JSON.parse(ev.data)
         if (message.type !== 'question') {
@@ -382,6 +384,7 @@ export class Signaller {
         }
 
         signaller.removeEventListener('message', endSessionListener)
+        isRegistered = false
 
         const reason = endSessionQuestion.reason
         signaller.onStatusChange?.('EndSession arrived')
@@ -392,7 +395,13 @@ export class Signaller {
         signaller.onStatusChange?.(errorMsg)
         return
       }
-    })
+    }
+    this.addEventListener('message', endSessionListener)
+    return (): void => {
+      if (!isRegistered) return
+      isRegistered = false
+      this.removeEventListener('message', endSessionListener)
+    }
   }
 
   /**
@@ -402,6 +411,7 @@ export class Signaller {
    * @param {string} sessionId - Unique ID of the session, given by the signalling server
    * @param {OnIceNegotiationCallback} onIceNegotiation - An optional callback for when a "iceNegotiation" Negotiation is received
    * @param {OnMediaNegotiationCallback} onMediaNegotiation - An optional callback for when a "mediaNegotiation" Negotiation is received
+   * @returns {() => void} Removes the listener; call it when the session ends, as it is never removed otherwise
    */
   public parseNegotiation(
     consumerId: string,
@@ -409,14 +419,14 @@ export class Signaller {
     sessionId: string,
     onIceNegotiation?: OnIceNegotiationCallback,
     onMediaNegotiation?: OnMediaNegotiationCallback
-  ): void {
+  ): () => void {
     console.debug(
       '[WebRTC] [Signaller] Registering parseNegotiation callbacks for ' +
         `Consumer "${consumerId}", ` +
         `Producer "${producerId}", ` +
         `Session "${sessionId}", `
     )
-    this.addEventListener('message', (ev: MessageEvent): void => {
+    const negotiationListener = (ev: MessageEvent): void => {
       try {
         const message: Message = JSON.parse(ev.data)
 
@@ -451,7 +461,14 @@ export class Signaller {
         this.onStatusChange?.(errorMsg)
         return
       }
-    })
+    }
+    this.addEventListener('message', negotiationListener)
+    let isRegistered = true
+    return (): void => {
+      if (!isRegistered) return
+      isRegistered = false
+      this.removeEventListener('message', negotiationListener)
+    }
   }
 
   /**
@@ -532,9 +549,10 @@ export class Signaller {
   }
 
   /**
-   * Reconnects to the signalling server
+   * Reconnects to the signalling server with a new WebSocket, also when the current one looks open: after a link loss
+   * it can stay half-open and never close on its own
    */
-  private reconnect(): void {
+  public reconnect(): void {
     const status = `Reconnecting to signalling`
     console.debug('[WebRTC] [Signaller] ' + status)
     this.onStatusChange?.(status)
