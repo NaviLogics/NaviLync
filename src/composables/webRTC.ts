@@ -55,6 +55,8 @@ export class WebRTCManager {
   private waitingForAvailableStreamsAnswer = false
   private waitingForSessionStart = false
   private waitingForConsumerId = false
+  // Removes the signalling listeners of the current session; the negotiation one is never removed otherwise
+  private removeSessionListeners: (() => void)[] = []
   private lastTimeHealthy = Date.now()
   private lastStreamsAnswerTime = 0
   private healthWatchdog: ReturnType<typeof setInterval>
@@ -119,6 +121,9 @@ export class WebRTCManager {
     if (this.hasEnded) return
 
     this.stopSession('Signalling (re)connected')
+    // Listeners of requests made on the old connection would wait forever, or all fire on the next answer
+    this.signaller.removeAllListeners('message', true)
+    this.waitingForAvailableStreamsAnswer = false
     this.consumerId = undefined
     this.waitingForConsumerId = false
     this.startConsumer()
@@ -438,22 +443,28 @@ export class WebRTCManager {
     this.session.onUnreceivableVideo = (codecs: string[]): void => this.onUnreceivableVideo?.(codecs)
 
     // Registers Session callback for the Signaller endSession parser
-    this.signaller.parseEndSessionQuestion(this.consumerId!, producerId, this.session.id, (sessionId, reason) => {
-      console.debug(`[WebRTC] Session ${sessionId} ended. Reason: ${reason}`)
-      // A late endSession for a session already replaced must not drop the current one
-      if (this.session?.id !== sessionId) return
-      this.stopSession(reason)
-      this.startSession()
-    })
+    const removeEndSessionListener = this.signaller.parseEndSessionQuestion(
+      this.consumerId!,
+      producerId,
+      this.session.id,
+      (sessionId, reason) => {
+        console.debug(`[WebRTC] Session ${sessionId} ended. Reason: ${reason}`)
+        // A late endSession for a session already replaced must not drop the current one
+        if (this.session?.id !== sessionId) return
+        this.stopSession(reason)
+        this.startSession()
+      }
+    )
 
     // Registers Session callbacks for the Signaller Negotiation parser
-    this.signaller.parseNegotiation(
+    const removeNegotiationListener = this.signaller.parseNegotiation(
       this.consumerId!,
       producerId,
       this.session.id,
       this.session.onIncomingICE.bind(this.session),
       this.session.onIncomingSDP.bind(this.session)
     )
+    this.removeSessionListeners = [removeEndSessionListener, removeNegotiationListener]
 
     const msg = `Session ${this.session.id} successfully started`
     console.debug('[WebRTC] ' + msg)
@@ -475,5 +486,7 @@ export class WebRTCManager {
 
     this.session.end()
     this.session = undefined
+    this.removeSessionListeners.forEach((removeListener) => removeListener())
+    this.removeSessionListeners = []
   }
 }
