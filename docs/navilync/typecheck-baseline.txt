@@ -320,9 +320,9 @@ src/components/widgets/Map.vue(142,19) TS2339
 src/components/widgets/Map.vue(149,19) TS2339
 src/components/widgets/Map.vue(171,8) TS2339
 src/components/widgets/Map.vue(193,10) TS2339
-src/components/widgets/Map.vue(500,15) TS2540
-src/components/widgets/Map.vue(977,18) TS2345
-src/components/widgets/Map.vue(1496,38) TS2345
+src/components/widgets/Map.vue(501,15) TS2540
+src/components/widgets/Map.vue(981,18) TS2345
+src/components/widgets/Map.vue(1500,38) TS2345
 src/components/widgets/NavisAtlasStatus.vue(39,37) TS2339
 src/components/widgets/Plotter.vue(6,8) TS2339
 src/components/widgets/Plotter.vue(13,13) TS2339
@@ -407,7 +407,7 @@ src/libs/joystick/manager.ts(384,11) TS2741
 src/libs/joystick/manager.ts(577,32) TS2339
 src/libs/utils-data-lake.ts(80,3) TS2322
 src/migration/profile-migrations.ts(25,46) TS2344
-src/stores/mainVehicle.ts(849,9) TS2353
+src/stores/mainVehicle.ts(878,9) TS2353
 src/stores/video.ts(71,47) TS2345
 src/stores/video.ts(576,45) TS2345
 src/views/ConfigurationActionsView.vue(25,17) TS2322
@@ -455,7 +455,7 @@ src/views/ConfigurationUIView.vue(186,22) TS2551
 src/views/ConfigurationUIView.vue(194,22) TS2551
 src/views/ConfigurationUIView.vue(199,28) TS2551
 src/views/MissionPlanningView.vue(523,15) TS2305
-src/views/MissionPlanningView.vue(2432,9) TS2741
-src/views/MissionPlanningView.vue(2786,31) TS2345
-src/views/MissionPlanningView.vue(3498,38) TS2345
+src/views/MissionPlanningView.vue(2440,9) TS2741
+src/views/MissionPlanningView.vue(2794,31) TS2345
+src/views/MissionPlanningView.vue(3506,38) TS2345
 src/views/WidgetsView.vue(67,11) TS7053

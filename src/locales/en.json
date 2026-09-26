@@ -1485,6 +1485,12 @@
     "success": "Global origin set successfully.",
     "failed": "Failed to set global origin: {error}"
   },
+  "missionTransfer": {
+    "busy": "Another mission transfer is in progress ({running}). Wait for it to finish.",
+    "upload": "upload",
+    "download": "download",
+    "clear": "clearing"
+  },
   "setHome": {
     "title": "Change vehicle HOME?",
     "currentHome": "Current HOME on the vehicle: {coordinates}",
