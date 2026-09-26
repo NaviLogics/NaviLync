@@ -7,6 +7,8 @@ import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { openSnackbar } from '@/composables/snackbar'
 import { askForUsername } from '@/composables/usernamePrompDialog'
+import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { currentMarkerNumber } from '@/libs/mission/mission-sequence'
 import { eventCategoriesDefaultMapping } from '@/libs/slide-to-confirm'
 import {
   AltitudeReferenceType,
@@ -449,8 +451,13 @@ export const useMissionStore = defineStore('mission', () => {
     return waypointIndex
   })
 
+  // The number of the waypoint marker the vehicle is heading to, 0 when none. Counted over all mission items, so the
+  // speed item at seq 0 of a PX4 mission does not shift it.
   const currentWaypointOnMission = computed<number>(() => {
-    return currentWpIndex.value
+    const currentSeq = mainVehicleStore.currentMissionSeq
+    if (currentSeq === undefined) return 0
+    const firstWaypointIndex = mainVehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4 ? 0 : 1
+    return currentMarkerNumber(vehicleMission.value, firstWaypointIndex, currentSeq) ?? 0
   })
 
   // Enables skipping back waypoints button

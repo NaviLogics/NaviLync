@@ -116,7 +116,7 @@ describe('mission item serialization for PX4 (K3, P5)', () => {
     expect(waypoints[0].commands.map((c) => c.command)).toEqual([MavCmd.MAV_CMD_NAV_WAYPOINT])
   })
 
-  test('a mission without a speed item downloads with the 1 m/s cruise speed that uploads without one', () => {
+  test('a mission without a speed item (e.g. planned in QGC) downloads with the 1 m/s default cruise speed', () => {
     const { cruiseSpeed } = extractCruiseSpeed(
       convertMavlinkWaypointsToCockpit(convertCockpitWaypointsToMavlink(line(2), 1))
     )

@@ -1,8 +1,9 @@
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { type MissionCommand, type Waypoint, MissionCommandType } from '@/types/mission'
 
-// The planner's default cruise speed; a mission at this speed is uploaded without a speed item
-const cruiseSpeedWithoutSpeedItem = 1
+// The planner's default cruise speed, taken for a downloaded mission without a speed item. T3 will read PX4's own
+// speed parameter instead, which is what the vehicle actually uses then.
+const defaultCruiseSpeed = 1
 
 /**
  * The commands of a new mission waypoint: a single NAV_WAYPOINT
@@ -26,16 +27,17 @@ const isSpeedCommand = (command: MissionCommand): boolean => command.command ===
 
 /**
  * Put the mission cruise speed at the start of the mission, as a DO_CHANGE_SPEED item before the first waypoint, so
- * the vehicle already runs the first leg at that speed. At the default 1 m/s no speed item is added.
+ * the vehicle already runs the first leg at that speed. It is added at 1 m/s too: without it PX4 would run at its own
+ * speed parameter, not at the speed the operator sees in NaviLync.
  * @param {Waypoint[]} waypoints The planned waypoints; they are not modified
  * @param {number} cruiseSpeed The mission cruise speed, in m/s
- * @returns {Waypoint[]} The waypoints to upload, the first one starting with the speed item when there is one
+ * @returns {Waypoint[]} The waypoints to upload, the first one starting with the speed item
  * @example
  * // With a 2 m/s cruise speed the uploaded mission is: seq 0 DO_CHANGE_SPEED (ground speed, 2), seq 1 first WP, ...
  * withCruiseSpeed(waypoints, 2)
  */
 export const withCruiseSpeed = (waypoints: Waypoint[], cruiseSpeed: number): Waypoint[] => {
-  if (waypoints.length === 0 || cruiseSpeed === cruiseSpeedWithoutSpeedItem) return waypoints
+  if (waypoints.length === 0) return waypoints
 
   const [first, ...rest] = waypoints
   const speedCommand: MissionCommand = {
@@ -59,7 +61,7 @@ export const withCruiseSpeed = (waypoints: Waypoint[], cruiseSpeed: number): Way
  * speed item that older NaviLync versions put right after the first waypoint.
  * @param {Waypoint[]} waypoints The downloaded waypoints; they are not modified
  * @returns {{ waypoints: Waypoint[], cruiseSpeed: number }} The waypoints without the speed item of the first one,
- * and the cruise speed it set (1 m/s when there is none, the speed a mission without a speed item is uploaded with)
+ * and the cruise speed it set (1 m/s when there is none, e.g. a mission planned in QGC)
  */
 export const extractCruiseSpeed = (
   waypoints: Waypoint[]
@@ -72,10 +74,10 @@ export const extractCruiseSpeed = (
   const [first, ...rest] = waypoints
   const speedCommands = first?.commands.filter(isSpeedCommand) ?? []
   const speed = speedCommands[speedCommands.length - 1]?.param2
-  if (speedCommands.length === 0) return { waypoints, cruiseSpeed: cruiseSpeedWithoutSpeedItem }
+  if (speedCommands.length === 0) return { waypoints, cruiseSpeed: defaultCruiseSpeed }
 
   return {
     waypoints: [{ ...first, commands: first.commands.filter((c) => !isSpeedCommand(c)) }, ...rest],
-    cruiseSpeed: speed !== undefined && speed > 0 ? speed : cruiseSpeedWithoutSpeedItem,
+    cruiseSpeed: speed !== undefined && speed > 0 ? speed : defaultCruiseSpeed,
   }
 }
