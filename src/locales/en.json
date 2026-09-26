@@ -718,7 +718,9 @@
     "nothingToUndo": "Nothing to undo.",
     "undoSuccessful": "Undo successful.",
     "draftMissionLoaded": "Draft mission loaded.",
-    "failedLoadDraftMission": "Failed to load draft mission: {error}"
+    "failedLoadDraftMission": "Failed to load draft mission: {error}",
+    "homePointChecklist": "Home point",
+    "setHomeManually": "Set manually"
   },
   "missionChecklist": {
     "title": "Warning! Your vehicle is about to be armed",
@@ -1492,7 +1494,11 @@
     "cancel": "Cancel",
     "confirm": "Change HOME on the vehicle",
     "success": "The vehicle reports the new HOME: {coordinates}",
-    "failed": "HOME was not changed or not confirmed by the vehicle: {error}"
+    "failed": "HOME was not changed or not confirmed by the vehicle: {error}",
+    "persistsAcrossArming": "This HOME is kept on the vehicle and does not change when the vehicle arms.",
+    "cancelled": "HOME was not changed: cancelled.",
+    "needsGpsFix": "The vehicle did not accept HOME: it needs a GPS position (fix).",
+    "rejected": "The vehicle refused the new HOME ({result})."
   },
   "commandInput": {
     "type": "Type",

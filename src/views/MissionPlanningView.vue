@@ -124,13 +124,7 @@
             >
           </div>
           <v-divider />
-          <div class="text-sm flex justify-start items-center mt-1">
-            <v-icon v-if="home === undefined" class="text-sm mr-4 text-red-500">mdi-close-circle</v-icon>
-            <v-icon v-else class="text-sm mr-4 text-green-500">mdi-check-circle</v-icon>
-            <p :class="{ 'cursor-pointer hover:underline': home === undefined }" @click="handleAddHomeWaypointByClick">
-              {{ $t('missionPlanning.setHomeWaypoint') }}
-            </p>
-          </div>
+          <HomeChecklistItem @set-home="handleAddHomeWaypointByClick" />
           <div class="text-sm flex justify-start items-center">
             <v-icon v-if="missionStore.currentPlanningWaypoints.length === 0" class="text-sm mr-4 text-red-500"
               >mdi-close-circle</v-icon
@@ -533,6 +527,7 @@ import blueboatMarkerImage from '@/assets/blueboat-marker.png'
 import brov2MarkerImage from '@/assets/brov2-marker.png'
 import genericVehicleMarkerImage from '@/assets/generic-vehicle-marker.png'
 import ContextMenu from '@/components/mission-planning/ContextMenu.vue'
+import HomeChecklistItem from '@/components/mission-planning/HomeChecklistItem.vue'
 import HomePositionSettingHelp from '@/components/mission-planning/HomePositionSettingHelp.vue'
 import MissionEstimatesPanel from '@/components/mission-planning/MissionEstimates.vue'
 import ScanDirectionDial from '@/components/mission-planning/ScanDirectionDial.vue'
@@ -740,7 +735,9 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
 const planningMap = shallowRef<Map | undefined>()
 const mapCenter = ref<WaypointCoordinates>(missionStore.defaultMapCenter)
 // HOME is vehicle state: the planner only shows what the vehicle reports in HOME_POSITION.
-const home = computed(() => vehicleStore.homePosition)
+const home = computed((): WaypointCoordinates | undefined =>
+  vehicleStore.homePosition ? [vehicleStore.homePosition.latitude, vehicleStore.homePosition.longitude] : undefined
+)
 const zoom = ref(missionStore.defaultMapZoom)
 const followerTarget = ref<WhoToFollow | undefined>(undefined)
 const currentWaypointAltitude = ref(0)
@@ -1024,8 +1021,8 @@ const handleDoNotShowTipsAgain = (): void => {
   })
 }
 
+// Also offered once the vehicle reports a HOME: the operator may need a HOME away from where the vehicle arms
 const handleAddHomeWaypointByClick = (): void => {
-  if (home.value !== undefined) return
   isSettingHomeWaypoint.value = true
   openSnackbar({
     variant: 'info',
