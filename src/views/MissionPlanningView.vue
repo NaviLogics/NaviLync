@@ -550,8 +550,8 @@ import {
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
 import { MavAutopilot, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
+import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
 import { degrees } from '@/libs/utils'
 import { createGridOverlay, TargetFollower, WhoToFollow } from '@/libs/utils-map'
 import { generateSurveyPath } from '@/libs/utils-map'
@@ -573,7 +573,6 @@ import {
   MapTileProvider,
   MarkerSizes,
   MissionCommand,
-  MissionCommandType,
   PointOfInterest,
   Survey,
   SurveyPolygon,
@@ -607,21 +606,6 @@ const uploadingMission = ref(false)
 const missionUploadProgress = ref(0)
 const hasUploadedMission = ref(false)
 
-const defaultNavCommandsTemplate: MissionCommand[] = [
-  {
-    type: MissionCommandType.MAVLINK_NAV_COMMAND,
-    command: MavCmd.MAV_CMD_NAV_WAYPOINT,
-    param1: 0,
-    param2: 5,
-    param3: 0,
-    // PX4 validates waypoint yaw. 999 was a legacy sentinel and is rejected as an invalid mission item.
-    // Surface rovers ignore independent yaw at a waypoint; use a valid numeric value instead of the old sentinel.
-    param4: 0,
-  },
-]
-
-const makeDefaultNavCommands = (): MissionCommand[] => defaultNavCommandsTemplate.map((c) => ({ ...c }))
-
 const cloneCommands = (commands?: MissionCommand[]): MissionCommand[] => {
   if (commands && commands.length) {
     return commands.map((command) => ({ ...command }))
@@ -641,7 +625,10 @@ const uploadMissionToVehicle = async (): Promise<void> => {
 
   uploadingMission.value = true
   missionUploadProgress.value = 0
-  const missionItemsToUpload: Waypoint[] = JSON.parse(JSON.stringify(missionStore.currentPlanningWaypoints))
+  const missionItemsToUpload: Waypoint[] = withCruiseSpeed(
+    JSON.parse(JSON.stringify(missionStore.currentPlanningWaypoints)),
+    Number(missionStore.defaultCruiseSpeed)
+  )
 
   const loadingCallback = async (loadingPerc: number): Promise<void> => {
     missionUploadProgress.value = loadingPerc
@@ -655,24 +642,6 @@ const uploadMissionToVehicle = async (): Promise<void> => {
       altitudeReferenceType: currentWaypointAltitudeRefType.value,
       commands: makeDefaultNavCommands(),
     })
-  }
-
-  const firstExecutableItemIndex = isPx4 ? 0 : 1
-  if (missionStore.defaultCruiseSpeed !== 1 && missionItemsToUpload.length > firstExecutableItemIndex) {
-    const firstMissionItem = missionItemsToUpload[firstExecutableItemIndex]
-    const existing = Array.isArray(firstMissionItem.commands) ? firstMissionItem.commands : []
-
-    firstMissionItem.commands = [
-      ...existing.filter((cmd) => cmd.command !== MavCmd.MAV_CMD_DO_CHANGE_SPEED),
-      {
-        type: MissionCommandType.MAVLINK_NAV_COMMAND,
-        command: MavCmd.MAV_CMD_DO_CHANGE_SPEED,
-        param1: 1,
-        param2: Number(missionStore.defaultCruiseSpeed),
-        param3: -1,
-        param4: 0,
-      },
-    ]
   }
 
   try {
@@ -742,10 +711,13 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
   try {
     const missionItemsInVehicle = await vehicleStore.fetchMission(loadingCallback)
     const isPx4 = vehicleStore.firmwareType === MavAutopilot.MAV_AUTOPILOT_PX4
-    missionItemsInVehicle.forEach((wp: Waypoint, index) => {
-      // ArduPilot/Cockpit legacy transfers HOME as item 0. PX4 mission downloads contain only executable
-      // mission items, so discarding index 0 would silently remove the first real waypoint.
-      if (!isPx4 && index === 0) return
+    // ArduPilot/Cockpit legacy transfers HOME as item 0. PX4 mission downloads contain only executable
+    // mission items, so discarding index 0 would silently remove the first real waypoint.
+    const { waypoints, cruiseSpeed } = extractCruiseSpeed(
+      isPx4 ? missionItemsInVehicle : missionItemsInVehicle.slice(1)
+    )
+    missionStore.defaultCruiseSpeed = cruiseSpeed
+    waypoints.forEach((wp: Waypoint) => {
       missionStore.currentPlanningWaypoints.push(wp)
       addWaypointMarker(wp)
     })

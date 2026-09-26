@@ -455,7 +455,7 @@ src/views/ConfigurationUIView.vue(186,22) TS2551
 src/views/ConfigurationUIView.vue(194,22) TS2551
 src/views/ConfigurationUIView.vue(199,28) TS2551
 src/views/MissionPlanningView.vue(529,15) TS2305
-src/views/MissionPlanningView.vue(2435,9) TS2741
-src/views/MissionPlanningView.vue(2789,31) TS2345
-src/views/MissionPlanningView.vue(3501,38) TS2345
+src/views/MissionPlanningView.vue(2407,9) TS2741
+src/views/MissionPlanningView.vue(2761,31) TS2345
+src/views/MissionPlanningView.vue(3473,38) TS2345
 src/views/WidgetsView.vue(67,11) TS7053
