@@ -15,13 +15,44 @@ let sessionCount = 0
 const cameraStream = { id: 'producer-1', name: 'UDP Stream' } as unknown as Stream
 
 /**
- * Fake of the signaller: answers right away while the link is up, drops everything while it is down
+ * Fake of the signaller: answers right away while the link is up, drops everything while it is down. Its message
+ * listeners behave like the real ones: a request's listener stays until an answer of its kind arrives (a lost request
+ * leaves it behind, and the next answer then fires every listener waiting for it), negotiation and endSession
+ * listeners stay until removed, and all survive a reconnection unless removed.
  */
 class FakeSignaller {
   onOpen?: () => void
   reconnects = 0
   endSessionCallbacks = new Map<string, (sessionId: string, reason: string) => void>()
+  negotiationListeners = new Set<string>()
+  private consumerIdListeners: ((id: string) => void)[] = []
+  private sessionIdListeners: ((id: string) => void)[] = []
   private streamsCallback?: (streams: Stream[]) => void
+
+  /**
+   * @returns {number} How many message listeners are registered
+   */
+  messageListeners(): number {
+    return (
+      this.consumerIdListeners.length +
+      this.sessionIdListeners.length +
+      this.endSessionCallbacks.size +
+      this.negotiationListeners.size +
+      (this.streamsCallback ? 1 : 0)
+    )
+  }
+
+  /**
+   * @param {string} type - Event type; only 'message' listeners are modelled
+   */
+  removeAllListeners(type: string): void {
+    if (type !== 'message') return
+    this.consumerIdListeners = []
+    this.sessionIdListeners = []
+    this.endSessionCallbacks.clear()
+    this.negotiationListeners.clear()
+    this.streamsCallback = undefined
+  }
 
   /**
    * Opens the first connection a moment after being created, like the real one
@@ -39,7 +70,12 @@ class FakeSignaller {
    * @param {(id: string) => void} onConsumerId - Called with a new consumer id
    */
   requestConsumerId(onConsumerId: (id: string) => void): void {
-    if (network.up) onConsumerId(`consumer-${++consumerCount}`)
+    this.consumerIdListeners.push(onConsumerId)
+    if (!network.up) return
+    const id = `consumer-${++consumerCount}`
+    const listeners = this.consumerIdListeners
+    this.consumerIdListeners = []
+    listeners.forEach((listener) => listener(id))
   }
 
   /**
@@ -65,7 +101,12 @@ class FakeSignaller {
    * @param {(id: string) => void} onSessionId - Called with a new session id
    */
   requestSessionId(_consumerId: string, _producerId: string, onSessionId: (id: string) => void): void {
-    if (network.up) onSessionId(`session-${++sessionCount}`)
+    this.sessionIdListeners.push(onSessionId)
+    if (!network.up) return
+    const id = `session-${++sessionCount}`
+    const listeners = this.sessionIdListeners
+    this.sessionIdListeners = []
+    listeners.forEach((listener) => listener(id))
   }
 
   /**
@@ -73,21 +114,28 @@ class FakeSignaller {
    * @param {string} _producerId - Producer of the session
    * @param {string} sessionId - The session
    * @param {(sessionId: string, reason: string) => void} onEnd - Called when the server ends the session
+   * @returns {() => void} Removes the listener
    */
   parseEndSessionQuestion(
     _consumerId: string,
     _producerId: string,
     sessionId: string,
     onEnd: (sessionId: string, reason: string) => void
-  ): void {
+  ): () => void {
     this.endSessionCallbacks.set(sessionId, onEnd)
+    return () => this.endSessionCallbacks.delete(sessionId)
   }
 
   /**
-   * Negotiation is not simulated
+   * Negotiation itself is not simulated, only its listener
+   * @param {string} _consumerId - Consumer of the session
+   * @param {string} _producerId - Producer of the session
+   * @param {string} sessionId - The session
+   * @returns {() => void} Removes the listener
    */
-  parseNegotiation(): void {
-    return
+  parseNegotiation(_consumerId: string, _producerId: string, sessionId: string): () => void {
+    this.negotiationListeners.add(sessionId)
+    return () => this.negotiationListeners.delete(sessionId)
   }
 
   /**
@@ -177,11 +225,46 @@ let sessions: FakeSession[] = []
 vi.mock('@/libs/webrtc/signaller', () => ({ Signaller: FakeSignaller }))
 vi.mock('@/libs/webrtc/session', () => ({ Session: FakeSession }))
 
+// The most sessions (RTCPeerConnections) ever open at once, checked every 100 ms
+let mostOpenSessions = 0
+const openSessions = (): FakeSession[] => sessions.filter((session) => !session.ended)
+
 const advance = async (ms: number): Promise<void> => {
   for (let elapsed = 0; elapsed < ms; elapsed += 100) {
     vi.advanceTimersByTime(100)
     await nextTick()
+    mostOpenSessions = Math.max(mostOpenSessions, openSessions().length)
   }
+}
+
+const cutLink = (): void => {
+  network.up = false
+  openSessions().forEach((session) => session.loseLink())
+}
+
+// Ten outages of an unstable NV2 link, [down, then up] in ms: long ones that fail the peer, short ones that do not,
+// and ones that cut the link again while the reconnection or the negotiation is still under way
+const unstableLink: [number, number][] = [
+  [120_000, 30_000],
+  [20_000, 1_500],
+  [45_000, 600],
+  [5_000, 20_000],
+  [60_000, 3_000],
+  [31_000, 800],
+  [16_000, 25_000],
+  [90_000, 1_200],
+  [2_000, 40_000],
+  [35_000, 30_000],
+]
+
+const runUnstableLink = async (): Promise<void> => {
+  for (const [down, up] of unstableLink) {
+    cutLink()
+    await advance(down)
+    network.up = true
+    await advance(up)
+  }
+  await advance(30_000)
 }
 
 const latestSession = (): FakeSession | undefined => sessions[sessions.length - 1]
@@ -208,6 +291,7 @@ describe('WebRTC video comes back on its own after the link to the vehicle was l
     network.cameraOffersStream = true
     signallers = []
     sessions = []
+    mostOpenSessions = 0
   })
 
   afterEach(() => {
@@ -302,6 +386,31 @@ describe('WebRTC video comes back on its own after the link to the vehicle was l
     await advance(60_000)
 
     expect(signallers[0].reconnects).toBe(0)
+  })
+
+  // NaviLync runs for hours over an unstable NV2 link: a leak of connections there is worse than a black screen
+  test('10 outages in a row, also during reconnection: never more than one open connection, old ones closed', async () => {
+    manager = await startVideo()
+
+    await runUnstableLink()
+
+    expect(mostOpenSessions).toBe(1)
+    expect(openSessions()).toHaveLength(1)
+    expect(openSessions()[0]).toBe(latestSession())
+    expect(latestSession()?.isConnected()).toBe(true)
+    expect(manager.session).toBe(latestSession())
+  })
+
+  test('10 outages in a row do not pile up signalling message listeners', async () => {
+    manager = await startVideo()
+    const listenersWhenStreaming = signallers[0].messageListeners()
+
+    await runUnstableLink()
+
+    expect(latestSession()?.isConnected()).toBe(true)
+    expect(signallers[0].messageListeners()).toBeLessThanOrEqual(listenersWhenStreaming + 1)
+    expect(signallers[0].negotiationListeners.size).toBe(1)
+    expect(signallers[0].endSessionCallbacks.size).toBe(1)
   })
 
   test('a closed manager does not reconnect anything', async () => {
