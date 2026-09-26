@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import {
   formatClockDateTime,
+  gpsFixVariableFor,
   indicatorDisplayName,
   indicatorDisplayUnit,
   isGpsSpeedShowable,
@@ -61,6 +62,12 @@ describe('GPS speed is shown only with a 3D fix and fresh data', () => {
   test('no GPS_RAW_INT for more than 3 s → not shown, as the fix it last reported may be gone', () => {
     expect(isGpsSpeedShowable({ fixType: 3, fixUpdatedAt: now - 3100, speedUpdatedAt: now - 500, now })).toBe(false)
     expect(isGpsSpeedShowable({ fixType: 3, fixUpdatedAt: undefined, speedUpdatedAt: now - 500, now })).toBe(false)
+  })
+
+  test('the GPS fix is read from the same vehicle as the speed', () => {
+    expect(gpsFixVariableFor('VFR_HUD/groundspeed')).toBe('GPS_RAW_INT/fix_type')
+    expect(gpsFixVariableFor('/mavlink/1/1/VFR_HUD/groundspeed')).toBe('/mavlink/1/1/GPS_RAW_INT/fix_type')
+    expect(gpsFixVariableFor('GPS_RAW_INT/vel')).toBe('GPS_RAW_INT/fix_type')
   })
 
   test('the speed variables measured by GPS are recognised, others are not', () => {
