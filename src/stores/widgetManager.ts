@@ -1,7 +1,6 @@
 import '@/libs/cosmos'
 
 import { useWindowSize } from '@vueuse/core'
-import { saveAs } from 'file-saver'
 import { defineStore } from 'pinia'
 import { v4 as uuid4 } from 'uuid'
 import { computed, onBeforeMount, onBeforeUnmount, Ref, ref, toRaw, watch } from 'vue'
@@ -13,6 +12,7 @@ import {
   defaultWidgetManagerVars,
   miniWidgetsProfile,
 } from '@/assets/defaults'
+import { saveFileAndReport } from '@/composables/downloadNotifications'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { openSnackbar } from '@/composables/snackbar'
@@ -365,7 +365,7 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
 
   const exportViewsGroup = (profile: Profile): void => {
     const blob = new Blob([JSON.stringify(profile)], { type: 'text/plain;charset=utf-8' })
-    saveAs(blob, `cockpit-views-group.json`)
+    saveFileAndReport(blob, `cockpit-views-group.json`)
   }
 
   const importViewsGroup = (e: Event): void => {
@@ -470,7 +470,7 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
 
   const exportView = (view: View): void => {
     const blob = new Blob([JSON.stringify(view)], { type: 'text/plain;charset=utf-8' })
-    saveAs(blob, `cockpit-widget-view.json`)
+    saveFileAndReport(blob, `cockpit-widget-view.json`)
   }
 
   const importView = (e: Event): void => {

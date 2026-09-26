@@ -6,8 +6,6 @@ src/components/EditMenu.vue(34,71) TS2339
 src/components/EditMenu.vue(64,80) TS2339
 src/components/EditMenu.vue(91,47) TS2339
 src/components/EditMenu.vue(98,39) TS2339
-src/components/EditMenu.vue(99,98) TS2339
-src/components/EditMenu.vue(103,40) TS2339
 src/components/EditMenu.vue(105,39) TS2339
 src/components/EditMenu.vue(109,40) TS2339
 src/components/EditMenu.vue(111,39) TS2339
@@ -323,7 +321,7 @@ src/components/widgets/Map.vue(193,10) TS2339
 src/components/widgets/Map.vue(502,15) TS2540
 src/components/widgets/Map.vue(982,18) TS2345
 src/components/widgets/Map.vue(1486,38) TS2345
-src/components/widgets/NavisAtlasStatus.vue(39,37) TS2339
+src/components/widgets/NavisAtlasStatus.vue(40,37) TS2339
 src/components/widgets/Plotter.vue(6,8) TS2339
 src/components/widgets/Plotter.vue(13,13) TS2339
 src/components/widgets/Plotter.vue(23,31) TS2339
@@ -390,11 +388,11 @@ src/components/widgets/VideoPlayer.vue(252,10) TS2532
 src/components/widgets/VideoPlayer.vue(263,10) TS2532
 src/composables/settingsSyncer.ts(43,40) TS2345
 src/composables/vehicleDefaults/vehicleDefaultsImportShared.ts(78,100) TS2537
-src/electron/main.ts(47,18) TS2339
-src/electron/main.ts(48,19) TS2339
-src/electron/main.ts(49,14) TS2339
+src/electron/main.ts(48,18) TS2339
+src/electron/main.ts(49,19) TS2339
 src/electron/main.ts(50,14) TS2339
-src/electron/main.ts(59,11) TS2339
+src/electron/main.ts(51,14) TS2339
+src/electron/main.ts(61,11) TS2339
 src/electron/services/link/serial.ts(64,9) TS18048
 src/electron/services/storage.ts(12,31) TS2339
 src/electron/services/storage.ts(38,9) TS2339
@@ -455,7 +453,7 @@ src/views/ConfigurationUIView.vue(186,22) TS2551
 src/views/ConfigurationUIView.vue(194,22) TS2551
 src/views/ConfigurationUIView.vue(199,28) TS2551
 src/views/MissionPlanningView.vue(523,15) TS2305
-src/views/MissionPlanningView.vue(2412,9) TS2741
-src/views/MissionPlanningView.vue(2766,31) TS2345
-src/views/MissionPlanningView.vue(3478,38) TS2345
+src/views/MissionPlanningView.vue(2413,9) TS2741
+src/views/MissionPlanningView.vue(2767,31) TS2345
+src/views/MissionPlanningView.vue(3479,38) TS2345
 src/views/WidgetsView.vue(67,11) TS7053

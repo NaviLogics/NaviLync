@@ -375,6 +375,7 @@
     }
   },
   "alerts": {
+    "navilyncStarted": "NaviLync started",
     "title": "Alerts configuration",
     "enabled": "Alerts enabled",
     "soundEnabled": "Sound enabled",
@@ -661,7 +662,7 @@
     "centerOnVehicle": "Center on vehicle",
     "followVehicle": "Double-click to follow vehicle",
     "uploadingMission": "Uploading mission to vehicle...",
-    "loadingMission": "Loading mission...",
+    "loadingMission": "Downloading mission...",
     "savingOfflineMapContent": "Saving offline map content:",
     "missionUploadSucceeded": "Mission upload succeeded",
     "missionUploadFailed": "Mission upload failed",
@@ -672,6 +673,7 @@
     "clear": "Clear",
     "alwaysSwitchToFlightMode": "Always switch to Flight Mode",
     "goToFlightModeMessage": "Go to Flight Mode and click the \"play\" button to start the mission.",
+    "startMissionWithRcSwitch": "Start the mission with the Mission switch (CH5) on the RC transmitter",
     "autoSwitchFlightModeEnabled": "You will be switched to Flight Mode automatically in the future. To change this, go to Mission Planning settings.",
     "clearCurrentMission": "Clear current mission?",
     "currentMissionCleared": "Current mission cleared",
@@ -1192,7 +1194,7 @@
       "saveSeamarksTiles": "Save visible Seamarks tiles",
       "switchToMissionPlanning": "Switch to Mission Planning mode",
       "editMission": "Edit mission",
-      "loadingMission": "Loading mission...",
+      "loadingMission": "Downloading mission...",
       "savingOfflineMap": "Saving offline map content",
       "coordinates": "Coordinates",
       "velocity": "Velocity",
@@ -1619,6 +1621,7 @@
   },
   "navisAtlasStatus": {
     "systemStatus": "SYSTEM STATUS",
+    "noLink": "NO LINK",
     "readyPrefix": "READY",
     "noData": "NO DATA",
     "code": "CODE",
@@ -1639,5 +1642,10 @@
       "float": "FLOAT",
       "ready": "READY"
     }
+  },
+  "downloads": {
+    "savedTo": "File saved: {path}",
+    "savedToBrowserDownloads": "File \"{fileName}\" saved to the browser's downloads folder",
+    "failed": "Could not save the file \"{fileName}\""
   }
 }

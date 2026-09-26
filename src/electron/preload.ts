@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+import type { FinishedDownload } from '@/types/electron-general'
 import type { ElectronSDLJoystickControllerStateEventData } from '@/types/joystick'
 import type { FileDialogOptions, FileStats } from '@/types/storage'
 
@@ -72,6 +73,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createVideoChunksZip: (hash: string) => ipcRenderer.invoke('create-video-chunks-zip', hash),
   cleanupTempDir: (tempDir: string) => ipcRenderer.invoke('cleanup-temp-dir', tempDir),
   captureWorkspace: (rect?: Electron.Rectangle) => ipcRenderer.invoke('capture-workspace', rect),
+  onDownloadFinished: (callback: (download: FinishedDownload) => void) =>
+    ipcRenderer.on('download-finished', (_event, download: FinishedDownload) => callback(download)),
   serialListPorts: () => ipcRenderer.invoke('serial-list-ports'),
   serialOpen: (path: string, baudRate?: number) => ipcRenderer.invoke('serial-open', { path, baudRate }),
   serialWrite: (path: string, data: Uint8Array) => ipcRenderer.invoke('serial-write', { path, data }),

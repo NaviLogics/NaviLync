@@ -104,7 +104,7 @@ const migrateCameraSpeedFactorRemoval = (): void => {
   if ((rewroteShippedFormula || leftoverSpeedRef) && localStorage.getItem(cameraSpeedNoticeKey) !== 'true') {
     openSnackbar({
       message:
-        'Camera zoom and focus speed are now set on the vehicle. Cockpit no longer keeps those settings, so zoom and focus no longer use them. ' +
+        'Camera zoom and focus speed are now set on the vehicle. NaviLync no longer keeps those settings, so zoom and focus no longer use them. ' +
         'If something you made still refers to them, edit it in Tools → Data-lake.',
       variant: 'info',
       duration: 12000,

@@ -375,6 +375,7 @@
     }
   },
   "alerts": {
+    "navilyncStarted": "NaviLync запущен",
     "title": "Настройки оповещений",
     "enabled": "Оповещения включены",
     "soundEnabled": "Звук включён",
@@ -661,7 +662,7 @@
     "centerOnVehicle": "Центрировать на аппарат",
     "followVehicle": "Двойной клик для слежения за аппаратом",
     "uploadingMission": "Загрузка миссии на аппарат...",
-    "loadingMission": "Загрузка миссии...",
+    "loadingMission": "Скачивание миссии...",
     "savingOfflineMapContent": "Сохранение офлайн-контента карты:",
     "missionUploadSucceeded": "Миссия успешно загружена",
     "missionUploadFailed": "Не удалось загрузить миссию",
@@ -672,6 +673,7 @@
     "clear": "Очистить",
     "alwaysSwitchToFlightMode": "Всегда переключаться на режим полёта",
     "goToFlightModeMessage": "Перейдите в режим полёта и нажмите кнопку «Старт» для запуска миссии.",
+    "startMissionWithRcSwitch": "Запустите миссию переключателем Mission (CH5) на пульте",
     "autoSwitchFlightModeEnabled": "В будущем вы будете автоматически переключены в режим полёта. Чтобы изменить это, перейдите в настройки планирования миссий.",
     "clearCurrentMission": "Очистить текущую миссию?",
     "currentMissionCleared": "Текущая миссия очищена",
@@ -1192,7 +1194,7 @@
       "saveSeamarksTiles": "Сохранить видимые тайлы Seamarks",
       "switchToMissionPlanning": "Переключиться в режим планирования миссии",
       "editMission": "Редактировать миссию",
-      "loadingMission": "Загрузка миссии...",
+      "loadingMission": "Скачивание миссии...",
       "savingOfflineMap": "Сохранение карты для автономного использования",
       "coordinates": "Координаты",
       "velocity": "Скорость",
@@ -1619,6 +1621,7 @@
   },
   "navisAtlasStatus": {
     "systemStatus": "СОСТОЯНИЕ СИСТЕМЫ",
+    "noLink": "НЕТ СВЯЗИ",
     "readyPrefix": "ГОТОВНОСТЬ",
     "noData": "НЕТ ДАННЫХ",
     "code": "КОД",
@@ -1639,5 +1642,10 @@
       "float": "FLOAT",
       "ready": "READY"
     }
+  },
+  "downloads": {
+    "savedTo": "Файл сохранён: {path}",
+    "savedToBrowserDownloads": "Файл «{fileName}» сохранён в папку загрузок браузера",
+    "failed": "Не удалось сохранить файл «{fileName}»"
   }
 }
