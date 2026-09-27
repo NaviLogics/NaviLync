@@ -63,6 +63,14 @@ jobs:
         run: yarn build
       - name: Build NaviLync unpacked directory
         run: yarn deploy:electron:windows:dir
+      - name: Check the NaviLync icon in NaviLync.exe
+        shell: pwsh
+        run: |
+          node scripts/check-windows-exe-icon.mjs dist/win-unpacked/NaviLync.exe public/navilync.ico
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path dist/win-unpacked/resources/navilync.ico)) {
+            throw "The window icon navilync.ico is missing next to app.asar."
+          }
       - name: Package Windows x64 directory
         shell: pwsh
         run: |
@@ -83,6 +91,11 @@ jobs:
           name: NaviLync-Windows-x64
           path: dist/NaviLync-*-windows-x64.zip
           if-no-files-found: error
+      # Diagnostics on a machine that has never run NaviLync: the icons of the window and the taskbar, as base64 PNG
+      - name: Window and taskbar icons on a clean machine
+        continue-on-error: true
+        shell: pwsh
+        run: ./scripts/windows-icon-smoke.ps1 dist/win-unpacked/NaviLync.exe
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_release)

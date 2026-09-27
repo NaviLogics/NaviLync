@@ -1,4 +1,4 @@
-import { app, BrowserWindow, powerSaveBlocker, protocol, screen, shell } from 'electron'
+import { app, BrowserWindow, nativeImage, powerSaveBlocker, protocol, screen, shell } from 'electron'
 import { join } from 'path'
 
 import { setupAutoUpdater } from './services/auto-update'
@@ -31,12 +31,22 @@ let appSuspensionPowerSaveBlockerId: number | undefined
 let displaySleepPowerSaveBlockerId: number | undefined
 
 /**
+ * The window icon. On Windows it is navilync.ico, so that the title bar and the taskbar each get an image of their own
+ * size from it; Windows reads a window .ico with a system call that cannot look inside app.asar, so the packaged app
+ * keeps a copy next to it (build.extraResources).
+ * @returns {string} The path of the icon file
+ */
+const windowIconPath = (): string => {
+  if (process.platform !== 'win32') return join(ROOT_PATH.dist, 'pwa-512x512.png')
+  return app.isPackaged ? join(process.resourcesPath, 'navilync.ico') : join(process.cwd(), 'public', 'navilync.ico')
+}
+
+/**
  * Create electron window
  */
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    // Windows shows the window and taskbar icon from an .ico best (several sizes in one file)
-    icon: join(ROOT_PATH.dist, process.platform === 'win32' ? 'navilync.ico' : 'pwa-512x512.png'),
+    icon: windowIconPath(),
     backgroundColor: '#333333',
     webPreferences: {
       preload: join(ROOT_PATH.dist, 'electron/preload.js'),
@@ -142,6 +152,10 @@ app.whenReady().then(async () => {
 
   console.log('Electron app is ready.')
   console.log(`NaviLync version: ${app.getVersion()}`)
+  // Profiles and settings live here; it must stay the same between versions
+  console.log(`User data folder: ${app.getPath('userData')}`)
+  const iconLoaded = !nativeImage.createFromPath(windowIconPath()).isEmpty()
+  console.log(`Window icon: ${windowIconPath()} (${iconLoaded ? 'loaded' : 'NOT loaded'})`)
 
   // Inject a Referer header for OSM tile requests before the first tile is fetched, so the
   // standalone build (loaded from file://) complies with the OSM tile usage policy.

@@ -16,6 +16,11 @@ export const defaultRovProfileHash = 'c2bcf04d-048f-496f-9d78-fc4002608028'
 export const defaultBoatProfileHash = 'adb7d856-f2e5-4980-aaeb-c39c1fa3562b'
 export const defaultMavProfileHash = '2309ffda-896a-449d-a171-7b7fdf80bc95'
 
+// Shown as «Navis профиль» / «Navis profile»: the word is added in the interface language (profileDisplayName)
+export const navisProfileName = 'Navis'
+// The name of the boat profile up to build #58, renamed to navisProfileName when it is loaded
+export const legacyBoatProfileName = 'Boat / USV'
+
 export const defaultProfileVehicleCorrespondency = {
   [MavType.MAV_TYPE_SUBMARINE]: defaultRovProfileHash,
   [MavType.MAV_TYPE_SURFACE_BOAT]: defaultBoatProfileHash,
@@ -649,7 +654,7 @@ export const widgetProfiles: Profile[] = [
     ],
   },
   {
-    name: 'Boat / USV',
+    name: navisProfileName,
     hash: defaultBoatProfileHash,
     views: [
       {
