@@ -42,7 +42,7 @@
                 v-if="route.name !== 'widgets-view'"
                 :label="simplifiedMainMenu ? '' : t('menu.main.flight')"
                 :label-class="[menuLabelSize, '-mb-0.5 mt-6']"
-                :icon="simplifiedMainMenu ? 'mdi-send' : undefined"
+                :icon="simplifiedMainMenu ? 'mdi-ferry' : undefined"
                 :icon-size="simplifiedMainMenu ? 25 : undefined"
                 variant="uncontained"
                 :tooltip="simplifiedMainMenu ? t('menu.main.flight') : undefined"
