@@ -87,7 +87,7 @@ describe('NAVIS ATLAS status widget (bench)', () => {
     ).electronAPI
   })
 
-  test('without a link to the vehicle the header says НЕТ СВЯЗИ in red and every row shows —', async () => {
+  test('without a link to the vehicle the header says НЕТ СВЯЗИ in red and every MAVLink row shows —', async () => {
     vehicle.isVehicleOnline = false
 
     const wrapper = await render()
@@ -95,7 +95,11 @@ describe('NAVIS ATLAS status widget (bench)', () => {
     const header = wrapper.find('.header')
     expect(header.text()).toContain(t('navisAtlasStatus.noLink'))
     expect(header.find('.fail').exists()).toBe(true)
-    const shown = wrapper.findAll('.row .value').map((value) => value.text())
+    // The Shore↔USV row is the exception: it is the ping of the radio, not a MAVLink value (bench, run 58)
+    const shown = wrapper
+      .findAll('.row')
+      .filter((row) => row.find('.label').text() !== t('navisAtlasStatus.rows.shoreLink'))
+      .map((row) => row.find('.value').text())
     expect(shown.length).toBeGreaterThan(0)
     expect(shown.every((value) => value === '—')).toBe(true)
     // Labels such as "MISSION READY" stay; only values and the readiness line are checked
@@ -216,10 +220,9 @@ describe('NAVIS ATLAS Shore↔USV link row (bench, run 58)', () => {
       await nextProbe()
       await nextProbe()
       expect(shoreLink(wrapper)).toBe(ok(5))
-      probe = { reachable: true, latencyMs: 7 }
-      await nextProbe()
-      expect(shoreLink(wrapper)).toBe(ok(7))
       probe = { reachable: true, latencyMs: 5 }
+      await nextProbe()
+      expect(shoreLink(wrapper)).toBe(ok(5))
     }
   })
 

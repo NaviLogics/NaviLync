@@ -318,7 +318,7 @@ src/components/widgets/Map.vue(171,8) TS2339
 src/components/widgets/Map.vue(193,10) TS2339
 src/components/widgets/Map.vue(499,15) TS2540
 src/components/widgets/Map.vue(1463,38) TS2345
-src/components/widgets/NavisAtlasStatus.vue(40,37) TS2339
+src/components/widgets/NavisAtlasStatus.vue(51,37) TS2339
 src/components/widgets/Plotter.vue(6,8) TS2339
 src/components/widgets/Plotter.vue(13,13) TS2339
 src/components/widgets/Plotter.vue(23,31) TS2339
