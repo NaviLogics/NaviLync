@@ -7,10 +7,21 @@ const packageJson = JSON.parse(read('package.json'))
 
 // Bench, run 58: the Windows taskbar still showed the Cockpit icon
 describe('Windows application identity (bench, run 58)', () => {
-  test('the window icon is a PNG: Windows loads a window .ico from outside the asar archive only', () => {
+  // Bench, run 59: the exe and the title bar showed N, the taskbar still the green chevron
+  test('on Windows the window icon is navilync.ico next to the packaged app, outside app.asar', () => {
     const main = read('src/electron/main.ts')
-    expect(main).toMatch(/icon: join\(ROOT_PATH\.dist, 'pwa-512x512\.png'\)/)
-    expect(main).not.toMatch(/icon: .*navilync\.ico/)
+    expect(main).toMatch(/join\(process\.resourcesPath, 'navilync\.ico'\)/)
+    expect(main).toMatch(/icon: windowIconPath\(\)/)
+    expect(packageJson.build.extraResources).toContainEqual({ from: 'public/navilync.ico', to: 'navilync.ico' })
+  })
+
+  test('the path and whether the window icon loaded are written to the log', () => {
+    expect(read('src/electron/main.ts')).toMatch(/Window icon: \$\{/)
+  })
+
+  test('no application icon is the Cockpit chevron any more: the macOS one is the NaviLync icon too', () => {
+    const file = (name: string): Buffer => readFileSync(join(process.cwd(), name))
+    expect(file('public/icon-mac-512x512.png').equals(file('public/pwa-512x512.png'))).toBe(true)
   })
 
   test('the exe gets navilync.ico, and the Windows build checks that it is really in NaviLync.exe', () => {
