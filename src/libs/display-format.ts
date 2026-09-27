@@ -97,3 +97,19 @@ export const indicatorDisplayUnit = (unit: string, t: (key: string) => string): 
   const key = builtInIndicatorUnits[unit]
   return key ? t(key) : unit
 }
+
+/**
+ * The name of a views profile as the operator reads it
+ * @param {string} name - The stored profile name
+ * @param {(key: string) => string} t - The i18n translate function
+ * @returns {string} The name to show
+ */
+export const profileDisplayName = (name: string, t: (key: string) => string): string =>
+  t('editMenu.profile') ? name : name
+
+/**
+ * The vehicle picture shown next to a views profile
+ * @param {string} name - The stored profile name
+ * @returns {string} The picture URL
+ */
+export const profileVehicleImage = (name: string): string => (name ? '' : '')
