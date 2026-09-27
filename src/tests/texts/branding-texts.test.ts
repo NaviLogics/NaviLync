@@ -50,6 +50,13 @@ describe('"Полёт" becomes "Движение" (branding, item 7)', () => {
     expect(icon).not.toMatch(/<!--|iconsvg|inkscape|sodipodi/i)
     expect(icon).toMatch(/<svg[\s>]/)
   })
+
+  // The compact menu (narrow screens) shows MDI font icons only: the ferry is the closest to the driving icon
+  test('the compact menu shows mdi-ferry for the view button, not the flight arrow', () => {
+    const menu = read('src/components/MainMenu.vue')
+    expect(menu).toMatch(/:icon="simplifiedMainMenu \? 'mdi-ferry' : undefined"/)
+    expect(menu).not.toMatch(/'mdi-send'/)
+  })
 })
 
 describe('the texts are wired where they are shown (branding, items 3-5)', () => {
