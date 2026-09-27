@@ -1,18 +1,6 @@
 <template>
-  <div
-    class="flex items-center justify-start h-full px-4 mr-1 transition-all cursor-pointer hover:bg-slate-200/30 min-w-[20%] select-none"
-    :class="widgetStore.editingMode ? 'pointer-events-none' : 'pointer-events-auto'"
-    @click="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen = true"
-  >
-    <div class="flex items-center overflow-hidden text-lg font-medium text-white whitespace-nowrap">
-      <p v-if="store.missionName" class="overflow-x-hidden text-ellipsis">{{ store.missionName }}</p>
-      <p v-else class="overflow-x-hidden text-ellipsis">
-        {{ randomMissionName }}
-        <FontAwesomeIcon icon="fa-pen-to-square" size="1x" class="ml-2 text-slate-200/30" />
-      </p>
-    </div>
-  </div>
-
+  <!-- The mission name is not shown in the top bar for the pilot (branding task): it stays in the mission store and
+  still names recordings and logs; only its label, with the random placeholder name, is hidden -->
   <teleport to="body">
     <v-dialog v-model="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen" width="50%">
       <v-card class="pa-2 bg-[#20202022] backdrop-blur-2xl text-white rounded-lg">
@@ -53,7 +41,6 @@
 <script setup lang="ts">
 import { toRefs } from 'vue'
 
-import { coolMissionNames } from '@/libs/funny-name/words'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMissionStore } from '@/stores/mission'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
@@ -73,6 +60,4 @@ const miniWidget = toRefs(props).miniWidget
 const store = useMissionStore()
 const widgetStore = useWidgetManagerStore()
 const interfaceStore = useAppInterfaceStore()
-
-const randomMissionName = coolMissionNames.random()
 </script>

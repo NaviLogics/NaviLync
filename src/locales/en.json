@@ -937,7 +937,11 @@
     "autoFormatting": "Auto-formatting",
     "icon": "Icon",
     "searchIcons": "Search icons...",
-    "noVariablesFound": "No variables found to choose from. Please make sure your vehicle is connected."
+    "noVariablesFound": "No variables found to choose from. Please make sure your vehicle is connected.",
+    "builtIn": {
+      "speedGps": "Speed (GPS)",
+      "metersPerSecond": "m/s"
+    }
   },
   "snapshotTool": {
     "openLibrary": "Open snapshot library",

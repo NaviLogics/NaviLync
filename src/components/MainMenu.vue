@@ -42,7 +42,7 @@
                 v-if="route.name !== 'widgets-view'"
                 :label="simplifiedMainMenu ? '' : t('menu.main.flight')"
                 :label-class="[menuLabelSize, '-mb-0.5 mt-6']"
-                :icon="simplifiedMainMenu ? 'mdi-send' : undefined"
+                :icon="simplifiedMainMenu ? 'mdi-ferry' : undefined"
                 :icon-size="simplifiedMainMenu ? 25 : undefined"
                 variant="uncontained"
                 :tooltip="simplifiedMainMenu ? t('menu.main.flight') : undefined"
@@ -54,7 +54,7 @@
                     handleCloseMainMenu()
                   }
                 "
-                ><img v-if="!simplifiedMainMenu" :src="FlightIcon" alt="Flight Icon" />
+                ><img v-if="!simplifiedMainMenu" :src="DrivingIcon" alt="Driving Icon" />
               </GlassButton>
               <GlassButton
                 v-if="route.name !== 'Mission planning'"
@@ -224,9 +224,9 @@ import { useRoute } from 'vue-router'
 
 import EditModeIcon from '@/assets/icons/edit-mode.svg'
 import ExitFullScreenIcon from '@/assets/icons/exit-full-screen.svg'
-import FlightIcon from '@/assets/icons/flight.svg'
 import FullScreenIcon from '@/assets/icons/full-screen.svg'
 import InfoIcon from '@/assets/icons/info.svg'
+import DrivingIcon from '@/assets/icons/mission-drive.svg'
 import MissionPlanningIcon from '@/assets/icons/mission-planning.svg'
 import SettingsIcon from '@/assets/icons/settings.svg'
 import ToolsIcon from '@/assets/icons/tools.svg'

@@ -11,10 +11,12 @@
     <div class="absolute left-[3rem] h-full select-none font-semibold scroll-container w-full">
       <div class="w-full" :class="{ 'scroll-text': valueIsOverflowing }">
         <span class="font-mono text-xl leading-6">{{ parsedState }}</span>
-        <span class="text-xl leading-6"> {{ String.fromCharCode(0x20) }} {{ miniWidget.options.variableUnit }} </span>
+        <span class="text-xl leading-6">
+          {{ String.fromCharCode(0x20) }} {{ indicatorDisplayUnit(miniWidget.options.variableUnit, t) }}
+        </span>
       </div>
       <span class="w-full text-sm absolute bottom-[0.5rem] whitespace-nowrap text-ellipsis overflow-x-hidden">
-        {{ miniWidget.options.displayName }}
+        {{ indicatorDisplayName(miniWidget.options.displayName, t) }}
       </span>
     </div>
   </div>
@@ -208,7 +210,7 @@
 
 <script setup lang="ts">
 import * as MdiExports from '@mdi/js/mdi'
-import { watchThrottled } from '@vueuse/core'
+import { useTimestamp, watchThrottled } from '@vueuse/core'
 import Fuse from 'fuse.js'
 import { computed, onBeforeMount, onMounted, ref, toRefs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -216,10 +218,18 @@ import { useI18n } from 'vue-i18n'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import {
   getDataLakeVariableData,
+  getDataLakeVariableLastUpdateTimestamp,
   listenDataLakeVariable,
   listenToDataLakeVariablesInfoChanges,
 } from '@/libs/actions/data-lake'
 import { getAllDataLakeVariablesInfo } from '@/libs/actions/data-lake'
+import {
+  gpsFixVariableFor,
+  indicatorDisplayName,
+  indicatorDisplayUnit,
+  isGpsSpeedShowable,
+  isGpsSpeedVariable,
+} from '@/libs/display-format'
 import { CurrentlyLoggedVariables, datalogger } from '@/libs/sensors-logging'
 import { round } from '@/libs/utils'
 import { useAppInterfaceStore } from '@/stores/appInterface'
@@ -264,10 +274,27 @@ const currentState = ref<unknown>(0)
 
 const finalValue = computed(() => Number(miniWidget.value.options.variableMultiplier) * Number(currentState.value))
 
+// Ticks so that a GPS speed turns into "—" also when its data stops arriving
+const clockTick = useTimestamp({ interval: 500 })
+
+const gpsSpeedIsShowable = computed((): boolean => {
+  clockTick.value
+  const speedVariable = miniWidget.value.options.variableName
+  const fixVariable = gpsFixVariableFor(speedVariable)
+  return isGpsSpeedShowable({
+    fixType: getDataLakeVariableData(fixVariable) as string | number | undefined,
+    fixUpdatedAt: getDataLakeVariableLastUpdateTimestamp(fixVariable),
+    speedUpdatedAt: getDataLakeVariableLastUpdateTimestamp(speedVariable),
+    now: performance.now(),
+  })
+})
+
 const parsedState = computed(() => {
   if (currentState.value === undefined) {
     return '--'
   }
+
+  if (isGpsSpeedVariable(miniWidget.value.options.variableName) && !gpsSpeedIsShowable.value) return '—'
 
   // If using string variable, return the raw value as string without parsing
   if (miniWidget.value.options.useStringVariable) {
