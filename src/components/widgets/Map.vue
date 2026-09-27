@@ -206,10 +206,6 @@ import { computed, nextTick, onBeforeMount, onBeforeUnmount, onMounted, ref, sha
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import copterMarkerImage from '@/assets/arducopter-top-view.png'
-import blueboatMarkerImage from '@/assets/blueboat-marker.png'
-import brov2MarkerImage from '@/assets/brov2-marker.png'
-import genericVehicleMarkerImage from '@/assets/generic-vehicle-marker.png'
 import GlobalOriginDialog from '@/components/GlobalOriginDialog.vue'
 import MissionChecklist from '@/components/MissionChecklist.vue'
 import PoiManager from '@/components/poi/PoiManager.vue'
@@ -217,12 +213,13 @@ import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useMissionRefreshWhenIdle } from '@/composables/missionRefreshWhenIdle'
 import { useSetHomeAction } from '@/composables/setHomeAction'
 import { openSnackbar } from '@/composables/snackbar'
-import { MavAutopilot, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { markerNumberByMissionSeq } from '@/libs/mission/mission-sequence'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { degrees } from '@/libs/utils'
 import { createGridOverlay, TargetFollower, WhoToFollow } from '@/libs/utils-map'
 import type { MAVLinkVehicle } from '@/libs/vehicle/mavlink/vehicle'
+import { vehicleMarkerIconOptions, vehicleMarkerRotation } from '@/libs/vehicle-marker'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
@@ -848,6 +845,7 @@ const clearMapDrawing = (): void => {
 const refreshMission = async (): Promise<void> => {
   if (!mapReady.value) return
   clearMapDrawing()
+  drawVehicleMarker()
 
   if (vehicleStore.isVehicleOnline) {
     await downloadMissionFromVehicle()
@@ -960,38 +958,16 @@ watch([home, map], async () => {
   mapNotYetCenteredInHome = false
 })
 
-// Create marker for the vehicle
+// Create marker for the vehicle, whenever its position is known: also when the map appears or its drawing was
+// cleared, not only when the vehicle moves (a boat standing still would otherwise have no marker)
 const vehicleMarker = shallowRef<L.Marker>()
-watch(vehicleStore.coordinates, () => {
+const drawVehicleMarker = (): void => {
   if (!map.value || !vehiclePosition.value) return
 
   if (vehicleMarker.value === undefined) {
-    let vehicleIconUrl = genericVehicleMarkerImage
-
-    if (vehicleStore.vehicleType === MavType.MAV_TYPE_SURFACE_BOAT) {
-      vehicleIconUrl = blueboatMarkerImage
-    } else if (vehicleStore.vehicleType === MavType.MAV_TYPE_SUBMARINE) {
-      vehicleIconUrl = brov2MarkerImage
-    } else if (
-      [
-        MavType.MAV_TYPE_QUADROTOR,
-        MavType.MAV_TYPE_HEXAROTOR,
-        MavType.MAV_TYPE_OCTOROTOR,
-        MavType.MAV_TYPE_TRICOPTER,
-        MavType.MAV_TYPE_DODECAROTOR,
-      ].includes(vehicleStore.vehicleType)
-    ) {
-      vehicleIconUrl = copterMarkerImage
-    }
-
-    const vehicleMarkerIcon = L.divIcon({
-      className: 'vehicle-marker',
-      html: `<img src="${vehicleIconUrl}" style="width: 64px; height: 64px;">`,
-      iconSize: [64, 64],
-      iconAnchor: [32, 32],
+    vehicleMarker.value = L.marker(vehiclePosition.value, {
+      icon: L.divIcon(vehicleMarkerIconOptions(vehicleHeading.value)),
     })
-
-    vehicleMarker.value = L.marker(vehiclePosition.value, { icon: vehicleMarkerIcon })
 
     const vehicleMarkerTooltip = L.tooltip({
       content: 'No data available',
@@ -1002,7 +978,8 @@ watch(vehicleStore.coordinates, () => {
     map.value.addLayer(vehicleMarker.value)
   }
   vehicleMarker.value.setLatLng(vehiclePosition.value)
-})
+}
+watch([vehicleStore.coordinates, map], drawVehicleMarker)
 
 // If vehicle position was not available and now it is, start following it
 watch(vehiclePosition, (_, oldPosition) => {
@@ -1027,7 +1004,7 @@ watch([vehiclePosition, vehicleHeading, timeAgoSeenText, () => vehicleStore.isAr
   // Update the rotation
   const iconElement = vehicleMarker.value.getElement()?.querySelector('img')
   if (iconElement) {
-    iconElement.style.transform = `rotate(${vehicleHeading.value}deg)`
+    iconElement.style.transform = vehicleMarkerRotation(vehicleHeading.value)
   }
 })
 
