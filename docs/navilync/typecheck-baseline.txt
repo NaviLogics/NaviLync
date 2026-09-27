@@ -383,11 +383,11 @@ src/components/widgets/VideoPlayer.vue(252,10) TS2532
 src/components/widgets/VideoPlayer.vue(263,10) TS2532
 src/composables/settingsSyncer.ts(43,40) TS2345
 src/composables/vehicleDefaults/vehicleDefaultsImportShared.ts(78,100) TS2537
-src/electron/main.ts(50,18) TS2339
-src/electron/main.ts(51,19) TS2339
-src/electron/main.ts(52,14) TS2339
-src/electron/main.ts(53,14) TS2339
-src/electron/main.ts(63,11) TS2339
+src/electron/main.ts(59,18) TS2339
+src/electron/main.ts(60,19) TS2339
+src/electron/main.ts(61,14) TS2339
+src/electron/main.ts(62,14) TS2339
+src/electron/main.ts(72,11) TS2339
 src/electron/services/link/serial.ts(64,9) TS18048
 src/electron/services/storage.ts(12,31) TS2339
 src/electron/services/storage.ts(38,9) TS2339
