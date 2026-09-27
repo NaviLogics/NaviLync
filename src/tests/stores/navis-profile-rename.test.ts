@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
-import { nextTick, ref, unref } from 'vue'
+import { type Ref, nextTick, ref, unref } from 'vue'
 
 import { defaultBoatProfileHash, widgetProfiles } from '@/assets/defaults'
 import usvImage from '@/assets/usv-navis-top.png'
@@ -33,6 +33,10 @@ let useWidgetManagerStore: typeof UseWidgetManagerStore
 
 const viewsGroupKey = 'cockpit-views-group-v1'
 const { t } = i18n.global
+// With legacy: false the locale is a ref, although the createI18n generics type it as the locale string
+const setLocale = (locale: 'ru' | 'en'): void => {
+  ;(i18n.global.locale as unknown as Ref<string>).value = locale
+}
 
 // The profile set up on the bench: the built-in boat profile with the operator's own views and widgets
 const benchProfile = (name: string, hash = defaultBoatProfileHash): Profile => {
@@ -61,7 +65,7 @@ describe('the built-in boat profile becomes «Navis профиль» (bench, run
   beforeEach(() => {
     Object.keys(saved).forEach((key) => delete saved[key])
     setActivePinia(createPinia())
-    i18n.global.locale = 'ru'
+    setLocale('ru')
   })
 
   test('a saved «Boat / USV» profile keeps its hash, views and widgets and is called «Navis профиль»', async () => {
@@ -107,7 +111,7 @@ describe('the built-in boat profile becomes «Navis профиль» (bench, run
   })
 
   test('in English the profile is «Navis profile»', () => {
-    i18n.global.locale = 'en'
+    setLocale('en')
     expect(profileDisplayName('Navis', t)).toBe('Navis profile')
   })
 

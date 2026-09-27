@@ -14,9 +14,9 @@
   >
     <div class="flex justify-between items-center w-full bg-[#CBCBCB2A] relative">
       <img
-        :src="pickVehicleImage(store.currentProfile.name)"
+        :src="profileVehicleImage(store.currentProfile.name)"
         alt="current-vehicle"
-        class="ml-2 my-1 p-1 mr-2 2xl:w-[60px] xl:w-[50px] w-[40px] aspect-square"
+        class="ml-2 my-1 p-1 mr-2 2xl:w-[60px] xl:w-[50px] w-[40px] aspect-square object-contain"
       />
       <div ref="dropdownMenuRef" class="flex justify-between items-center relative">
         <div class="flex text-start 2xl:w-[260px] xl:w-[220px] w-[170px]">
@@ -30,8 +30,7 @@
           >
             <span
               class="wrapclass text-none 2xl:text-xl xl:text-[16px] lg:text-md text-sm 2xl:max-w-[230px] xl:max-w-[180px] max-w-[160px]"
-              >{{ store.currentProfile.name }}
-              {{ store.currentProfile.name.endsWith('profile') ? '' : $t('editMenu.profile') }}
+              >{{ profileDisplayName(store.currentProfile.name, t) }}
             </span>
           </v-btn>
         </div>
@@ -55,13 +54,13 @@
           >
             <div class="flex">
               <img
-                :src="pickVehicleImage(profile.name)"
+                :src="profileVehicleImage(profile.name)"
                 alt="current-vehicle"
-                class="mr-3 2xl:w-[30px] w-[25px] 2xl:h-[30px] h-[25px] aspect-square"
+                class="mr-3 2xl:w-[30px] w-[25px] 2xl:h-[30px] h-[25px] aspect-square object-contain"
               />
               <span
                 class="text-nowrap wrapclass text-left 2xl:max-w-[270px] xl:max-w-[240px] lg:max-w-[150px] max-w-[120px] mt-[1px] 2xl:text-[18px] xl:text-[18px] text-[16px]"
-                >{{ profile.name }} {{ profile.name.endsWith('profile') ? '' : $t('editMenu.profile') }}
+                >{{ profileDisplayName(profile.name, t) }}
               </span>
             </div>
           </div>
@@ -89,7 +88,9 @@
           <v-list>
             <div class="flex justify-center max-w-[250px] px-2 gap-x-[5px] pb-2">
               <p class="whitespace-nowrap">{{ $t('editMenu.settings') }} -</p>
-              <p class="overflow-hidden text-ellipsis whitespace-nowrap">{{ store.currentProfile.name }}</p>
+              <p class="overflow-hidden text-ellipsis whitespace-nowrap">
+                {{ profileDisplayName(store.currentProfile.name, t) }}
+              </p>
             </div>
 
             <v-divider />
@@ -197,7 +198,7 @@
         <div class="flex justify-center w-full bg-[#CBCBCB09]">
           <div class="flex w-[350px] justify-center py-[2px]">
             <p class="overflow-hidden text-[12px] text-ellipsis whitespace-nowrap opacity-60">
-              {{ $t('editMenu.viewsOn', { profileName: store.currentProfile.name }) }}
+              {{ $t('editMenu.viewsOn', { profileName: profileDisplayName(store.currentProfile.name, t) }) }}
             </p>
           </div>
         </div>
@@ -709,9 +710,6 @@ import { type UseDraggableOptions, useDraggable, VueDraggable } from 'vue-dragga
 import { useI18n } from 'vue-i18n'
 
 import { defaultMiniWidgetManagerVars, widgetProfiles } from '@/assets/defaults'
-import BoatThumb from '@/assets/vehicles/BlueBoat_thumb.png'
-import BlueRoboticsLogo from '@/assets/vehicles/BlueRoboticsLogo.png'
-import RovThumb from '@/assets/vehicles/BlueROV_thumb.png'
 import AttitudeImg from '@/assets/widgets/Attitude.png'
 import CollapsibleContainerImg from '@/assets/widgets/CollapsibleContainer.png'
 import CompassImg from '@/assets/widgets/Compass.png'
@@ -732,6 +730,7 @@ import { useInteractionDialog } from '@/composables/interactionDialog'
 import { openSnackbar } from '@/composables/snackbar'
 import { getWidgetsFromBlueOS } from '@/libs/blueos'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { profileDisplayName, profileVehicleImage } from '@/libs/display-format'
 import { isHorizontalScroll } from '@/libs/utils'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
@@ -982,23 +981,6 @@ const confirmDelete = async (): Promise<void> => {
     if (result.isConfirmed) store.deleteProfile(store.currentProfile)
   })
 }
-
-const pickVehicleImage = (profileName: string): string => {
-  const name = profileName.toLowerCase()
-  if (name.includes('rov')) return RovThumb
-  if (name.includes('boat')) return BoatThumb
-  return BlueRoboticsLogo
-}
-
-const currentImage = ref('')
-
-watch(
-  () => store.currentProfile.name,
-  (newName) => {
-    currentImage.value = pickVehicleImage(newName)
-  },
-  { immediate: true }
-)
 
 const isViewsPanelExpanded = ref(false)
 const toggleViewsPanel = (): void => {

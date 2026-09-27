@@ -10,7 +10,7 @@ describe('Windows application identity (bench, run 58)', () => {
   test('the window icon is a PNG: Windows loads a window .ico from outside the asar archive only', () => {
     const main = read('src/electron/main.ts')
     expect(main).toMatch(/icon: join\(ROOT_PATH\.dist, 'pwa-512x512\.png'\)/)
-    expect(main).not.toMatch(/navilync\.ico/)
+    expect(main).not.toMatch(/icon: .*navilync\.ico/)
   })
 
   test('the exe gets navilync.ico, and the Windows build checks that it is really in NaviLync.exe', () => {

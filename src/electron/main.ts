@@ -35,8 +35,9 @@ let displaySleepPowerSaveBlockerId: number | undefined
  */
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    // Windows shows the window and taskbar icon from an .ico best (several sizes in one file)
-    icon: join(ROOT_PATH.dist, process.platform === 'win32' ? 'navilync.ico' : 'pwa-512x512.png'),
+    // A PNG also on Windows: a window .ico is read there by a system call that cannot look inside app.asar, so the
+    // window could be left without an icon of its own, while a PNG loads from it. The exe carries navilync.ico.
+    icon: join(ROOT_PATH.dist, 'pwa-512x512.png'),
     backgroundColor: '#333333',
     webPreferences: {
       preload: join(ROOT_PATH.dist, 'electron/preload.js'),
@@ -142,6 +143,8 @@ app.whenReady().then(async () => {
 
   console.log('Electron app is ready.')
   console.log(`NaviLync version: ${app.getVersion()}`)
+  // Profiles and settings live here; it must stay the same between versions
+  console.log(`User data folder: ${app.getPath('userData')}`)
 
   // Inject a Referer header for OSM tile requests before the first tile is fetched, so the
   // standalone build (loaded from file://) complies with the OSM tile usage policy.
