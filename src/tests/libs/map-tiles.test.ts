@@ -1,9 +1,10 @@
+import { bounds, point } from 'leaflet'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { defaultBoatProfileHash, widgetProfiles } from '@/assets/defaults'
-import { esriWorldImageryTileUrl, initialTileProvider, osmTileUrl } from '@/libs/map-tiles'
+import { esriWorldImageryTileUrl, initialTileProvider, osmTileLayerOffline, osmTileUrl } from '@/libs/map-tiles'
 import { WidgetType } from '@/types/widgets'
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), 'utf8')
@@ -55,6 +56,54 @@ describe('map tile sources', () => {
   // The planner added an OSM layer over whichever base map was chosen, so Esri never showed there
   test('the planner does not draw OSM over the chosen base map', () => {
     expect(read('src/views/MissionPlanningView.vue')).not.toMatch(/L\.tileLayer\(\s*osmTileUrl|L\.tileLayer\('https/)
+  })
+})
+
+// Review of #37: tiles saved offline before the URL change are keyed by https://a.tile.openstreetmap.org/...
+describe('offline OSM tiles saved with the old {s}.tile URL', () => {
+  const layer = osmTileLayerOffline({ maxZoom: 23, maxNativeZoom: 19 }) as unknown as {
+    /**
+     *
+     */
+    _getStorageKey: (coords: {
+      /**
+       *
+       */
+      x: number
+      /**
+       *
+       */
+      y: number
+      /**
+       *
+       */
+      z: number
+    }) => string
+    /**
+     *
+     */
+    getTileUrls: (area: ReturnType<typeof bounds>, zoom: number) => Record<string, unknown>[]
+  }
+
+  test('the map looks a tile up under the key the old builds stored it with', () => {
+    expect(layer._getStorageKey({ x: 9, y: 4, z: 5 })).toBe('https://a.tile.openstreetmap.org/5/9/4.png')
+  })
+
+  test('new tiles are saved under the same old key and template but downloaded from tile.openstreetmap.org', () => {
+    const tiles = layer.getTileUrls(bounds(point(0, 0), point(300, 300)), 3)
+    expect(tiles.length).toBeGreaterThan(0)
+    tiles.forEach((tile) => {
+      expect(tile.key).toBe(`https://a.tile.openstreetmap.org/${tile.z}/${tile.x}/${tile.y}.png`)
+      expect(tile.url).toBe(`https://tile.openstreetmap.org/${tile.z}/${tile.x}/${tile.y}.png`)
+      expect(tile.urlTemplate).toBe('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+    })
+  })
+
+  test('the map widget and the planner use this layer for OSM', () => {
+    for (const file of ['src/components/widgets/Map.vue', 'src/views/MissionPlanningView.vue']) {
+      expect(read(file)).toMatch(/osmTileLayerOffline\(/)
+      expect(read(file)).not.toMatch(/tileLayerOffline\(osmTileUrl/)
+    }
   })
 })
 
