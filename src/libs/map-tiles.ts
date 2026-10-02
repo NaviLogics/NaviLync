@@ -28,7 +28,8 @@ export const osmTileLayerOffline = (options: TileLayerOptions): TileLayerOffline
 export const esriWorldImageryTileUrl =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
-export const esriAttribution = ''
+// Esri asks for this credit wherever its imagery is shown
+export const esriAttribution = 'Powered by Esri | Esri, Maxar, Earthstar Geographics'
 
 /**
  * The Esri World Imagery base map, with the attribution Esri requires
@@ -36,7 +37,7 @@ export const esriAttribution = ''
  * @returns {TileLayerOffline} The Esri layer
  */
 export const esriTileLayerOffline = (options: TileLayerOptions): TileLayerOffline =>
-  tileLayerOffline(esriWorldImageryTileUrl, options)
+  tileLayerOffline(esriWorldImageryTileUrl, { ...options, attribution: esriAttribution })
 
 /**
  * The base map a map opens with
@@ -47,4 +48,4 @@ export const esriTileLayerOffline = (options: TileLayerOptions): TileLayerOfflin
 export const initialTileProvider = (
   widgetChoice: MapTileProvider | undefined,
   userLastChoice: MapTileProvider | undefined
-): MapTileProvider => widgetChoice ?? userLastChoice ?? 'Esri World Imagery'
+): MapTileProvider => widgetChoice ?? userLastChoice ?? 'OpenStreetMap'

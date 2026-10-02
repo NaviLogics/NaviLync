@@ -706,7 +706,7 @@ export const widgetProfiles: Profile[] = [
               height: 1,
             },
             options: {
-              tileProvider: 'Esri World Imagery',
+              tileProvider: 'OpenStreetMap',
               showVehiclePath: true,
             },
           },

@@ -564,7 +564,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { format } from 'date-fns'
 import { saveAs } from 'file-saver'
 import L, { type LatLngTuple, LayersControlEvent, LeafletMouseEvent, Map, Marker, Polygon } from 'leaflet'
-import { SaveStatus, savetiles, tileLayerOffline } from 'leaflet.offline'
+import { SaveStatus, savetiles } from 'leaflet.offline'
 import { v4 as uuid } from 'uuid'
 import { type InstanceType, computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -588,7 +588,7 @@ import {
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
 import { MavAutopilot, MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { esriWorldImageryTileUrl, osmTileLayerOffline } from '@/libs/map-tiles'
+import { esriTileLayerOffline, osmTileLayerOffline } from '@/libs/map-tiles'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
 import { missionCheckMessages, missionCheckText } from '@/libs/mission/mission-check-text'
 import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
@@ -3228,10 +3228,9 @@ onMounted(async () => {
     maxNativeZoom: 19,
     attribution: '© OpenStreetMap',
   })
-  const esri = tileLayerOffline(esriWorldImageryTileUrl, {
+  const esri = esriTileLayerOffline({
     maxZoom: 23,
     maxNativeZoom: 19,
-    attribution: '© Esri World Imagery',
   })
 
   const baseMaps = {
@@ -3239,7 +3238,7 @@ onMounted(async () => {
     'Esri World Imagery': esri,
   }
 
-  const initialBaseLayer = baseMaps[missionStore.userLastMapTileProvider] || esri
+  const initialBaseLayer = baseMaps[missionStore.userLastMapTileProvider] || osm
 
   planningMap.value = L.map('planningMap', { layers: [initialBaseLayer] }).setView(
     mapCenter.value as LatLngTuple,

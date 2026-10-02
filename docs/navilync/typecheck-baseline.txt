@@ -312,8 +312,8 @@ src/components/widgets/Map.vue(142,19) TS2339
 src/components/widgets/Map.vue(149,19) TS2339
 src/components/widgets/Map.vue(171,8) TS2339
 src/components/widgets/Map.vue(193,10) TS2339
-src/components/widgets/Map.vue(497,15) TS2540
-src/components/widgets/Map.vue(1464,38) TS2345
+src/components/widgets/Map.vue(496,15) TS2540
+src/components/widgets/Map.vue(1462,38) TS2345
 src/components/widgets/NavisAtlasStatus.vue(40,37) TS2339
 src/components/widgets/Plotter.vue(6,8) TS2339
 src/components/widgets/Plotter.vue(13,13) TS2339
@@ -447,5 +447,5 @@ src/views/ConfigurationUIView.vue(194,22) TS2551
 src/views/ConfigurationUIView.vue(199,28) TS2551
 src/views/MissionPlanningView.vue(569,15) TS2305
 src/views/MissionPlanningView.vue(2934,31) TS2345
-src/views/MissionPlanningView.vue(3627,38) TS2345
+src/views/MissionPlanningView.vue(3626,38) TS2345
 src/views/WidgetsView.vue(67,11) TS7053
