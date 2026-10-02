@@ -28,6 +28,16 @@ export const osmTileLayerOffline = (options: TileLayerOptions): TileLayerOffline
 export const esriWorldImageryTileUrl =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
+export const esriAttribution = ''
+
+/**
+ * The Esri World Imagery base map, with the attribution Esri requires
+ * @param {TileLayerOptions} options - Leaflet tile layer options
+ * @returns {TileLayerOffline} The Esri layer
+ */
+export const esriTileLayerOffline = (options: TileLayerOptions): TileLayerOffline =>
+  tileLayerOffline(esriWorldImageryTileUrl, options)
+
 /**
  * The base map a map opens with
  * @param {MapTileProvider | undefined} widgetChoice - The base map stored in the map widget (in the profile)

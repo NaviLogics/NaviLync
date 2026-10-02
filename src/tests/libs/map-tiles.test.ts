@@ -1,10 +1,17 @@
-import { bounds, point } from 'leaflet'
+import { bounds, map as leafletMap, point } from 'leaflet'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { defaultBoatProfileHash, widgetProfiles } from '@/assets/defaults'
-import { esriWorldImageryTileUrl, initialTileProvider, osmTileLayerOffline, osmTileUrl } from '@/libs/map-tiles'
+import {
+  esriAttribution,
+  esriTileLayerOffline,
+  esriWorldImageryTileUrl,
+  initialTileProvider,
+  osmTileLayerOffline,
+  osmTileUrl,
+} from '@/libs/map-tiles'
 import { WidgetType } from '@/types/widgets'
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), 'utf8')
@@ -107,12 +114,13 @@ describe('offline OSM tiles saved with the old {s}.tile URL', () => {
   })
 })
 
-describe('the Navis profile opens on Esri World Imagery', () => {
-  test('the map widget of the Navis profile is set to Esri World Imagery', () => {
+// Decision on the review of #37: OSM by default everywhere, Esri only when the operator picks it
+describe('base maps: OSM by default, Esri on the operator choice', () => {
+  test('the map widget of the Navis profile is set to OpenStreetMap', () => {
     const navis = widgetProfiles.find((profile) => profile.hash === defaultBoatProfileHash)
     const maps = navis?.views.flatMap((view) => view.widgets).filter((widget) => widget.component === WidgetType.Map)
     expect(maps?.length).toBeGreaterThan(0)
-    maps?.forEach((map) => expect(map.options.tileProvider).toBe('Esri World Imagery'))
+    maps?.forEach((map) => expect(map.options.tileProvider).toBe('OpenStreetMap'))
   })
 
   test('a map opens on the base map of its widget, whatever was last picked on another map', () => {
@@ -120,14 +128,51 @@ describe('the Navis profile opens on Esri World Imagery', () => {
     expect(initialTileProvider('OpenStreetMap', 'Esri World Imagery')).toBe('OpenStreetMap')
   })
 
-  test('a widget without its own choice (older profiles) keeps the last picked one, else Esri', () => {
-    expect(initialTileProvider(undefined, 'OpenStreetMap')).toBe('OpenStreetMap')
-    expect(initialTileProvider(undefined, undefined)).toBe('Esri World Imagery')
+  test('a widget without its own choice (older profiles) keeps the last picked one, else OSM', () => {
+    expect(initialTileProvider(undefined, 'Esri World Imagery')).toBe('Esri World Imagery')
+    expect(initialTileProvider(undefined, undefined)).toBe('OpenStreetMap')
+  })
+
+  test('nothing picked yet: the planner and the flight map fall back to OSM, not Esri', () => {
+    expect(read('src/stores/mission.ts')).toMatch(/'cockpit-user-last-map-tile-provider',\s*'OpenStreetMap'/)
+    for (const file of ['src/components/widgets/Map.vue', 'src/views/MissionPlanningView.vue']) {
+      expect(read(file)).not.toMatch(/\|\| esri\b/)
+    }
   })
 
   test('the flight map uses it and keeps the operator choice in the widget', () => {
     const map = read('src/components/widgets/Map.vue')
     expect(map).toMatch(/initialTileProvider\(widget\.value\.options\.tileProvider/)
     expect(map).toMatch(/widget\.value\.options\.tileProvider = /)
+  })
+})
+
+describe('Esri attribution', () => {
+  test('the Esri layer carries «Powered by Esri | Esri, Maxar, Earthstar Geographics»', () => {
+    expect(esriAttribution).toBe('Powered by Esri | Esri, Maxar, Earthstar Geographics')
+    expect(esriTileLayerOffline({ maxZoom: 23 }).getAttribution?.()).toBe(esriAttribution)
+  })
+
+  test('the attribution control shows it while Esri is the base map, and not once OSM is picked', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const osm = osmTileLayerOffline({ maxZoom: 23, attribution: '© OpenStreetMap' })
+    const esri = esriTileLayerOffline({ maxZoom: 23 })
+    const map = leafletMap(container, { layers: [esri] }).setView([55.93, 37.38], 15)
+    const text = (): string => container.querySelector('.leaflet-control-attribution')?.textContent ?? ''
+
+    expect(text()).toContain('Powered by Esri | Esri, Maxar, Earthstar Geographics')
+    map.removeLayer(esri)
+    map.addLayer(osm)
+    expect(text()).not.toContain('Esri')
+    expect(text()).toContain('© OpenStreetMap')
+    map.remove()
+  })
+
+  test('the flight map and the planner use this layer and show the attribution control', () => {
+    for (const file of ['src/components/widgets/Map.vue', 'src/views/MissionPlanningView.vue']) {
+      expect(read(file)).toMatch(/esriTileLayerOffline\(/)
+      expect(read(file)).not.toMatch(/attributionControl: false/)
+    }
   })
 })
