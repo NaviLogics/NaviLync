@@ -191,6 +191,17 @@
             max="359"
           />
           <div class="survey-form flex flex-col">
+            <div class="flex items-center justify-between mx-2">
+              <p class="m-1 text-xs text-slate-200">{{ $t('surveyForm.transitSpeed') }}</p>
+              <input
+                v-model.number="missionStore.defaultCruiseSpeed"
+                class="w-16 px-2 py-[2px] m-1 rounded-sm bg-[#FFFFFF22] text-sm"
+                type="number"
+                min="0.3"
+                max="5"
+                step="0.1"
+              />
+            </div>
             <div v-for="field in surveyFormFields" :key="field.key" class="flex items-center justify-between mx-2">
               <p class="m-1 text-xs text-slate-200">{{ $t(`surveyForm.${field.key}`) }}</p>
               <input
@@ -220,6 +231,7 @@
             <p v-if="surveyPreview.lineOrder.narrowTurns > 0" class="text-yellow-300">
               {{ $t('surveyForm.narrowTurns', { count: surveyPreview.lineOrder.narrowTurns }) }}
             </p>
+            <p v-if="surveyPreview.nonConvex" class="text-yellow-300">{{ $t('surveyForm.nonConvex') }}</p>
           </div>
           <button
             :class="{
@@ -2264,7 +2276,8 @@ const createSurveyPath = (): void => {
   try {
     const plan = planSurvey(
       surveyPolygonVertexesPositions.value.map((latLng) => [latLng.lat, latLng.lng] as WaypointCoordinates),
-      currentSurveyParameters()
+      currentSurveyParameters(),
+      Number(missionStore.defaultCruiseSpeed)
     )
 
     if (plan.waypoints.length === 0) {
@@ -2307,7 +2320,7 @@ watch(
 // Watch for changes in distanceBetweenSurveyLines and surveyLinesAngle
 watch([distanceBetweenSurveyLines, surveyLinesAngle], () => createSurveyPath())
 watch(
-  () => ({ ...missionStore.surveyParameters }),
+  () => [{ ...missionStore.surveyParameters }, missionStore.defaultCruiseSpeed],
   () => createSurveyPath()
 )
 
@@ -2335,7 +2348,6 @@ const surveyFormFields: {
   { key: 'lineSpeed', min: 0.3, max: 3, step: 0.1 },
   { key: 'brakeSpeed', min: 0.1, max: 1, step: 0.1 },
   { key: 'holdSeconds', min: 0, max: 10, step: 1 },
-  { key: 'transitSpeed', min: 0.3, max: 5, step: 0.1 },
   { key: 'turnRadius', min: 0.5, max: 5, step: 0.5 },
   { key: 'lineRadius', min: 0.5, max: 5, step: 0.5 },
 ]
@@ -2486,7 +2498,7 @@ const generateWaypointsFromSurvey = (): void => {
   }
 
   const parameters = currentSurveyParameters()
-  const plan = planSurvey(polygonCoordinates, parameters)
+  const plan = planSurvey(polygonCoordinates, parameters, Number(missionStore.defaultCruiseSpeed))
 
   if (!plan.waypoints.length) {
     showDialog({
@@ -2502,9 +2514,6 @@ const generateWaypointsFromSurvey = (): void => {
     altitude: currentWaypointAltitude.value,
     altitudeReferenceType: currentWaypointAltitudeRefType.value,
   }))
-  // The mission starts at the transit speed, to the area and from it
-  missionStore.defaultCruiseSpeed = parameters.transitSpeed
-
   missionStore.currentPlanningWaypoints.push(...newSurveyWaypoints)
 
   const newSurvey: Survey = {
@@ -2621,7 +2630,7 @@ const regenerateSurveyWaypoints = (angle?: number): void => {
       lineSpacing: survey.distanceBetweenLines,
       linesAngle: (angle || survey.surveyLinesAngle) % 180,
     }
-    const plan = planSurvey(survey.polygonCoordinates, parameters)
+    const plan = planSurvey(survey.polygonCoordinates, parameters, Number(missionStore.defaultCruiseSpeed))
 
     if (!plan.waypoints.length) {
       openSnackbar({

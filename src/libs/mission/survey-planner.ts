@@ -29,8 +29,6 @@ export interface SurveyParameters {
   brakeSpeed: number
   /** Hold at the turn points `t_hold`, in s */
   holdSeconds: number
-  /** Speed to and from the area `v_transit`, in m/s */
-  transitSpeed: number
   /** Acceptance radius of the turn points `r_turn`, in m */
   turnRadius: number
   /** Acceptance radius of the points at the ends of the lines `r_line`, in m */
@@ -95,7 +93,6 @@ export const defaultSurveyParameters = (lineSpacing = 5): SurveyParameters => ({
   lineSpeed: 1.5,
   brakeSpeed: 0.3,
   holdSeconds: 3,
-  transitSpeed: 2,
   turnRadius: 1,
   lineRadius: 1,
 })
@@ -190,11 +187,35 @@ export const skipLineOrder = (lineCount: number, lineSpacing: number, minTurnWid
 
 const EARTH_RADIUS = 6_371_008.8
 
+// The approach point: wide enough to be reached from any side, and far enough from R to brake from v_transit
+const APPROACH_MIN_RADIUS = 3
+// A rough braking estimate for the boat, in m/s²
+const APPROACH_DECELERATION = 1
+
+/**
+ * Whether a polygon is convex; vertices on a straight edge are allowed
+ * @param {[number, number][]} points - The vertices, in a metric frame, in order
+ * @returns {boolean} True if no vertex turns the other way
+ */
+const isConvex = (points: [number, number][]): boolean => {
+  let sign = 0
+  for (let i = 0; i < points.length; i++) {
+    const [a, b, c] = [points[i], points[(i + 1) % points.length], points[(i + 2) % points.length]]
+    const cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])
+    // Square metres: a vertex off a straight edge by millimetres is still on it
+    if (Math.abs(cross) < 1e-3) continue
+    if (sign !== 0 && Math.sign(cross) !== sign) return false
+    sign = Math.sign(cross)
+  }
+  return true
+}
+
 /**
  * Plan a survey of an area
  * @param {WaypointCoordinates[]} polygon - The area, as [lat, lon] vertices
  * @param {SurveyParameters} parameters - The survey form
- * @param {number} [transitSpeed] - The mission cruise speed `v_transit`, in m/s, the vehicle comes to the area at
+ * @param {number} [transitSpeed] - The mission cruise speed `v_transit`, in m/s, the vehicle comes to the area at; the
+ * approach point is far enough before the first run-in to brake from it
  * @returns {SurveyPlan} The mission items, the lines and the totals
  */
 export const planSurvey = (
@@ -203,8 +224,6 @@ export const planSurvey = (
   transitSpeed = 0
 ): SurveyPlan => {
   const p = parameters
-  // Stub until the approach depends on it
-  void transitSpeed
   const empty: SurveyPlan = {
     waypoints: [],
     kinds: [],
@@ -240,13 +259,13 @@ export const planSurvey = (
   const toPoint = (a: number, c: number): WaypointCoordinates =>
     toGeo(a * along[0] + c * across[0], a * along[1] + c * across[1])
 
-  // Lines: the first s/2 inside the area, then every s while still s/2 inside, so each covers ±s/2
+  // Lines: as many as it takes for their ±s/2 to cover the width, centred, so no strip is left out at either side
   const cs = vertices.map((v) => v.c)
   const [cMin, cMax] = [Math.min(...cs), Math.max(...cs)]
   // A thousandth of the spacing of tolerance: the width of a drawn area is never exact
-  const rowCount = Math.floor((cMax - cMin) / p.lineSpacing + 1e-3)
-  const rows = [...Array(rowCount).keys()].map((i) => cMin + p.lineSpacing / 2 + i * p.lineSpacing)
-  if (rows.length === 0) rows.push((cMin + cMax) / 2)
+  const rowCount = Math.max(1, Math.ceil((cMax - cMin) / p.lineSpacing - 1e-3))
+  const cMid = (cMin + cMax) / 2
+  const rows = [...Array(rowCount).keys()].map((i) => cMid + (i - (rowCount - 1) / 2) * p.lineSpacing)
 
   // Each row cut by the area; a non-convex area may cut a row into several lines
   const segments: {
@@ -322,8 +341,13 @@ export const planSurvey = (
     const forward = j % 2 === 0
     const direction = forward ? 1 : -1
     const [start, end] = forward ? [from, to] : [to, from]
-    if (j === 0)
-      add('approach', start - direction * (p.runIn + p.runOut), c, [nav(0, p.lineRadius), speed(p.brakeSpeed)])
+    if (j === 0) {
+      const approachDistance = Math.max(p.runOut, transitSpeed ** 2 / (2 * APPROACH_DECELERATION))
+      add('approach', start - direction * (p.runIn + approachDistance), c, [
+        nav(0, Math.max(APPROACH_MIN_RADIUS, p.turnRadius)),
+        speed(p.brakeSpeed),
+      ])
+    }
     add('runInStart', start - direction * p.runIn, c, [nav(p.holdSeconds, p.turnRadius), speed(p.lineSpeed)])
     add('lineStart', start, c, [nav(0, p.lineRadius)])
     add('lineEnd', end, c, [nav(0, p.lineRadius), speed(p.brakeSpeed)])
@@ -352,7 +376,7 @@ export const planSurvey = (
     kinds,
     lines: segments.map(({ c, from, to }) => [toPoint(from, c), toPoint(to, c)]),
     lineOrder,
-    nonConvex: false,
+    nonConvex: !isConvex(polygon.map(toLocal)),
     stats: {
       lineCount: segments.length,
       lineLength: segments.reduce((sum, { from, to }) => sum + (to - from), 0),

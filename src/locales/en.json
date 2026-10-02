@@ -1659,11 +1659,12 @@
     "lineSpeed": "Speed on the lines, m/s",
     "brakeSpeed": "Speed at the turn points, m/s",
     "holdSeconds": "Hold at a turn point, s",
-    "transitSpeed": "Transit speed, m/s",
+    "transitSpeed": "Transit speed (the mission cruise speed), m/s",
     "turnRadius": "Turn point acceptance radius, m",
     "lineRadius": "Line end acceptance radius, m",
     "summary": "Lines: {lines} · lines {lineLength} m · route {total} m · ≈ {minutes} min",
     "skipLine": "line skipping: k = {k}",
-    "narrowTurns": "Turns narrower than the minimum: {count}"
+    "narrowTurns": "Turns narrower than the minimum: {count}",
+    "nonConvex": "The area is not convex: lines may be cut, with turns of no width between the parts. Split the area into convex parts."
   }
 }
