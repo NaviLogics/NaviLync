@@ -51,3 +51,8 @@ export const setAutopilotRebootGuard = (isAllowed: () => boolean): void => {
  */
 export const isBlockedAutopilotReboot = (message: OutgoingMessage): boolean =>
   isAutopilotRebootCommand(message) && !isRebootAllowedNow()
+
+/**
+ * A reboot command held back because the vehicle is not known to be disarmed
+ */
+export class AutopilotRebootBlockedError extends Error {}

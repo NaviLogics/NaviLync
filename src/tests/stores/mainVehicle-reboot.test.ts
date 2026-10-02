@@ -65,4 +65,27 @@ describe('main vehicle store: autopilot reboot', () => {
     expect(send).toHaveBeenCalledWith(MavCmd.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN, 1)
     expect(isBlockedAutopilotReboot(reboot)).toBe(false)
   })
+
+  // Review of #36: after the link is lost the store no longer knows whether the vehicle is armed
+  test('disarmed, then the link is lost (isArmed undefined): the reboot is refused again', async () => {
+    const [vehicle, store] = setup()
+    const send = vi.spyOn(vehicle, 'sendCommandLong').mockResolvedValue(undefined)
+    vehicle.onArm.emit_value(false)
+    expect(isBlockedAutopilotReboot(reboot)).toBe(false)
+
+    // jsdom rejects the CustomEvent the store dispatches on going offline (not an Event of its realm), which would stop
+    // the store's offline handler in this test only; the app runs it in Chromium
+    vi.spyOn(globalThis, 'dispatchEvent').mockImplementation(() => true)
+    store.lastHeartbeat = new Date()
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(store.isVehicleOnline).toBe(true)
+    store.lastHeartbeat = new Date(Date.now() - 10_000)
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    expect(store.isVehicleOnline).toBe(false)
+    expect(store.isArmed).toBeUndefined()
+    await expect(store.rebootAutopilot()).rejects.toThrow()
+    expect(send).not.toHaveBeenCalled()
+    expect(isBlockedAutopilotReboot(reboot)).toBe(true)
+  })
 })
