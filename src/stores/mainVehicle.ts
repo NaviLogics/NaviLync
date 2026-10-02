@@ -36,12 +36,16 @@ import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-messag
 import eventTracker from '@/libs/external-telemetry/event-tracking'
 import { availableCockpitActions, registerActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { MavlinkManualControlManager } from '@/libs/joystick/protocols/mavlink-manual-control'
+import { type LinkHealth, type LinkOutage, linkHealth, LinkOutageJournal } from '@/libs/link-health'
+import type { VehicleMissionParameters } from '@/libs/mission/mission-validation'
 import { canByPassCategory, EventCategory, slideToConfirm } from '@/libs/slide-to-confirm'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
 import { CustomMode } from '@/libs/vehicle/ardupilot/ardurover'
+import { isAutopilotRebootAllowed, setAutopilotRebootGuard } from '@/libs/vehicle/autopilot-reboot'
 import { defaultMessageIntervalsOptions } from '@/libs/vehicle/mavlink/defaults'
 import type { MAVLinkParameterSetData, MessageIntervalOptions } from '@/libs/vehicle/mavlink/types'
 import { MAVLINK_MESSAGE_INTERVALS_STORAGE_KEY } from '@/libs/vehicle/mavlink/vehicle'
+import { requestParametersWithRetry } from '@/libs/vehicle/parameter-retry'
 import * as Protocol from '@/libs/vehicle/protocol/protocol'
 import type {
   Altitude,
@@ -158,6 +162,10 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const velocity: Velocity = reactive({} as Velocity)
   const mainVehicle = ref<ArduPilot | undefined>(undefined)
   const isArmed = ref<boolean | undefined>(undefined)
+  // Vehicle parameters for the mission check before upload, read when the vehicle comes online
+  const missionCheckParameters = reactive<VehicleMissionParameters>({})
+  let stopMissionCheckParameterRequests: (() => void) | undefined = undefined
+  setAutopilotRebootGuard(() => isAutopilotRebootAllowed(isArmed.value))
   // HOME exactly as the autopilot reports it in HOME_POSITION. It is never assigned from the UI: the only way to change
   // it is `setHomeWaypoint`, and even then the value changes only when the vehicle reports its new HOME.
   const homePosition = ref<VehicleHomePosition | undefined>(undefined)
@@ -241,6 +249,19 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     return lastHeartbeat.value !== undefined && new Date(timeNow.value).getTime() - lastHeartbeat.value.getTime() < 5000
   })
 
+  // How long ago the last autopilot HEARTBEAT arrived; PX4 gives the GCS up after COM_DL_LOSS_T = 5 s without one
+  const heartbeatAgeMs = computed((): number | undefined =>
+    lastHeartbeat.value === undefined ? undefined : new Date(timeNow.value).getTime() - lastHeartbeat.value.getTime()
+  )
+  const linkHealthState = computed((): LinkHealth => linkHealth(heartbeatAgeMs.value))
+
+  // The losses of the link in this session, with the mode and arming of the moment the link went bad
+  const linkOutageJournal = reactive(new LinkOutageJournal())
+  const linkOutages = computed((): LinkOutage[] => linkOutageJournal.outages)
+  watch(timeNow, (now) => {
+    linkOutageJournal.update(now, lastHeartbeat.value?.getTime(), { mode: mode.value, armed: isArmed.value })
+  })
+
   /**
    * True when a vehicle was online in this session (heartbeats received) and is now offline. Use for
    * alarming disconnection UI; omit when the user never established a link this session.
@@ -253,9 +274,21 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   watch(isVehicleOnline, (isOnline) => {
     if (isOnline) {
       hasVehicleBeenOnlineThisSession.value = true
+      // The mission check before upload needs them; they come back as PARAM_VALUE, unless lost on the link
+      delete missionCheckParameters.speedLimit
+      delete missionCheckParameters.acceptanceRadius
+      stopMissionCheckParameterRequests?.()
+      stopMissionCheckParameterRequests = requestParametersWithRetry(
+        (name) => mainVehicle.value?.requestParameter(name),
+        ['RO_SPEED_LIM', 'NAV_ACC_RAD'],
+        (name) =>
+          (name === 'RO_SPEED_LIM' ? missionCheckParameters.speedLimit : missionCheckParameters.acceptanceRadius) !==
+          undefined
+      )
       dispatchEvent(new CustomEvent('vehicle-online', { detail: { vehicleAddress: globalAddress.value } }))
       return
     }
+    stopMissionCheckParameterRequests?.()
     dispatchEvent(new CustomEvent('vehicle-offline'))
     currentlyConnectedVehicleId.value = undefined
     isArmed.value = undefined
@@ -356,6 +389,22 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     }
 
     await mainVehicle.value.disarm()
+  }
+
+  /**
+   * Reboot the autopilot (MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN), only for a disarmed vehicle
+   * @returns {Promise<void>} Resolves when the command is acknowledged; rejects for an armed vehicle
+   */
+  async function rebootAutopilot(): Promise<void> {
+    if (!mainVehicle.value) {
+      throw new Error('No vehicle available to reboot.')
+    }
+    if (!isAutopilotRebootAllowed(isArmed.value)) {
+      throw new Error('The autopilot can only be rebooted with the vehicle disarmed.')
+    }
+
+    // param1 1: reboot the autopilot
+    await mainVehicle.value.sendCommandLong(MavCmd.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN, 1)
   }
 
   /**
@@ -742,6 +791,10 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     })
     mainVehicle.value.onStatusGPS.add((newStatusGPS: StatusGPS) => {
       Object.assign(statusGPS, newStatusGPS)
+    })
+    mainVehicle.value.onParameter.add(([parameter]) => {
+      if (parameter.name === 'RO_SPEED_LIM') missionCheckParameters.speedLimit = parameter.value
+      if (parameter.name === 'NAV_ACC_RAD') missionCheckParameters.acceptanceRadius = parameter.value
     })
     mainVehicle.value.onMissionItemReached.add((sequence: number) => {
       markMissionItemAsReached(sequence)
@@ -1133,6 +1186,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     changeAlt,
     land,
     disarm,
+    rebootAutopilot,
     goTo,
     modesAvailable,
     setFlightMode,
@@ -1174,6 +1228,10 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     isArmed,
     flying,
     isVehicleOnline,
+    missionCheckParameters,
+    heartbeatAgeMs,
+    linkHealthState,
+    linkOutages,
     isVehicleConnectionLost,
     icon,
     configurationPages,

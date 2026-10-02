@@ -9,7 +9,9 @@ import { openSnackbar } from '@/composables/snackbar'
 import { askForUsername } from '@/composables/usernamePrompDialog'
 import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { currentMarkerNumber } from '@/libs/mission/mission-sequence'
+import { type SurveyParameters, defaultSurveyParameters } from '@/libs/mission/survey-planner'
 import { eventCategoriesDefaultMapping } from '@/libs/slide-to-confirm'
+import { i18n } from '@/plugins/i18n'
 import {
   AltitudeReferenceType,
   MapTileProvider,
@@ -57,6 +59,11 @@ export const useMissionStore = defineStore('mission', () => {
   const showGridOnMissionPlanning = useBlueOsStorage('cockpit-show-grid-on-mission-planning', false)
   const showMissionEstimates = useBlueOsStorage('cockpit-show-mission-estimates', true)
   const defaultCruiseSpeed = useBlueOsStorage<number>('cockpit-default-cruise-speed', 1)
+  // The survey form of release 1.0 (run-ins, stops, speeds); spacing and angle are set on the map
+  const surveyParameters = useBlueOsStorage<Omit<SurveyParameters, 'lineSpacing' | 'linesAngle'>>(
+    'cockpit-survey-parameters',
+    defaultSurveyParameters()
+  )
   const userLastMapTileProvider = useBlueOsStorage<MapTileProvider>(
     'cockpit-user-last-map-tile-provider',
     'Esri World Imagery'
@@ -475,6 +482,12 @@ export const useMissionStore = defineStore('mission', () => {
     return currentWaypointOnMission.value < navigationSequence.length - 1
   })
 
+  // A command that timed out or was rejected must not look like it worked: the callers only get false
+  const reportCommandFailure = (error: unknown): void => {
+    const message = error instanceof Error ? error.message : String(error)
+    openSnackbar({ message: i18n.global.t('linkHealth.commandFailed', { error: message }), variant: 'error' })
+  }
+
   const skipToWaypoint = async (delta: number): Promise<boolean> => {
     const navigationSequence = navMissionSeqByWaypointIndex.value
     const currentWp = currentWpIndex.value
@@ -490,6 +503,7 @@ export const useMissionStore = defineStore('mission', () => {
     try {
       await mainVehicleStore.setMissionCurrent(targetSeq)
     } catch (err) {
+      reportCommandFailure(err)
       return false
     }
 
@@ -503,6 +517,7 @@ export const useMissionStore = defineStore('mission', () => {
       await mainVehicleStore.setMissionCurrent(1)
       return true
     } catch (err) {
+      reportCommandFailure(err)
       return false
     }
   }
@@ -513,6 +528,7 @@ export const useMissionStore = defineStore('mission', () => {
       await mainVehicleStore.startMission()
       return true
     } catch (error) {
+      reportCommandFailure(error)
       return false
     }
   }
@@ -644,6 +660,7 @@ export const useMissionStore = defineStore('mission', () => {
     removeCommandFromWaypoint,
     updateWaypointCommand,
     defaultCruiseSpeed,
+    surveyParameters,
     userLastMapTileProvider,
     followVehicleOnMap,
     stopMission,

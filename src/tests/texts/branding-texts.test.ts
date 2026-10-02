@@ -64,10 +64,17 @@ describe('the texts are wired where they are shown (branding, items 3-5)', () =>
     expect(read('src/components/mini-widgets/Clock.vue')).toMatch(/formatClockDateTime\(/)
   })
 
-  test('the generic indicator translates the built-in name and unit and hides a GPS speed without a fix', () => {
+  test('the generic indicator translates the built-in name and unit', () => {
     const indicator = read('src/components/mini-widgets/VeryGenericIndicator.vue')
     expect(indicator).toMatch(/indicatorDisplayName\(/)
     expect(indicator).toMatch(/indicatorDisplayUnit\(/)
-    expect(indicator).toMatch(/isGpsSpeedShowable\(/)
+  })
+
+  // Release 1.0, task 3
+  test('a GPS speed indicator shows GPS_RAW_INT.vel, with the EKF speed in its tooltip', () => {
+    const indicator = read('src/components/mini-widgets/VeryGenericIndicator.vue')
+    expect(indicator).toMatch(/gnssSpeedReading\(/)
+    expect(indicator).toMatch(/GPS_RAW_INT\/vel/)
+    expect(indicator).toMatch(/:title="[^"]*ekf/i)
   })
 })

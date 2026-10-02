@@ -28,7 +28,9 @@
             v-model.number="distanceBetweenSurveyLines"
             class="rounded-lg bg-[#333333EE] text-white w-12 pl-2 pa-0"
             type="number"
-            min="1"
+            min="0.5"
+            max="50"
+            step="0.5"
           />
         </div>
       </template>
@@ -176,7 +178,9 @@
             v-model.number="distanceBetweenSurveyLines"
             class="px-2 py-1 m-1 mx-5 rounded-sm bg-[#FFFFFF22]"
             type="number"
-            min="1"
+            min="0.5"
+            max="50"
+            step="0.5"
           />
           <p class="m-1 overflow-visible text-sm text-slate-200">{{ $t('missionPlanning.linesAngle') }}</p>
           <input
@@ -186,6 +190,49 @@
             min="0"
             max="359"
           />
+          <div class="survey-form flex flex-col">
+            <div class="flex items-center justify-between mx-2">
+              <p class="m-1 text-xs text-slate-200">{{ $t('surveyForm.transitSpeed') }}</p>
+              <input
+                v-model.number="missionStore.defaultCruiseSpeed"
+                class="w-16 px-2 py-[2px] m-1 rounded-sm bg-[#FFFFFF22] text-sm"
+                type="number"
+                min="0.3"
+                max="5"
+                step="0.1"
+              />
+            </div>
+            <div v-for="field in surveyFormFields" :key="field.key" class="flex items-center justify-between mx-2">
+              <p class="m-1 text-xs text-slate-200">{{ $t(`surveyForm.${field.key}`) }}</p>
+              <input
+                v-model.number="missionStore.surveyParameters[field.key]"
+                class="w-16 px-2 py-[2px] m-1 rounded-sm bg-[#FFFFFF22] text-sm"
+                type="number"
+                :min="field.min"
+                :max="field.max"
+                :step="field.step"
+              />
+            </div>
+          </div>
+          <div v-if="surveyPreview" class="survey-summary mx-3 my-1 text-xs text-slate-200">
+            <p>
+              {{
+                $t('surveyForm.summary', {
+                  lines: surveyPreview.stats.lineCount,
+                  lineLength: Math.round(surveyPreview.stats.lineLength),
+                  total: Math.round(surveyPreview.stats.totalLength),
+                  minutes: Math.ceil(surveyPreview.stats.durationSeconds / 60),
+                })
+              }}
+            </p>
+            <p v-if="surveyPreview.lineOrder.k > 1">
+              {{ $t('surveyForm.skipLine', { k: surveyPreview.lineOrder.k }) }}
+            </p>
+            <p v-if="surveyPreview.lineOrder.narrowTurns > 0" class="text-yellow-300">
+              {{ $t('surveyForm.narrowTurns', { count: surveyPreview.lineOrder.narrowTurns }) }}
+            </p>
+            <p v-if="surveyPreview.nonConvex" class="text-yellow-300">{{ $t('surveyForm.nonConvex') }}</p>
+          </div>
           <button
             :class="{
               'bg-[#FFFFFF11] hover:bg-[#FFFFFF11] text-[#FFFFFF22] elevation-0':
@@ -540,13 +587,20 @@ import {
   setSurveyAreaSquareMeters,
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
-import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { MavAutopilot, MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { esriWorldImageryTileUrl, osmTileLayerOffline } from '@/libs/map-tiles'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
+import { missionCheckMessages, missionCheckText } from '@/libs/mission/mission-check-text'
 import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
+import { type MissionWarning, validateMission, withStopAtLastWaypoint } from '@/libs/mission/mission-validation'
+import {
+  type SurveyParameters,
+  type SurveyPlan,
+  defaultSurveyParameters,
+  planSurvey,
+} from '@/libs/mission/survey-planner'
 import { degrees } from '@/libs/utils'
 import { createGridOverlay, TargetFollower, WhoToFollow } from '@/libs/utils-map'
-import { generateSurveyPath } from '@/libs/utils-map'
 import { vehicleMarkerIconOptions, vehicleMarkerRotation } from '@/libs/vehicle-marker'
 import router from '@/router'
 import { SubMenuComponentName, SubMenuName, useAppInterfaceStore } from '@/stores/appInterface'
@@ -584,6 +638,14 @@ const { openSnackbar } = useSnackbar()
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
+// A transfer that timed out is said in plain words, the vehicle's message kept for the record. The dialog stays
+// until closed: on the pilot the link dropped during transfers, and a dialog closing itself was easy to miss
+const missionTransferErrorText = (error: unknown, operation: 'upload' | 'download'): string[] => {
+  const details = errorMessage(error)
+  if (!/timeout|timed out/i.test(details)) return [details]
+  return [t(operation === 'upload' ? 'linkHealth.uploadTimeout' : 'linkHealth.downloadTimeout'), details]
+}
+
 const clearMissionOnVehicle = async (): Promise<void> => {
   try {
     await vehicleStore.clearMissions()
@@ -614,6 +676,31 @@ const cloneCommands = (commands?: MissionCommand[]): MissionCommand[] => {
   return makeDefaultNavCommands()
 }
 
+const askAboutMissionWarnings = (
+  warnings: MissionWarning[],
+  message: string[]
+): Promise<'cancel' | 'addStop' | 'upload'> =>
+  new Promise((resolve) => {
+    const answer = (choice: 'cancel' | 'addStop' | 'upload') => () => {
+      closeDialog()
+      resolve(choice)
+    }
+    showDialog({
+      variant: 'warning',
+      title: t('missionCheck.title'),
+      message,
+      maxWidth: 650,
+      persistent: true,
+      actions: [
+        { text: t('missionCheck.cancel'), action: answer('cancel') },
+        ...(warnings.some((warning) => warning.kind === 'lastWaypointNotStopped')
+          ? [{ text: t('missionCheck.addStop'), action: answer('addStop') }]
+          : []),
+        { text: t('missionCheck.uploadAnyway'), action: answer('upload') },
+      ],
+    })
+  })
+
 const uploadMissionToVehicle = async (): Promise<void> => {
   // ArduPilot/Cockpit historically represents HOME as mission item 0. PX4 does not: QGC keeps planned home
   // outside the mission-item sequence. Sending the synthetic HOME waypoint to PX4 can make the upload invalid.
@@ -623,12 +710,32 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     return
   }
 
-  uploadingMission.value = true
-  missionUploadProgress.value = 0
-  const missionItemsToUpload: Waypoint[] = withCruiseSpeed(
+  let missionItemsToUpload: Waypoint[] = withCruiseSpeed(
     JSON.parse(JSON.stringify(missionStore.currentPlanningWaypoints)),
     Number(missionStore.defaultCruiseSpeed)
   )
+
+  // Release 1.0, task 2: warn before the upload; only obvious errors stop it
+  const missionCheckParameters = { ...vehicleStore.missionCheckParameters }
+  const check = validateMission(missionItemsToUpload, missionCheckParameters)
+  if (check.errors.length > 0) {
+    showDialog({
+      variant: 'error',
+      title: t('missionCheck.errorsTitle'),
+      message: check.errors.map(missionCheckText),
+      maxWidth: 600,
+    })
+    return
+  }
+  const missionCheckLines = missionCheckMessages(check.warnings, missionCheckParameters)
+  if (missionCheckLines.length > 0) {
+    const choice = await askAboutMissionWarnings(check.warnings, missionCheckLines)
+    if (choice === 'cancel') return
+    if (choice === 'addStop') missionItemsToUpload = withStopAtLastWaypoint(missionItemsToUpload)
+  }
+
+  uploadingMission.value = true
+  missionUploadProgress.value = 0
 
   const loadingCallback = async (loadingPerc: number): Promise<void> => {
     missionUploadProgress.value = loadingPerc
@@ -690,9 +797,7 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     showDialog({
       variant: 'error',
       title: t('missionPlanning.missionUploadFailed'),
-      message: errorMessage(error),
-      timer: 3000,
-      persistent: false,
+      message: missionTransferErrorText(error, 'upload'),
     })
     hasUploadedMission.value = false
   } finally {
@@ -730,8 +835,7 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
     showDialog({
       variant: 'error',
       title: t('missionPlanning.missionDownloadFailed'),
-      message: errorMessage(error),
-      timer: 5000,
+      message: missionTransferErrorText(error, 'download'),
     })
   } finally {
     loading.value = false
@@ -1932,7 +2036,7 @@ const addWaypoint = (
   const iconDimensions = getIconDimensionsFromMarkerSize(currentMarkerSize)
   const markerIcon = L.divIcon({
     html: createWaypointMarkerHtml(waypoint.commands.length, false),
-    className: 'waypoint-marker-icon',
+    className: waypointMarkerClass(waypoint),
     iconSize: iconDimensions.iconSize,
     iconAnchor: iconDimensions.iconAnchor,
   })
@@ -2053,9 +2157,10 @@ const existingWaypoints = ref<Waypoint[]>([])
 const surveyWaypoints = ref<Waypoint[]>([])
 
 // Distance between lines in the survey path
+// Release 1.0: lines down to 0.5 m apart (narrow surveys need 1 m), up to 50 m
 const distanceBetweenSurveyLines = computed({
-  get: () => Math.max(1, rawDistanceBetweenSurveyLines.value),
-  set: (value) => (rawDistanceBetweenSurveyLines.value = Math.max(1, value)), // Ensure the distance is at least 1
+  get: () => Math.min(50, Math.max(0.5, rawDistanceBetweenSurveyLines.value)),
+  set: (value) => (rawDistanceBetweenSurveyLines.value = Math.min(50, Math.max(0.5, value))),
 })
 
 // Angle of the survey path lines
@@ -2077,7 +2182,7 @@ const onSurveyLinesAngleChange = (angle: number): void => {
   surveyLinesAngle.value = angle
 }
 
-const surveyPathLayer = shallowRef<L.Polyline | null>(null)
+const surveyPathLayer = shallowRef<L.LayerGroup | null>(null)
 const surveyPolygonLayer = shallowRef<L.Polygon | null>(null)
 
 const clearSurveyPath = (): void => {
@@ -2180,6 +2285,41 @@ const checkAndRemoveSurveyPath = (): void => {
   surveyPathLayer.value = null
 }
 
+const currentSurveyParameters = (): SurveyParameters => ({
+  ...missionStore.surveyParameters,
+  lineSpacing: distanceBetweenSurveyLines.value,
+  linesAngle: surveyLinesAngle.value % 180,
+})
+
+const surveyPreview = shallowRef<SurveyPlan | null>(null)
+
+// Lines solid, run-ins, run-outs and turns dashed in another colour, the stop points marked apart
+const drawSurveyPlan = (plan: SurveyPlan): L.LayerGroup => {
+  const group = L.layerGroup()
+  for (let i = 1; i < plan.waypoints.length; i++) {
+    const onLine = plan.kinds[i - 1] === 'lineStart' && plan.kinds[i] === 'lineEnd'
+    L.polyline([plan.waypoints[i - 1].coordinates, plan.waypoints[i].coordinates], {
+      color: onLine ? '#2563EB' : '#F59E0B',
+      weight: onLine ? 3 : 2,
+      opacity: 0.9,
+      dashArray: onLine ? undefined : '6 6',
+      className: onLine ? 'survey-line' : 'survey-run',
+    }).addTo(group)
+  }
+  plan.waypoints.forEach((waypoint, i) => {
+    if (plan.kinds[i] !== 'runInStart' && plan.kinds[i] !== 'runOutEnd') return
+    L.circleMarker(waypoint.coordinates, {
+      radius: 5,
+      color: '#F59E0B',
+      fillColor: '#111827',
+      fillOpacity: 1,
+      weight: 2,
+      className: 'survey-stop-point',
+    }).addTo(group)
+  })
+  return group
+}
+
 const createSurveyPath = (): void => {
   if (surveyPolygonVertexesPositions.value.length < 3) {
     checkAndRemoveSurveyPath()
@@ -2187,14 +2327,14 @@ const createSurveyPath = (): void => {
   }
 
   try {
-    const adjustedAngle = 90 - surveyLinesAngle.value
-    const { path: continuousPath } = generateSurveyPath(
-      surveyPolygonVertexesPositions.value,
-      distanceBetweenSurveyLines.value,
-      adjustedAngle
+    const plan = planSurvey(
+      surveyPolygonVertexesPositions.value.map((latLng) => [latLng.lat, latLng.lng] as WaypointCoordinates),
+      currentSurveyParameters(),
+      Number(missionStore.defaultCruiseSpeed)
     )
 
-    if (continuousPath.length === 0) {
+    if (plan.waypoints.length === 0) {
+      surveyPreview.value = null
       showDialog({
         variant: 'error',
         message: t('missionPlanning.noValidPathGenerated'),
@@ -2207,12 +2347,8 @@ const createSurveyPath = (): void => {
       planningMap.value?.removeLayer(surveyPathLayer.value as unknown as L.Layer)
     }
 
-    surveyPathLayer.value = L.polyline(continuousPath, {
-      color: '#2563EB',
-      weight: 3,
-      opacity: 0.8,
-      className: 'survey-path',
-    }).addTo(toRaw(planningMap.value)!)
+    surveyPreview.value = plan
+    surveyPathLayer.value = drawSurveyPlan(plan).addTo(toRaw(planningMap.value)!)
   } catch (error) {
     showDialog({
       variant: 'error',
@@ -2236,6 +2372,38 @@ watch(
 
 // Watch for changes in distanceBetweenSurveyLines and surveyLinesAngle
 watch([distanceBetweenSurveyLines, surveyLinesAngle], () => createSurveyPath())
+watch(
+  () => [{ ...missionStore.surveyParameters }, missionStore.defaultCruiseSpeed],
+  () => createSurveyPath()
+)
+
+// The run-in default is 8 m for lines 2 m apart or closer, 5 m otherwise; an edited run-in is left alone
+watch(distanceBetweenSurveyLines, (spacing, previousSpacing) => {
+  const previousDefault = defaultSurveyParameters(previousSpacing).runIn
+  if (missionStore.surveyParameters.runIn === previousDefault) {
+    missionStore.surveyParameters.runIn = defaultSurveyParameters(spacing).runIn
+  }
+})
+
+const surveyFormFields: {
+  /** The form field */
+  key: keyof typeof missionStore.surveyParameters
+  /** Lowest value */
+  min: number
+  /** Highest value */
+  max: number
+  /** Input step */
+  step: number
+}[] = [
+  { key: 'runIn', min: 0, max: 30, step: 1 },
+  { key: 'runOut', min: 0, max: 30, step: 1 },
+  { key: 'minTurnWidth', min: 0, max: 30, step: 0.5 },
+  { key: 'lineSpeed', min: 0.3, max: 3, step: 0.1 },
+  { key: 'brakeSpeed', min: 0.1, max: 1, step: 0.1 },
+  { key: 'holdSeconds', min: 0, max: 10, step: 1 },
+  { key: 'turnRadius', min: 0.5, max: 5, step: 0.5 },
+  { key: 'lineRadius', min: 0.5, max: 5, step: 0.5 },
+]
 
 const surveyEdgeAddMarkers: L.Marker[] = []
 
@@ -2382,14 +2550,10 @@ const generateWaypointsFromSurvey = (): void => {
     polygonPositions: polygonCoordinates,
   }
 
-  const adjustedAngle = 90 - surveyLinesAngle.value
-  const { path: continuousPath } = generateSurveyPath(
-    surveyPolygonVertexesPositions.value,
-    distanceBetweenSurveyLines.value,
-    adjustedAngle
-  )
+  const parameters = currentSurveyParameters()
+  const plan = planSurvey(polygonCoordinates, parameters, Number(missionStore.defaultCruiseSpeed))
 
-  if (!continuousPath.length) {
+  if (!plan.waypoints.length) {
     showDialog({
       variant: 'error',
       message: t('missionPlanning.noValidPathGenerated'),
@@ -2398,14 +2562,11 @@ const generateWaypointsFromSurvey = (): void => {
     return
   }
 
-  const newSurveyWaypoints: Waypoint[] = continuousPath.map((latLng: L.LatLng) => ({
-    id: uuid(),
-    coordinates: [latLng.lat, latLng.lng],
+  const newSurveyWaypoints: Waypoint[] = plan.waypoints.map((waypoint) => ({
+    ...waypoint,
     altitude: currentWaypointAltitude.value,
     altitudeReferenceType: currentWaypointAltitudeRefType.value,
-    commands: makeDefaultNavCommands(),
   }))
-
   missionStore.currentPlanningWaypoints.push(...newSurveyWaypoints)
 
   const newSurvey: Survey = {
@@ -2413,7 +2574,9 @@ const generateWaypointsFromSurvey = (): void => {
     polygonCoordinates: polygonCoordinates,
     distanceBetweenLines: distanceBetweenSurveyLines.value,
     surveyLinesAngle: surveyLinesAngle.value,
+    turnaroundDistance: 0,
     waypoints: newSurveyWaypoints,
+    parameters,
   }
 
   addSurvey(newSurvey)
@@ -2474,7 +2637,7 @@ const updateWaypointMarkers = (): void => {
       marker.setIcon(
         L.divIcon({
           html: createWaypointMarkerHtml(wp.commands.length, isSelected),
-          className: 'waypoint-marker-icon',
+          className: waypointMarkerClass(wp),
           iconSize: dimensions.iconSize,
           iconAnchor: dimensions.iconAnchor,
         })
@@ -2514,14 +2677,15 @@ const regenerateSurveyWaypoints = (angle?: number): void => {
       }
     })
 
-    const adjustedAngle = 90 - (angle || selectedSurvey.value.surveyLinesAngle)
-    const { path: continuousPath } = generateSurveyPath(
-      selectedSurvey.value.polygonCoordinates.map((coord) => L.latLng(coord[0], coord[1])),
-      selectedSurvey.value.distanceBetweenLines,
-      adjustedAngle
-    )
+    const survey = selectedSurvey.value
+    const parameters: SurveyParameters = {
+      ...(survey.parameters ?? { ...missionStore.surveyParameters }),
+      lineSpacing: survey.distanceBetweenLines,
+      linesAngle: (angle || survey.surveyLinesAngle) % 180,
+    }
+    const plan = planSurvey(survey.polygonCoordinates, parameters, Number(missionStore.defaultCruiseSpeed))
 
-    if (!continuousPath.length) {
+    if (!plan.waypoints.length) {
       openSnackbar({
         message: t('missionPlanning.noValidPathGenerated'),
         variant: 'error',
@@ -2530,12 +2694,10 @@ const regenerateSurveyWaypoints = (angle?: number): void => {
       return
     }
 
-    const newWaypoints: Waypoint[] = continuousPath.map((latLng: L.LatLng) => ({
-      id: uuid(),
-      coordinates: [latLng.lat, latLng.lng],
+    const newWaypoints: Waypoint[] = plan.waypoints.map((waypoint) => ({
+      ...waypoint,
       altitude: currentWaypointAltitude.value,
       altitudeReferenceType: currentWaypointAltitudeRefType.value,
-      commands: makeDefaultNavCommands(),
     }))
 
     const firstOldWaypointIndex = missionStore.currentPlanningWaypoints.findIndex(
@@ -2555,6 +2717,7 @@ const regenerateSurveyWaypoints = (angle?: number): void => {
 
     selectedSurvey.value.waypoints = newWaypoints
     selectedSurvey.value.surveyLinesAngle = angle || selectedSurvey.value.surveyLinesAngle
+    selectedSurvey.value.parameters = parameters
     updateSurvey(selectedSurveyId.value, { ...selectedSurvey.value })
 
     newWaypoints.forEach((waypoint) => addWaypointMarker(waypoint))
@@ -2732,6 +2895,12 @@ const undoGenerateWaypoints = (): void => {
   removeSurveyAreaSquareMeters(surveyId)
 }
 
+// A waypoint the vehicle holds at (the turn points of a survey) gets a marker of its own
+const waypointMarkerClass = (waypoint: Waypoint | undefined): string => {
+  const holds = waypoint?.commands.some((c) => c.command === MavCmd.MAV_CMD_NAV_WAYPOINT && Number(c.param1) > 0)
+  return holds ? 'waypoint-marker-icon survey-stop-marker' : 'waypoint-marker-icon'
+}
+
 const addWaypointMarker = (waypoint: Waypoint): void => {
   if (!planningMap.value) return
 
@@ -2786,7 +2955,7 @@ const addWaypointMarker = (waypoint: Waypoint): void => {
   const dimensions = getIconDimensionsFromMarkerSize(currentMarkerSize)
   const markerIcon = L.divIcon({
     html: createWaypointMarkerHtml(waypoint.commands.length, false),
-    className: 'waypoint-marker-icon',
+    className: waypointMarkerClass(waypoint),
     iconSize: dimensions.iconSize,
     iconAnchor: dimensions.iconAnchor,
   })
@@ -2834,7 +3003,7 @@ const applySelectedWaypointMarkerVisual = (newWaypointId?: string, oldWaypointId
       oldMarker.setIcon(
         L.divIcon({
           html: createWaypointMarkerHtml(oldWp?.commands.length ?? 0, false),
-          className: 'waypoint-marker-icon',
+          className: waypointMarkerClass(oldWp),
           iconSize: dimensions.iconSize,
           iconAnchor: dimensions.iconAnchor,
         })
@@ -2850,7 +3019,7 @@ const applySelectedWaypointMarkerVisual = (newWaypointId?: string, oldWaypointId
       newMarker.setIcon(
         L.divIcon({
           html: createWaypointMarkerHtml(newWp?.commands.length ?? 0, true),
-          className: 'waypoint-marker-icon',
+          className: waypointMarkerClass(newWp),
           iconSize: dimensions.iconSize,
           iconAnchor: dimensions.iconAnchor,
         })
@@ -2893,7 +3062,7 @@ const onMapClick = (e: L.LeafletMouseEvent): void => {
       oldMarker.setIcon(
         L.divIcon({
           html: createWaypointMarkerHtml(oldWaypoint.commands.length, false),
-          className: 'waypoint-marker-icon',
+          className: waypointMarkerClass(oldWaypoint),
           iconSize: dimensions.iconSize,
           iconAnchor: dimensions.iconAnchor,
         })
@@ -3562,6 +3731,10 @@ watch(
 </script>
 
 <style>
+.survey-stop-marker .waypoint-main-marker {
+  border-radius: 4px;
+  outline: 2px solid #f59e0b;
+}
 #planningMap {
   position: absolute;
   z-index: 0;
