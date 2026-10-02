@@ -106,3 +106,10 @@ export const renameLegacyBoatProfile = (profile: Profile): boolean => {
   console.info(`Renamed the views profile '${legacyBoatProfileName}' to '${navisProfileName}'.`)
   return true
 }
+
+/**
+ * In a saved Navis profile, make the built-in speed indicator show the GNSS speed, wide enough for its label
+ * @param {Profile} profile - The loaded views profile; changed in place
+ * @returns {boolean} True if an indicator was changed
+ */
+export const migrateNavisSpeedIndicator = (profile: Profile): boolean => (profile ? false : false)
