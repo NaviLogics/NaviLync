@@ -158,6 +158,8 @@ describe('Esri attribution', () => {
     document.body.appendChild(container)
     const osm = osmTileLayerOffline({ maxZoom: 23, attribution: '© OpenStreetMap' })
     const esri = esriTileLayerOffline({ maxZoom: 23 })
+    // Only the credits are checked: no tiles, as jsdom has no IndexedDB for the offline tile store
+    ;[osm, esri].forEach((layer) => (layer.createTile = () => document.createElement('img')))
     const map = leafletMap(container, { layers: [esri] }).setView([55.93, 37.38], 15)
     const text = (): string => container.querySelector('.leaflet-control-attribution')?.textContent ?? ''
 
