@@ -76,6 +76,42 @@ export const isGpsSpeedShowable = ({ fixType, fixUpdatedAt, speedUpdatedAt, now 
   return has3dFix && isFresh(fixUpdatedAt) && isFresh(speedUpdatedAt)
 }
 
+/**
+ * What the speed indicator needs to show the GNSS speed
+ */
+export interface GnssSpeedState {
+  /** GPS_RAW_INT.vel, in cm/s (65535 when unknown) */
+  velCmPerS: number | undefined
+  /** When GPS_RAW_INT.vel was last received, in performance.now() milliseconds */
+  velUpdatedAt: number | undefined
+  /** GPS_RAW_INT.fix_type: the enum name or its number */
+  fixType: string | number | undefined
+  /** When GPS_RAW_INT.fix_type was last received, in performance.now() milliseconds */
+  fixUpdatedAt: number | undefined
+  /** VFR_HUD.groundspeed (the EKF estimate), in m/s */
+  ekfSpeed: number | undefined
+  /** When VFR_HUD.groundspeed was last received, in performance.now() milliseconds */
+  ekfUpdatedAt: number | undefined
+  /** The current time, in performance.now() milliseconds */
+  now: number
+}
+
+/**
+ * The GNSS speed to show, with the EKF speed as a second value
+ * @param {GnssSpeedState} state - The GNSS and EKF speeds and when they arrived
+ * @param {string} locale - The interface language
+ * @returns {{ value: string, ekfValue: string | undefined }} The values as text, without the unit
+ */
+export const gnssSpeedReading = (
+  state: GnssSpeedState,
+  locale: string
+): {
+  /** The GNSS speed, or «—» */
+  value: string
+  /** The EKF speed, when fresh */
+  ekfValue: string | undefined
+} => ({ value: state && locale ? '' : '', ekfValue: undefined })
+
 // Names and units of the built-in indicators, as stored in the profiles, and their translation keys
 const builtInIndicatorNames: Record<string, string> = { 'Speed (GPS)': 'genericIndicator.builtIn.speedGps' }
 const builtInIndicatorUnits: Record<string, string> = { 'm/s': 'genericIndicator.builtIn.metersPerSecond' }
