@@ -40,6 +40,7 @@ import { type LinkHealth, type LinkOutage, linkHealth, LinkOutageJournal } from 
 import { canByPassCategory, EventCategory, slideToConfirm } from '@/libs/slide-to-confirm'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
 import { CustomMode } from '@/libs/vehicle/ardupilot/ardurover'
+import { isAutopilotRebootAllowed, setAutopilotRebootGuard } from '@/libs/vehicle/autopilot-reboot'
 import { defaultMessageIntervalsOptions } from '@/libs/vehicle/mavlink/defaults'
 import type { MAVLinkParameterSetData, MessageIntervalOptions } from '@/libs/vehicle/mavlink/types'
 import { MAVLINK_MESSAGE_INTERVALS_STORAGE_KEY } from '@/libs/vehicle/mavlink/vehicle'
@@ -159,6 +160,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const velocity: Velocity = reactive({} as Velocity)
   const mainVehicle = ref<ArduPilot | undefined>(undefined)
   const isArmed = ref<boolean | undefined>(undefined)
+  setAutopilotRebootGuard(() => isAutopilotRebootAllowed(isArmed.value))
   // HOME exactly as the autopilot reports it in HOME_POSITION. It is never assigned from the UI: the only way to change
   // it is `setHomeWaypoint`, and even then the value changes only when the vehicle reports its new HOME.
   const homePosition = ref<VehicleHomePosition | undefined>(undefined)
@@ -370,6 +372,22 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     }
 
     await mainVehicle.value.disarm()
+  }
+
+  /**
+   * Reboot the autopilot (MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN), only for a disarmed vehicle
+   * @returns {Promise<void>} Resolves when the command is acknowledged; rejects for an armed vehicle
+   */
+  async function rebootAutopilot(): Promise<void> {
+    if (!mainVehicle.value) {
+      throw new Error('No vehicle available to reboot.')
+    }
+    if (!isAutopilotRebootAllowed(isArmed.value)) {
+      throw new Error('The autopilot can only be rebooted with the vehicle disarmed.')
+    }
+
+    // param1 1: reboot the autopilot
+    await mainVehicle.value.sendCommandLong(MavCmd.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN, 1)
   }
 
   /**
@@ -1147,6 +1165,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     changeAlt,
     land,
     disarm,
+    rebootAutopilot,
     goTo,
     modesAvailable,
     setFlightMode,
