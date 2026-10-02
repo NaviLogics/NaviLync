@@ -583,8 +583,8 @@ onMounted(async () => {
   mapBase.value?.addEventListener('touchstart', onTouchStart, { passive: true })
   mapBase.value?.addEventListener('touchend', onTouchEnd, { passive: true })
   // The base map is kept in the widget, so a profile (Navis: OpenStreetMap) opens on its own base map
-  const initialBaseLayer =
-    baseMaps[initialTileProvider(widget.value.options.tileProvider, missionStore.userLastMapTileProvider)] || osm
+  const initialProvider = initialTileProvider(widget.value.options.tileProvider, missionStore.userLastMapTileProvider)
+  const initialBaseLayer = baseMaps[initialProvider as keyof typeof baseMaps] || osm
 
   // Bind leaflet instance to map element
   map.value = L.map(mapId.value, {

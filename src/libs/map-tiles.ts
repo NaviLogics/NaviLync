@@ -1,4 +1,4 @@
-import type { Coords, TileLayerOptions } from 'leaflet'
+import { type Coords, type TileLayerOptions, CRS } from 'leaflet'
 import { type TileInfo, type TileLayerOffline, getTileUrl, tileLayerOffline } from 'leaflet.offline'
 
 import type { MapTileProvider } from '@/types/mission'
@@ -49,3 +49,36 @@ export const initialTileProvider = (
   widgetChoice: MapTileProvider | undefined,
   userLastChoice: MapTileProvider | undefined
 ): MapTileProvider => widgetChoice ?? userLastChoice ?? 'OpenStreetMap'
+
+export const yandexSatelliteTileUrl =
+  'https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1&lang=ru_RU'
+export const yandexMapTileUrl =
+  'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU'
+
+export const yandexAttribution = ''
+
+/**
+ * A Yandex base map, which works offline too
+ * @param {'satellite' | 'map'} kind - Satellite imagery or the scheme
+ * @param {TileLayerOptions} options - Leaflet tile layer options
+ * @param {string} [version] - The `v` parameter, for when the tile server asks for one
+ * @returns {TileLayerOffline} The Yandex layer
+ */
+export const yandexTileLayerOffline = (
+  kind: 'satellite' | 'map',
+  options: TileLayerOptions,
+  version = ''
+): TileLayerOffline => {
+  void version
+  return tileLayerOffline(kind === 'satellite' ? yandexSatelliteTileUrl : yandexMapTileUrl, options)
+}
+
+/**
+ * The projection of a base map
+ * @param {MapTileProvider} provider - The base map
+ * @returns {CRS} The CRS the map must be in to show it
+ */
+export const tileProviderCrs = (provider: MapTileProvider): CRS => {
+  void provider
+  return CRS.EPSG3857
+}

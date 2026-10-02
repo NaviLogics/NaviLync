@@ -3238,7 +3238,7 @@ onMounted(async () => {
     'Esri World Imagery': esri,
   }
 
-  const initialBaseLayer = baseMaps[missionStore.userLastMapTileProvider] || osm
+  const initialBaseLayer = baseMaps[missionStore.userLastMapTileProvider as keyof typeof baseMaps] || osm
 
   planningMap.value = L.map('planningMap', { layers: [initialBaseLayer] }).setView(
     mapCenter.value as LatLngTuple,
