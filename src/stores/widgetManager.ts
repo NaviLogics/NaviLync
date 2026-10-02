@@ -26,7 +26,11 @@ import { CurrentlyLoggedVariables } from '@/libs/sensors-logging'
 import { settingsManager } from '@/libs/settings-management'
 import { isEqual, sequentialArray } from '@/libs/utils'
 import { isViewsGroupBlank } from '@/migration/default-profile-importer'
-import { legacySavedProfilesKey, migrateLegacyViewsGroup } from '@/migration/profile-migrations'
+import {
+  legacySavedProfilesKey,
+  migrateLegacyViewsGroup,
+  renameLegacyBoatProfile,
+} from '@/migration/profile-migrations'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import type { Point2D, SizeRect2D } from '@/types/general'
 import {
@@ -56,6 +60,13 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
   const currentMiniWidgetsProfile = useBlueOsStorage('cockpit-mini-widgets-profile-v4', miniWidgetsProfile)
   const viewsGroup = useBlueOsStorage<Profile>(viewsGroupKey, migrateLegacyViewsGroup() ?? blankViewsGroup)
   const currentViewIndex = useBlueOsStorage<number>('cockpit-current-view-index-v1', 0)
+
+  // Also a profile that arrives after the start, e.g. synced from the vehicle, may still carry the old boat name
+  watch(
+    () => viewsGroup.value?.name,
+    () => viewsGroup.value && renameLegacyBoatProfile(viewsGroup.value),
+    { immediate: true }
+  )
 
   // Self-heal: if we booted with a blank ViewsGroup but legacy data is reachable now (e.g. from raw localStorage or
   // from a late settings-manager import), migrate it in place so the user doesn't have to lose their profile.

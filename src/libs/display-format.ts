@@ -1,6 +1,10 @@
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 
+import usvImage from '@/assets/usv-navis-top.png'
+import BlueRoboticsLogo from '@/assets/vehicles/BlueRoboticsLogo.png'
+import RovThumb from '@/assets/vehicles/BlueROV_thumb.png'
+
 /**
  * Date and time for the top bar clock
  * @param {Date | number} date - The time to show
@@ -96,4 +100,32 @@ export const indicatorDisplayName = (displayName: string, t: (key: string) => st
 export const indicatorDisplayUnit = (unit: string, t: (key: string) => string): string => {
   const key = builtInIndicatorUnits[unit]
   return key ? t(key) : unit
+}
+
+/**
+ * The name of a views profile as the operator reads it: the stored name followed by the word "profile" in the
+ * interface language, unless the name already ends with it
+ * @param {string} name - The stored profile name
+ * @param {(key: string) => string} t - The i18n translate function
+ * @returns {string} The name to show
+ * @example
+ * profileDisplayName('Navis', t) // 'Navis профиль' in Russian, 'Navis profile' in English
+ */
+export const profileDisplayName = (name: string, t: (key: string) => string): string => {
+  const word = t('editMenu.profile')
+  const endsWithWord = [word, 'profile', 'профиль'].some((w) => name.toLowerCase().endsWith(w.toLowerCase()))
+  return endsWithWord ? name : `${name} ${word}`
+}
+
+/**
+ * The vehicle picture shown next to a views profile
+ * @param {string} name - The stored profile name
+ * @returns {string} The picture URL: the NAVIS USV for the Navis profile and any boat, USV or rover one, the ROV
+ * for an ROV one, the logo otherwise
+ */
+export const profileVehicleImage = (name: string): string => {
+  const lowerName = name.toLowerCase()
+  if (/navis|boat|usv|rover/.test(lowerName)) return usvImage
+  if (lowerName.includes('rov')) return RovThumb
+  return BlueRoboticsLogo
 }

@@ -26,12 +26,12 @@ describe('application icon', () => {
     expect(icoSizes('public/navilync.ico')).toEqual([16, 24, 32, 48, 64, 128, 256])
   })
 
-  test('electron-builder uses it for the exe and the installer, and the window for its icon', () => {
+  // The window icon is the PNG of the same picture: see navis-identity.test.ts
+  test('electron-builder uses it for the exe and the installer', () => {
     const build = JSON.parse(read('package.json')).build
     expect(build.win.icon).toBe('public/navilync.ico')
     expect(build.nsis.installerIcon).toBe('public/navilync.ico')
     expect(build.nsis.uninstallerIcon).toBe('public/navilync.ico')
-    expect(read('src/electron/main.ts')).toMatch(/navilync\.ico/)
   })
 
   test('the favicon is the NaviLync one', () => {

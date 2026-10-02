@@ -1,4 +1,4 @@
-import { defaultProfileVehicleCorrespondency } from '@/assets/defaults'
+import { defaultProfileVehicleCorrespondency, legacyBoatProfileName, navisProfileName } from '@/assets/defaults'
 import { defaultProtocolMappingVehicleCorrespondency } from '@/assets/joystick-profiles'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { settingsManager } from '@/libs/settings-management'
@@ -92,4 +92,17 @@ export const migrateLegacyJoystickMapping = (vehicleType?: MavType): JoystickPro
 
   console.info(`Migrated joystick functions mapping from legacy mappings (active index ${idx}).`)
   return chosen
+}
+
+/**
+ * Rename the boat profile saved by NaviLync up to build #58 («Boat / USV») to the Navis profile. Only the name
+ * changes: the hash, the views and their widgets are kept as the operator set them up.
+ * @param {Profile} profile - The loaded views profile; renamed in place
+ * @returns {boolean} True if the profile was renamed
+ */
+export const renameLegacyBoatProfile = (profile: Profile): boolean => {
+  if (profile.name !== legacyBoatProfileName) return false
+  profile.name = navisProfileName
+  console.info(`Renamed the views profile '${legacyBoatProfileName}' to '${navisProfileName}'.`)
+  return true
 }
