@@ -542,13 +542,9 @@ import {
 } from '@/composables/useMissionEstimates'
 import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
+import { missionCheckMessages, missionCheckText } from '@/libs/mission/mission-check-text'
 import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
-import {
-  type MissionError,
-  type MissionWarning,
-  validateMission,
-  withStopAtLastWaypoint,
-} from '@/libs/mission/mission-validation'
+import { type MissionWarning, validateMission, withStopAtLastWaypoint } from '@/libs/mission/mission-validation'
 import { degrees } from '@/libs/utils'
 import { createGridOverlay, TargetFollower, WhoToFollow } from '@/libs/utils-map'
 import { generateSurveyPath } from '@/libs/utils-map'
@@ -619,40 +615,11 @@ const cloneCommands = (commands?: MissionCommand[]): MissionCommand[] => {
   return makeDefaultNavCommands()
 }
 
-const formatNumber = (value: number | undefined): string =>
-  value === undefined ? t('missionCheck.speedUnset') : String(Math.round(value * 10) / 10)
-
-const missionCheckText = (issue: MissionWarning | MissionError): string => {
-  switch (issue.kind) {
-    case 'lastWaypointNotStopped':
-      return t('missionCheck.lastWaypointNotStopped', { speed: formatNumber(issue.speed), hold: issue.holdSeconds })
-    case 'legShorterThanAcceptance':
-      return t('missionCheck.legShorterThanAcceptance', {
-        marker: issue.marker,
-        length: formatNumber(issue.legLength),
-        radius: formatNumber(issue.radius),
-      })
-    case 'speedOverLimit':
-      return t('missionCheck.speedOverLimit', { speed: formatNumber(issue.speed), limit: formatNumber(issue.limit) })
-    case 'turnRadiusOverHalfSpacing':
-      return t('missionCheck.turnRadiusOverHalfSpacing', {
-        marker: issue.marker,
-        radius: formatNumber(issue.radius),
-        spacing: formatNumber(issue.spacing),
-      })
-    case 'noWaypoints':
-      return t('missionCheck.noWaypoints')
-    case 'invalidSpeed':
-      return t('missionCheck.invalidSpeed', { speed: issue.speed })
-    case 'invalidCoordinates':
-      return t('missionCheck.invalidCoordinates', { marker: issue.marker })
-  }
-}
-
-const askAboutMissionWarnings = (warnings: MissionWarning[]): Promise<'cancel' | 'addStop' | 'upload'> =>
+const askAboutMissionWarnings = (
+  warnings: MissionWarning[],
+  message: string[]
+): Promise<'cancel' | 'addStop' | 'upload'> =>
   new Promise((resolve) => {
-    const parameters = vehicleStore.missionCheckParameters
-    const parametersKnown = parameters.speedLimit !== undefined && parameters.acceptanceRadius !== undefined
     const answer = (choice: 'cancel' | 'addStop' | 'upload') => () => {
       closeDialog()
       resolve(choice)
@@ -660,7 +627,7 @@ const askAboutMissionWarnings = (warnings: MissionWarning[]): Promise<'cancel' |
     showDialog({
       variant: 'warning',
       title: t('missionCheck.title'),
-      message: [...warnings.map(missionCheckText), ...(parametersKnown ? [] : [t('missionCheck.parametersUnknown')])],
+      message,
       maxWidth: 650,
       persistent: true,
       actions: [
@@ -688,12 +655,8 @@ const uploadMissionToVehicle = async (): Promise<void> => {
   )
 
   // Release 1.0, task 2: warn before the upload; only obvious errors stop it
-  const surveySpacings = missionStore.currentPlanningSurveys.map((survey) => Number(survey.distanceBetweenLines))
-  const check = validateMission(
-    missionItemsToUpload,
-    { ...vehicleStore.missionCheckParameters },
-    surveySpacings.length > 0 ? Math.min(...surveySpacings) : undefined
-  )
+  const missionCheckParameters = { ...vehicleStore.missionCheckParameters }
+  const check = validateMission(missionItemsToUpload, missionCheckParameters)
   if (check.errors.length > 0) {
     showDialog({
       variant: 'error',
@@ -703,8 +666,9 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     })
     return
   }
-  if (check.warnings.length > 0) {
-    const choice = await askAboutMissionWarnings(check.warnings)
+  const missionCheckLines = missionCheckMessages(check.warnings, missionCheckParameters)
+  if (missionCheckLines.length > 0) {
+    const choice = await askAboutMissionWarnings(check.warnings, missionCheckLines)
     if (choice === 'cancel') return
     if (choice === 'addStop') missionItemsToUpload = withStopAtLastWaypoint(missionItemsToUpload)
   }

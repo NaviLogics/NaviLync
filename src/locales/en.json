@@ -1658,12 +1658,11 @@
     "cancel": "Cancel",
     "addStop": "Add a stop",
     "uploadAnyway": "Upload as is",
-    "parametersUnknown": "Vehicle parameters RO_SPEED_LIM and NAV_ACC_RAD were not received: the check is incomplete.",
+    "parametersUnknown": "Vehicle parameters were not received, the speed check was not done.",
     "speedUnset": "not set",
     "lastWaypointNotStopped": "Last waypoint: approached at {speed} m/s, hold {hold} s. The boat may overshoot it — a stop is suggested: 0.3 m/s and a 3 s hold.",
     "legShorterThanAcceptance": "Waypoint {marker}: the {length} m leg is shorter than two acceptance radii ({radius} m) — it may count as reached before the boat gets there.",
     "speedOverLimit": "Speed {speed} m/s is over the vehicle limit RO_SPEED_LIM = {limit} m/s.",
-    "turnRadiusOverHalfSpacing": "Waypoint {marker}: acceptance radius {radius} m is over half the line spacing of {spacing} m.",
     "noWaypoints": "The mission has no waypoint.",
     "invalidSpeed": "Speed {speed} m/s is not valid.",
     "invalidCoordinates": "Waypoint {marker} has no valid coordinates."

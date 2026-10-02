@@ -43,6 +43,7 @@ import { CustomMode } from '@/libs/vehicle/ardupilot/ardurover'
 import { defaultMessageIntervalsOptions } from '@/libs/vehicle/mavlink/defaults'
 import type { MAVLinkParameterSetData, MessageIntervalOptions } from '@/libs/vehicle/mavlink/types'
 import { MAVLINK_MESSAGE_INTERVALS_STORAGE_KEY } from '@/libs/vehicle/mavlink/vehicle'
+import { requestParametersWithRetry } from '@/libs/vehicle/parameter-retry'
 import * as Protocol from '@/libs/vehicle/protocol/protocol'
 import type {
   Altitude,
@@ -161,6 +162,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const isArmed = ref<boolean | undefined>(undefined)
   // Vehicle parameters for the mission check before upload, read when the vehicle comes online
   const missionCheckParameters = reactive<VehicleMissionParameters>({})
+  let stopMissionCheckParameterRequests: (() => void) | undefined = undefined
   // HOME exactly as the autopilot reports it in HOME_POSITION. It is never assigned from the UI: the only way to change
   // it is `setHomeWaypoint`, and even then the value changes only when the vehicle reports its new HOME.
   const homePosition = ref<VehicleHomePosition | undefined>(undefined)
@@ -256,12 +258,21 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   watch(isVehicleOnline, (isOnline) => {
     if (isOnline) {
       hasVehicleBeenOnlineThisSession.value = true
-      // The mission check before upload needs them; they come back as PARAM_VALUE
-      mainVehicle.value?.requestParameter('RO_SPEED_LIM')
-      mainVehicle.value?.requestParameter('NAV_ACC_RAD')
+      // The mission check before upload needs them; they come back as PARAM_VALUE, unless lost on the link
+      delete missionCheckParameters.speedLimit
+      delete missionCheckParameters.acceptanceRadius
+      stopMissionCheckParameterRequests?.()
+      stopMissionCheckParameterRequests = requestParametersWithRetry(
+        (name) => mainVehicle.value?.requestParameter(name),
+        ['RO_SPEED_LIM', 'NAV_ACC_RAD'],
+        (name) =>
+          (name === 'RO_SPEED_LIM' ? missionCheckParameters.speedLimit : missionCheckParameters.acceptanceRadius) !==
+          undefined
+      )
       dispatchEvent(new CustomEvent('vehicle-online', { detail: { vehicleAddress: globalAddress.value } }))
       return
     }
+    stopMissionCheckParameterRequests?.()
     dispatchEvent(new CustomEvent('vehicle-offline'))
     currentlyConnectedVehicleId.value = undefined
     isArmed.value = undefined

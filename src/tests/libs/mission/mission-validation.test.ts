@@ -53,8 +53,8 @@ const plain = (): Waypoint[] => [
   wp(east(40), [nav(0, 1)]),
 ]
 const params: VehicleMissionParameters = { speedLimit: 2, acceptanceRadius: 2 }
-const kinds = (waypoints: Waypoint[], spacing?: number, p = params): string[] =>
-  validateMission(waypoints, p, spacing).warnings.map((warning) => warning.kind)
+const kinds = (waypoints: Waypoint[], p = params): string[] =>
+  validateMission(waypoints, p).warnings.map((warning) => warning.kind)
 
 // Release 1.0, task 2
 describe('mission check before upload', () => {
@@ -106,12 +106,13 @@ describe('mission check before upload', () => {
     const fast = plain()
     fast[0].commands = [speed(2.5), nav(0, 1)]
     expect(validateMission(fast, params).warnings).toContainEqual({ kind: 'speedOverLimit', speed: 2.5, limit: 2 })
-    expect(kinds(fast, undefined, { acceptanceRadius: 2 })).not.toContain('speedOverLimit')
+    expect(kinds(fast, { acceptanceRadius: 2 })).not.toContain('speedOverLimit')
   })
 
   // Review of #39: check (d) is removed; the survey planner sets the turn radii itself
   test('an acceptance radius over half the line spacing is not reported', () => {
-    expect(kinds(plain(), 1)).toEqual(kinds(plain()))
+    // A 1 m radius on lines 1 m apart was reported before
+    expect(kinds(plain())).not.toContain('turnRadiusOverHalfSpacing')
     expect(read('src/libs/mission/mission-validation.ts')).not.toMatch(/turnRadiusOverHalfSpacing/)
     expect(read('src/views/MissionPlanningView.vue')).not.toMatch(/turnRadiusOverHalfSpacing/)
   })
@@ -128,6 +129,6 @@ describe('mission check before upload', () => {
 
   test('a mission that stops at its end, with known parameters: nothing to report', () => {
     const fine = withStopAtLastWaypoint(plain())
-    expect(validateMission(fine, params, 5)).toEqual({ warnings: [], errors: [] })
+    expect(validateMission(fine, params)).toEqual({ warnings: [], errors: [] })
   })
 })

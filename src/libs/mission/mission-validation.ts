@@ -41,16 +41,6 @@ export type MissionWarning =
       /** RO_SPEED_LIM, in m/s */
       limit: number
     }
-  | {
-      /** A waypoint accepts the vehicle wider than half the distance between survey lines */
-      kind: 'turnRadiusOverHalfSpacing'
-      /** The waypoint, numbered from 1 as on the map */
-      marker: number
-      /** Its acceptance radius, in m */
-      radius: number
-      /** The distance between survey lines, in m */
-      spacing: number
-    }
 
 /** Something that makes the mission impossible to upload */
 export type MissionError =
@@ -78,13 +68,11 @@ export const LAST_WAYPOINT_MAX_SPEED = 0.5
  * Check a mission before it is uploaded
  * @param {Waypoint[]} waypoints - The mission as it will be uploaded, speed items included
  * @param {VehicleMissionParameters} parameters - The vehicle parameters known so far
- * @param {number} [lineSpacing] - The distance between survey lines, in m, when the mission has a survey
  * @returns {{ warnings: MissionWarning[], errors: MissionError[] }} What the operator should know before uploading
  */
 export const validateMission = (
   waypoints: Waypoint[],
-  parameters: VehicleMissionParameters,
-  lineSpacing?: number
+  parameters: VehicleMissionParameters
 ): {
   /** Issues the operator may accept */
   warnings: MissionWarning[]
@@ -135,15 +123,6 @@ export const validateMission = (
     if (legLength < 2 * radius) {
       warnings.push({ kind: 'legShorterThanAcceptance', marker: index + 1, legLength, radius })
     }
-  }
-
-  if (lineSpacing !== undefined) {
-    waypoints.forEach((_, index) => {
-      const radius = radiusOf(index)
-      if (radius !== undefined && radius > lineSpacing / 2) {
-        warnings.push({ kind: 'turnRadiusOverHalfSpacing', marker: index + 1, radius, spacing: lineSpacing })
-      }
-    })
   }
 
   const lastSpeed = approachSpeeds[lastIndex]

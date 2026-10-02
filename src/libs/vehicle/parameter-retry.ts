@@ -14,8 +14,16 @@ export const requestParametersWithRetry = (
   retries = 3,
   intervalMs = 2000
 ): (() => void) => {
-  names.forEach(request)
-  // Stub until the retries are implemented
-  void isReceived, retries, intervalMs
-  return () => undefined
+  names.forEach((name) => request(name))
+  let retriesLeft = retries
+  const timer = setInterval(() => {
+    const missing = names.filter((name) => !isReceived(name))
+    if (missing.length === 0 || retriesLeft === 0) {
+      clearInterval(timer)
+      return
+    }
+    retriesLeft -= 1
+    missing.forEach((name) => request(name))
+  }, intervalMs)
+  return () => clearInterval(timer)
 }
