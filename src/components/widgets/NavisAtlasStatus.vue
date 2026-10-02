@@ -36,6 +36,17 @@ let shoreProbeTimer: ReturnType<typeof setInterval> | undefined
 // Probe the USV-side MikroTik so the check actually traverses the Shore↔USV NV2 path.
 const USV_RADIO_ADDRESS = '192.168.9.10'
 
+// A single lost ping on the radio link is normal, so the link is FAIL only after 3 in a row (~6 s)
+const PROBE_FAILURES_FOR_LINK_DOWN = 3
+let consecutiveProbeFailures = 0
+
+const recordProbeFailure = (): void => {
+  consecutiveProbeFailures += 1
+  if (consecutiveProbeFailures < PROBE_FAILURES_FOR_LINK_DOWN) return
+  shoreLinkReachable.value = false
+  shoreLinkLatencyMs.value = undefined
+}
+
 const probeUsvLink = async (): Promise<void> => {
   const probe = window.electronAPI?.checkHostReachability
   if (!probe) {
@@ -46,11 +57,15 @@ const probeUsvLink = async (): Promise<void> => {
 
   try {
     const result = await probe(USV_RADIO_ADDRESS)
-    shoreLinkReachable.value = result.reachable
+    if (!result.reachable) {
+      recordProbeFailure()
+      return
+    }
+    consecutiveProbeFailures = 0
+    shoreLinkReachable.value = true
     shoreLinkLatencyMs.value = result.latencyMs
   } catch {
-    shoreLinkReachable.value = false
-    shoreLinkLatencyMs.value = undefined
+    recordProbeFailure()
   }
 }
 
@@ -91,7 +106,11 @@ const metric = (name: Alias): number | undefined => {
   return typeof value === 'number' ? value : undefined
 }
 
-const metricFresh = (name: Alias, maxAgeMs = 3000): boolean => {
+// The timestamp is set on every message arrival, also when the value repeats. 5 s leaves room for a lost message at
+// the NAVIS agents' send rate; to be set to 3 periods of that rate once it is confirmed.
+const METRIC_MAX_AGE_MS = 5000
+
+const metricFresh = (name: Alias, maxAgeMs = METRIC_MAX_AGE_MS): boolean => {
   const id = findVariable(name)
   if (!id) return false
   const timestamp = getDataLakeVariableLastUpdateTimestamp(id)
@@ -108,11 +127,8 @@ const state = (ok: boolean, known = true): { value: string; tone: string } =>
 const rows = computed(() => {
   tick.value
   const shoreKnown = metric('SHOREOK') !== undefined && metricFresh('SHOREOK')
-  // A ping to the USV radio alone only proves that the laptop can reach the USV side. When the laptop is
-  // plugged directly into the USV network that does NOT prove a Shore↔USV NV2 link exists. Require the
-  // fresh Shore-agent health signal as the second end of the link before reporting Shore↔USV as OK.
-  const shoreLinkKnown = shoreLinkReachable.value !== undefined && shoreKnown
-  const shoreLink = state(shoreLinkReachable.value === true && metric('SHOREOK') === 1, shoreLinkKnown)
+  // The link row is the ping of the USV radio only: SHOREOK is the RTK agent's health, shown in its own row
+  const shoreLink = state(shoreLinkReachable.value === true, shoreLinkReachable.value !== undefined)
   const rtcmKnown = metric('RTCMOK') !== undefined && metricFresh('RTCMOK')
   const fix = metric('FIXTYPE')
   const gpsAge = metric('GPSAGE')
@@ -164,8 +180,13 @@ const rows = computed(() => {
     },
   ]
 
-  // Without a link to the vehicle every value would be a stale leftover, so none is shown
-  if (!vehicle.isVehicleOnline) return allRows.map((row) => ({ ...row, value: '—', tone: 'unknown' }))
+  // Without a link to the vehicle every value would be a stale leftover, so none is shown. The link row is not one:
+  // the ping does not go through MAVLink, and tells whether the radio is up while MAVLink is lost.
+  if (!vehicle.isVehicleOnline) {
+    return allRows.map((row) =>
+      row.label === t('navisAtlasStatus.rows.shoreLink') ? row : { ...row, value: '—', tone: 'unknown' }
+    )
+  }
   return allRows
 })
 
