@@ -923,6 +923,7 @@
     "recordingOngoing": "You have a video recording ongoing. Remember to stop it before closing NaviLync, or the record will be lost."
   },
   "genericIndicator": {
+    "ekfSpeed": "EKF speed: {value} m/s",
     "presets": "Presets",
     "custom": "Custom",
     "displayName": "Display name",
@@ -939,7 +940,7 @@
     "searchIcons": "Search icons...",
     "noVariablesFound": "No variables found to choose from. Please make sure your vehicle is connected.",
     "builtIn": {
-      "speedGps": "Speed (GPS)",
+      "speedGps": "Speed (GNSS)",
       "metersPerSecond": "m/s"
     }
   },

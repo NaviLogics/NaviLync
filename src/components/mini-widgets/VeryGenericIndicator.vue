@@ -6,9 +6,10 @@
         .configMenuOpen,
     }"
     :style="{ width: miniWidget.options.widgetWidth + 'px' }"
+    :title="ekfSpeedTooltip"
   >
     <span class="h-full left-[0.5rem] bottom-[5%] absolute mdi text-[2.25rem]" :class="[miniWidget.options.iconName]" />
-    <div class="absolute left-[3rem] h-full select-none font-semibold scroll-container w-full">
+    <div class="absolute left-[3rem] right-0 h-full select-none font-semibold scroll-container">
       <div class="w-full" :class="{ 'scroll-text': valueIsOverflowing }">
         <span class="font-mono text-xl leading-6">{{ parsedState }}</span>
         <span class="text-xl leading-6">
@@ -224,10 +225,10 @@ import {
 } from '@/libs/actions/data-lake'
 import { getAllDataLakeVariablesInfo } from '@/libs/actions/data-lake'
 import {
+  gnssSpeedReading,
   gpsFixVariableFor,
   indicatorDisplayName,
   indicatorDisplayUnit,
-  isGpsSpeedShowable,
   isGpsSpeedVariable,
 } from '@/libs/display-format'
 import { CurrentlyLoggedVariables, datalogger } from '@/libs/sensors-logging'
@@ -238,7 +239,7 @@ import { type VeryGenericIndicatorPreset, veryGenericIndicatorPresets } from '@/
 import type { MiniWidget } from '@/types/widgets'
 
 const { showDialog } = useInteractionDialog()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const interfaceStore = useAppInterfaceStore()
 
 const props = defineProps<{
@@ -277,24 +278,45 @@ const finalValue = computed(() => Number(miniWidget.value.options.variableMultip
 // Ticks so that a GPS speed turns into "—" also when its data stops arriving
 const clockTick = useTimestamp({ interval: 500 })
 
-const gpsSpeedIsShowable = computed((): boolean => {
+// A GPS speed indicator shows the GNSS speed (GPS_RAW_INT.vel) whatever speed variable it was set to: the EKF speed
+// (VFR_HUD.groundspeed) read 2.5 m/s with a wrong heading while GNSS gave 1.75 m/s, so it is only the second value
+const gnssSpeed = computed(() => {
   clockTick.value
   const speedVariable = miniWidget.value.options.variableName
+  if (!isGpsSpeedVariable(speedVariable)) return undefined
+  const velVariable = speedVariable.replace(/(VFR_HUD\/groundspeed|GPS_RAW_INT\/vel)$/, 'GPS_RAW_INT/vel')
+  const ekfVariable = speedVariable.replace(/(VFR_HUD\/groundspeed|GPS_RAW_INT\/vel)$/, 'VFR_HUD/groundspeed')
   const fixVariable = gpsFixVariableFor(speedVariable)
-  return isGpsSpeedShowable({
-    fixType: getDataLakeVariableData(fixVariable) as string | number | undefined,
-    fixUpdatedAt: getDataLakeVariableLastUpdateTimestamp(fixVariable),
-    speedUpdatedAt: getDataLakeVariableLastUpdateTimestamp(speedVariable),
-    now: performance.now(),
-  })
+  const numberOf = (variable: string): number | undefined => {
+    const value = getDataLakeVariableData(variable)
+    return typeof value === 'number' ? value : undefined
+  }
+  return gnssSpeedReading(
+    {
+      velCmPerS: numberOf(velVariable),
+      velUpdatedAt: getDataLakeVariableLastUpdateTimestamp(velVariable),
+      fixType: getDataLakeVariableData(fixVariable) as string | number | undefined,
+      fixUpdatedAt: getDataLakeVariableLastUpdateTimestamp(fixVariable),
+      ekfSpeed: numberOf(ekfVariable),
+      ekfUpdatedAt: getDataLakeVariableLastUpdateTimestamp(ekfVariable),
+      now: performance.now(),
+    },
+    locale.value
+  )
 })
 
+const ekfSpeedTooltip = computed((): string | undefined =>
+  gnssSpeed.value?.ekfValue === undefined
+    ? undefined
+    : t('genericIndicator.ekfSpeed', { value: gnssSpeed.value.ekfValue })
+)
+
 const parsedState = computed(() => {
+  if (gnssSpeed.value) return gnssSpeed.value.value
+
   if (currentState.value === undefined) {
     return '--'
   }
-
-  if (isGpsSpeedVariable(miniWidget.value.options.variableName) && !gpsSpeedIsShowable.value) return '—'
 
   // If using string variable, return the raw value as string without parsing
   if (miniWidget.value.options.useStringVariable) {

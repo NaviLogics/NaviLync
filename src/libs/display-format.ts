@@ -76,6 +76,9 @@ export const isGpsSpeedShowable = ({ fixType, fixUpdatedAt, speedUpdatedAt, now 
   return has3dFix && isFresh(fixUpdatedAt) && isFresh(speedUpdatedAt)
 }
 
+// GPS_RAW_INT.vel when the receiver does not know the speed (UINT16_MAX)
+const unknownGpsVelocity = 65535
+
 /**
  * What the speed indicator needs to show the GNSS speed
  */
@@ -110,7 +113,26 @@ export const gnssSpeedReading = (
   value: string
   /** The EKF speed, when fresh */
   ekfValue: string | undefined
-} => ({ value: state && locale ? '' : '', ekfValue: undefined })
+} => {
+  const isFresh = (updatedAt: number | undefined): boolean =>
+    updatedAt !== undefined && state.now - updatedAt <= gpsDataMaxAgeMs
+  const decimal = (metersPerSecond: number): string => {
+    const text = metersPerSecond.toFixed(2)
+    return locale === 'ru' ? text.replace('.', ',') : text
+  }
+
+  const velKnown = state.velCmPerS !== undefined && state.velCmPerS !== unknownGpsVelocity
+  const showable = isGpsSpeedShowable({
+    fixType: state.fixType,
+    fixUpdatedAt: state.fixUpdatedAt,
+    speedUpdatedAt: state.velUpdatedAt,
+    now: state.now,
+  })
+  return {
+    value: velKnown && showable ? decimal((state.velCmPerS as number) / 100) : '—',
+    ekfValue: state.ekfSpeed !== undefined && isFresh(state.ekfUpdatedAt) ? decimal(state.ekfSpeed) : undefined,
+  }
+}
 
 // Names and units of the built-in indicators, as stored in the profiles, and their translation keys
 const builtInIndicatorNames: Record<string, string> = { 'Speed (GPS)': 'genericIndicator.builtIn.speedGps' }

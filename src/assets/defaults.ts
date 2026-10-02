@@ -736,12 +736,13 @@ export const widgetProfiles: Profile[] = [
                 name: 'Speed (GPS)',
                 options: {
                   displayName: 'Speed (GPS)',
-                  variableName: 'VFR_HUD/groundspeed',
+                  variableName: 'GPS_RAW_INT/vel',
                   iconName: 'mdi-car-speed-limiter',
                   variableUnit: 'm/s',
                   variableMultiplier: 1,
-                  decimalPlaces: 1,
-                  widgetWidth: 160,
+                  decimalPlaces: 2,
+                  // Wide enough for «Скорость (GNSS)» next to the icon
+                  widgetWidth: 208,
                 },
                 hash: 'dfa95e38-47e0-4656-b863-c22029b89862',
               },
