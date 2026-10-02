@@ -25,7 +25,7 @@ import {
 } from '@/libs/actions/data-lake'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const vehicle = useMainVehicleStore()
 const tick = ref(0)
 const shoreLinkReachable = ref<boolean | undefined>(undefined)
@@ -59,8 +59,6 @@ const aliases = [
   'RTCMOK',
   'RTCMAGE',
   'RTK_BPS',
-  'FIXTYPE',
-  'GPSAGE',
   'SATS',
   'HACC_CM',
   'READY',
@@ -91,6 +89,15 @@ const metric = (name: Alias): number | undefined => {
   return typeof value === 'number' ? value : undefined
 }
 
+// Whole centimetres, but one decimal under 1 cm so that a few millimetres do not read «0 см»
+const horizontalAccuracyText = (centimeters: number): string => {
+  const text = centimeters.toFixed(centimeters < 1 ? 1 : 0)
+  return t('navisAtlasStatus.horizontalAccuracy', { value: locale.value === 'ru' ? text.replace('.', ',') : text })
+}
+
+// GPS_RAW_INT older than this is not shown
+const GPS_MAX_AGE_MS = 3000
+
 const metricFresh = (name: Alias, maxAgeMs = 3000): boolean => {
   const id = findVariable(name)
   if (!id) return false
@@ -114,9 +121,12 @@ const rows = computed(() => {
   const shoreLinkKnown = shoreLinkReachable.value !== undefined && shoreKnown
   const shoreLink = state(shoreLinkReachable.value === true && metric('SHOREOK') === 1, shoreLinkKnown)
   const rtcmKnown = metric('RTCMOK') !== undefined && metricFresh('RTCMOK')
-  const fix = metric('FIXTYPE')
-  const gpsAge = metric('GPSAGE')
-  const gnssKnown = fix !== undefined && metricFresh('FIXTYPE')
+  // GNSS and RTK from the GPS status the header shows (GPS_RAW_INT): the agent's FIXTYPE did not reach the widget on
+  // the pilot while the header read RTK Fixed. Fresh is by when the message arrived in NaviLync, not time_usec.
+  const gps = vehicle.statusGPS
+  const fix = gps?.fixTypeNumber
+  const gnssKnown =
+    fix !== undefined && gps.receivedAt !== undefined && performance.now() - gps.receivedAt <= GPS_MAX_AGE_MS
   const readyKnown = metric('READY') !== undefined && metricFresh('READY')
 
   // SHOREOK is an RTK-agent health signal, not a direct measurement of the physical NV2 radio link.
@@ -126,8 +136,8 @@ const rows = computed(() => {
     rtcmKnown
   )
   const mav = state(vehicle.isVehicleOnline, true)
-  const gnss = state((fix ?? 0) >= 3 && (gpsAge ?? Number.POSITIVE_INFINITY) < 3, gnssKnown)
-  const rtk = !gnssKnown
+  const gnss = state((fix ?? 0) >= 3, gnssKnown)
+  const rtkState = !gnssKnown
     ? { value: '—', tone: 'unknown' }
     : fix === 6
     ? { value: t('navisAtlasStatus.values.fixed'), tone: 'ok' }
@@ -135,6 +145,11 @@ const rows = computed(() => {
         value: fix === 5 ? t('navisAtlasStatus.values.float') : t('navisAtlasStatus.values.fail'),
         tone: fix === 5 ? 'warn' : 'fail',
       }
+  // The horizontal accuracy comes with MAVLink v2 only (GPS_RAW_INT.h_acc is an extension)
+  const rtk =
+    gnssKnown && gps.horizontalAccuracyCm !== undefined
+      ? { ...rtkState, value: `${rtkState.value} ${horizontalAccuracyText(gps.horizontalAccuracyCm)}` }
+      : rtkState
   const ready = state(metric('READY') === 1, readyKnown)
 
   const allRows = [

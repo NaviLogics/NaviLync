@@ -29,6 +29,7 @@ import { isViewsGroupBlank } from '@/migration/default-profile-importer'
 import {
   legacySavedProfilesKey,
   migrateLegacyViewsGroup,
+  migrateNavisSpeedIndicator,
   renameLegacyBoatProfile,
 } from '@/migration/profile-migrations'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
@@ -61,10 +62,15 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
   const viewsGroup = useBlueOsStorage<Profile>(viewsGroupKey, migrateLegacyViewsGroup() ?? blankViewsGroup)
   const currentViewIndex = useBlueOsStorage<number>('cockpit-current-view-index-v1', 0)
 
-  // Also a profile that arrives after the start, e.g. synced from the vehicle, may still carry the old boat name
+  // Also a profile that arrives after the start, e.g. synced from the vehicle, may still carry the old boat name or
+  // the speed indicator on the EKF speed
   watch(
     () => viewsGroup.value?.name,
-    () => viewsGroup.value && renameLegacyBoatProfile(viewsGroup.value),
+    () => {
+      if (!viewsGroup.value) return
+      renameLegacyBoatProfile(viewsGroup.value)
+      migrateNavisSpeedIndicator(viewsGroup.value)
+    },
     { immediate: true }
   )
 
