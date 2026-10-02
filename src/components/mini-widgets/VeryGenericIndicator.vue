@@ -229,6 +229,7 @@ import {
   gpsFixVariableFor,
   indicatorDisplayName,
   indicatorDisplayUnit,
+  isGpsSpeedShowable,
   isGpsSpeedVariable,
 } from '@/libs/display-format'
 import { CurrentlyLoggedVariables, datalogger } from '@/libs/sensors-logging'
@@ -278,10 +279,12 @@ const finalValue = computed(() => Number(miniWidget.value.options.variableMultip
 // Ticks so that a GPS speed turns into "—" also when its data stops arriving
 const clockTick = useTimestamp({ interval: 500 })
 
-// A GPS speed indicator shows the GNSS speed (GPS_RAW_INT.vel) whatever speed variable it was set to: the EKF speed
-// (VFR_HUD.groundspeed) read 2.5 m/s with a wrong heading while GNSS gave 1.75 m/s, so it is only the second value
+// The Navis speed indicator shows the GNSS speed (GPS_RAW_INT.vel): the EKF speed (VFR_HUD.groundspeed) read 2.5 m/s
+// with a wrong heading while GNSS gave 1.75 m/s, so it is only the second value
 const gnssSpeed = computed(() => {
   clockTick.value
+  // Only the Navis indicator is marked: any other one shows its own variable, multiplier and unit
+  if (!miniWidget.value.options.gnssSpeed) return undefined
   const speedVariable = miniWidget.value.options.variableName
   if (!isGpsSpeedVariable(speedVariable)) return undefined
   const velVariable = speedVariable.replace(/(VFR_HUD\/groundspeed|GPS_RAW_INT\/vel)$/, 'GPS_RAW_INT/vel')
@@ -305,6 +308,19 @@ const gnssSpeed = computed(() => {
   )
 })
 
+// Any other GPS speed indicator keeps the Pilot rule: «—» without a 3D fix or with data older than 3 s
+const gpsSpeedIsShowable = computed((): boolean => {
+  clockTick.value
+  const speedVariable = miniWidget.value.options.variableName
+  const fixVariable = gpsFixVariableFor(speedVariable)
+  return isGpsSpeedShowable({
+    fixType: getDataLakeVariableData(fixVariable) as string | number | undefined,
+    fixUpdatedAt: getDataLakeVariableLastUpdateTimestamp(fixVariable),
+    speedUpdatedAt: getDataLakeVariableLastUpdateTimestamp(speedVariable),
+    now: performance.now(),
+  })
+})
+
 const ekfSpeedTooltip = computed((): string | undefined =>
   gnssSpeed.value?.ekfValue === undefined
     ? undefined
@@ -317,6 +333,8 @@ const parsedState = computed(() => {
   if (currentState.value === undefined) {
     return '--'
   }
+
+  if (isGpsSpeedVariable(miniWidget.value.options.variableName) && !gpsSpeedIsShowable.value) return '—'
 
   // If using string variable, return the raw value as string without parsing
   if (miniWidget.value.options.useStringVariable) {

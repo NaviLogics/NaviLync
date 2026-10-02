@@ -399,7 +399,7 @@ src/libs/blueos.ts(61,9) TS2322
 src/libs/joystick/manager.ts(384,11) TS2741
 src/libs/joystick/manager.ts(577,32) TS2339
 src/libs/utils-data-lake.ts(80,3) TS2322
-src/migration/profile-migrations.ts(25,46) TS2344
+src/migration/profile-migrations.ts(30,46) TS2344
 src/stores/mainVehicle.ts(878,9) TS2353
 src/stores/video.ts(71,47) TS2345
 src/stores/video.ts(576,45) TS2345

@@ -1,10 +1,15 @@
-import { defaultProfileVehicleCorrespondency, legacyBoatProfileName, navisProfileName } from '@/assets/defaults'
+import {
+  defaultBoatProfileHash,
+  defaultProfileVehicleCorrespondency,
+  legacyBoatProfileName,
+  navisProfileName,
+} from '@/assets/defaults'
 import { defaultProtocolMappingVehicleCorrespondency } from '@/assets/joystick-profiles'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { settingsManager } from '@/libs/settings-management'
 import { deserialize } from '@/libs/utils'
 import type { JoystickProtocolActionsMapping } from '@/types/joystick'
-import type { Profile } from '@/types/widgets'
+import { type Profile, MiniWidgetType } from '@/types/widgets'
 
 export const legacySavedProfilesKey = 'cockpit-saved-profiles-v8'
 const legacyProfileIndexKey = 'cockpit-current-profile-index'
@@ -112,4 +117,28 @@ export const renameLegacyBoatProfile = (profile: Profile): boolean => {
  * @param {Profile} profile - The loaded views profile; changed in place
  * @returns {boolean} True if an indicator was changed
  */
-export const migrateNavisSpeedIndicator = (profile: Profile): boolean => (profile ? false : false)
+export const migrateNavisSpeedIndicator = (profile: Profile): boolean => {
+  if (profile.name !== navisProfileName && profile.hash !== defaultBoatProfileHash) return false
+  let changed = false
+  for (const view of profile.views) {
+    for (const container of view.miniWidgetContainers) {
+      for (const widget of container.widgets) {
+        const options = widget.options
+        // Only the built-in indicator: one the operator renamed or set up (e.g. in knots) is theirs
+        const isBuiltInSpeed =
+          widget.component === MiniWidgetType.VeryGenericIndicator &&
+          options.displayName === 'Speed (GPS)' &&
+          /(^|\/)(VFR_HUD\/groundspeed|GPS_RAW_INT\/vel)$/.test(options.variableName ?? '')
+        if (!isBuiltInSpeed || options.gnssSpeed) continue
+        options.gnssSpeed = true
+        options.variableName = options.variableName.replace(/VFR_HUD\/groundspeed$/, 'GPS_RAW_INT/vel')
+        options.decimalPlaces = 2
+        // Wide enough for «Скорость (GNSS)» next to the icon
+        options.widgetWidth = Math.max(Number(options.widgetWidth ?? 0), 208)
+        changed = true
+      }
+    }
+  }
+  if (changed) console.info(`Set the speed indicator of the views profile '${profile.name}' to the GNSS speed.`)
+  return changed
+}

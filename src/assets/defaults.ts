@@ -737,6 +737,8 @@ export const widgetProfiles: Profile[] = [
                 options: {
                   displayName: 'Speed (GPS)',
                   variableName: 'GPS_RAW_INT/vel',
+                  // The main value is the GNSS speed, the EKF one in the tooltip (release 1.0, task 3)
+                  gnssSpeed: true,
                   iconName: 'mdi-car-speed-limiter',
                   variableUnit: 'm/s',
                   variableMultiplier: 1,
