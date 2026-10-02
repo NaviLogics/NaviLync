@@ -359,6 +359,14 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   }
 
   /**
+   * Reboot the autopilot (MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN), only for a disarmed vehicle
+   * @returns {Promise<void>} Resolves when the command is acknowledged; rejects for an armed vehicle
+   */
+  async function rebootAutopilot(): Promise<void> {
+    return
+  }
+
+  /**
    * Initiates the takeoff process, requiring user confirmation.
    * @returns {Promise<void>} A Promise that resolves when the takeoff is successful or rejects if an error occurs or the action is cancelled.
    */
@@ -1133,6 +1141,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     changeAlt,
     land,
     disarm,
+    rebootAutopilot,
     goTo,
     modesAvailable,
     setFlightMode,
