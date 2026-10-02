@@ -154,6 +154,10 @@
                 </v-btn>
               </div>
             </v-form>
+            <div class="flex items-center justify-between w-full mt-3 pr-2">
+              <span class="text-sm opacity-70">{{ t('autopilotReboot.title') }}</span>
+              <AutopilotRebootButton />
+            </div>
           </template>
         </ExpansiblePanel>
         <ExpansiblePanel
@@ -440,6 +444,7 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { defaultGlobalAddress } from '@/assets/defaults'
+import AutopilotRebootButton from '@/components/AutopilotRebootButton.vue'
 import ManageCockpitSettings from '@/components/configuration/CockpitSettingsManager.vue'
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
 import VehicleDiscoveryDialog from '@/components/VehicleDiscoveryDialog.vue'

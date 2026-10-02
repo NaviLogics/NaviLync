@@ -4,6 +4,7 @@ import type { Message as MavMessage, Package } from '@/libs/connection/m2r/messa
 import { MavComponent, MAVLinkType } from '../connection/m2r/messages/mavlink2rest-enum'
 import { type Message } from '../connection/m2r/messages/mavlink2rest-message'
 import { MavlinkManualControlState } from '../joystick/protocols/mavlink-manual-control'
+import { type OutgoingMessage, isBlockedAutopilotReboot } from '../vehicle/autopilot-reboot'
 
 let lastTimeLoggedConnectionError = new Date(0)
 
@@ -12,6 +13,11 @@ let lastTimeLoggedConnectionError = new Date(0)
  * @param {MavMessage} message
  */
 export const sendMavlinkMessage = (message: MavMessage): void => {
+  // After a software reboot the Pixhawk could hang until its power was removed: never while armed, whatever sends it
+  if (isBlockedAutopilotReboot(message as unknown as OutgoingMessage)) {
+    console.warn('Autopilot reboot not sent: the vehicle is not known to be disarmed.')
+    return
+  }
   const pack: Package = {
     header: {
       system_id: 255, // GCS system ID
