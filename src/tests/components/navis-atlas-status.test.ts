@@ -184,11 +184,25 @@ describe('NAVIS ATLAS GNSS and RTK rows come from the GPS status of the header',
     expect(rtk(wrapper)).toBe('—')
   })
 
-  test('with MAVLink v2 the horizontal accuracy is shown in cm next to the RTK state', async () => {
+  test('with MAVLink v2 the horizontal accuracy is shown in cm next to the RTK state, in the interface language', async () => {
     vehicle.statusGPS = { fixTypeNumber: 6, horizontalAccuracyCm: 2.3, receivedAt: performance.now() - 1000 }
     const wrapper = await render()
 
-    expect(rtk(wrapper)).toBe(`${t('navisAtlasStatus.values.fixed')} 2 cm`)
+    expect(rtk(wrapper)).toBe(`${t('navisAtlasStatus.values.fixed')} 2 см`)
+  })
+
+  // Review of #35: under 1 cm the value read «0 cm»
+  test('under 1 cm the accuracy keeps one decimal, with the decimal comma in Russian', async () => {
+    vehicle.statusGPS = { fixTypeNumber: 6, horizontalAccuracyCm: 0.4, receivedAt: performance.now() - 1000 }
+    const wrapper = await render()
+
+    expect(rtk(wrapper)).toBe(`${t('navisAtlasStatus.values.fixed')} 0,4 см`)
+  })
+
+  test('the unit is not written into the widget code', () => {
+    const widget = readFileSync(join(process.cwd(), 'src/components/widgets/NavisAtlasStatus.vue'), 'utf8')
+    expect(widget).not.toMatch(/ cm`/)
+    expect(widget).toMatch(/navisAtlasStatus\.horizontalAccuracy/)
   })
 
   test('the widget reads the fix from the store, not from NAMED_VALUE FIXTYPE', () => {
