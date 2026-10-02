@@ -36,6 +36,7 @@ import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-messag
 import eventTracker from '@/libs/external-telemetry/event-tracking'
 import { availableCockpitActions, registerActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { MavlinkManualControlManager } from '@/libs/joystick/protocols/mavlink-manual-control'
+import { type LinkHealth, type LinkOutage, linkHealth, LinkOutageJournal } from '@/libs/link-health'
 import { canByPassCategory, EventCategory, slideToConfirm } from '@/libs/slide-to-confirm'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
 import { CustomMode } from '@/libs/vehicle/ardupilot/ardurover'
@@ -241,6 +242,19 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
    */
   const isVehicleOnline = computed(() => {
     return lastHeartbeat.value !== undefined && new Date(timeNow.value).getTime() - lastHeartbeat.value.getTime() < 5000
+  })
+
+  // How long ago the last autopilot HEARTBEAT arrived; PX4 gives the GCS up after COM_DL_LOSS_T = 5 s without one
+  const heartbeatAgeMs = computed((): number | undefined =>
+    lastHeartbeat.value === undefined ? undefined : new Date(timeNow.value).getTime() - lastHeartbeat.value.getTime()
+  )
+  const linkHealthState = computed((): LinkHealth => linkHealth(heartbeatAgeMs.value))
+
+  // The losses of the link in this session, with the mode and arming of the moment the link went bad
+  const linkOutageJournal = reactive(new LinkOutageJournal())
+  const linkOutages = computed((): LinkOutage[] => linkOutageJournal.outages)
+  watch(timeNow, (now) => {
+    linkOutageJournal.update(now, lastHeartbeat.value?.getTime(), { mode: mode.value, armed: isArmed.value })
   })
 
   /**
@@ -1193,6 +1207,9 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     isArmed,
     flying,
     isVehicleOnline,
+    heartbeatAgeMs,
+    linkHealthState,
+    linkOutages,
     isVehicleConnectionLost,
     icon,
     configurationPages,
