@@ -55,10 +55,14 @@ export const yandexSatelliteTileUrl =
 export const yandexMapTileUrl =
   'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU'
 
-export const yandexAttribution = ''
+// Yandex Maps terms ask for the credit wherever its maps are shown
+export const yandexAttribution = '© Яндекс'
+
+export const yandexTileProviders: MapTileProvider[] = ['Яндекс Спутник', 'Яндекс Схема']
 
 /**
- * A Yandex base map, which works offline too
+ * A Yandex base map, which works offline too. Its tiles are in EPSG:3395: the map must be switched to it
+ * (see `tileProviderCrs`), or the imagery is ≈ 20 km off at 56° N.
  * @param {'satellite' | 'map'} kind - Satellite imagery or the scheme
  * @param {TileLayerOptions} options - Leaflet tile layer options
  * @param {string} [version] - The `v` parameter, for when the tile server asks for one
@@ -69,16 +73,25 @@ export const yandexTileLayerOffline = (
   options: TileLayerOptions,
   version = ''
 ): TileLayerOffline => {
-  void version
-  return tileLayerOffline(kind === 'satellite' ? yandexSatelliteTileUrl : yandexMapTileUrl, options)
+  const template = kind === 'satellite' ? yandexSatelliteTileUrl : yandexMapTileUrl
+  const layer = tileLayerOffline(version ? `${template}&v=${encodeURIComponent(version)}` : template, {
+    maxNativeZoom: kind === 'satellite' ? 19 : 21,
+    ...options,
+    attribution: yandexAttribution,
+  })
+  const storageKey = ({ x, y, z }: Coords | TileInfo): string => getTileUrl(template, { x, y, z })
+  const getTileUrls = layer.getTileUrls.bind(layer)
+  // Stored, looked up and removed without the version, so saved tiles stay found when it changes
+  layer._getStorageKey = storageKey
+  layer.getTileUrls = (area, zoom) =>
+    getTileUrls(area, zoom).map((tile) => ({ ...tile, key: storageKey(tile), urlTemplate: template }))
+  return layer
 }
 
 /**
  * The projection of a base map
  * @param {MapTileProvider} provider - The base map
- * @returns {CRS} The CRS the map must be in to show it
+ * @returns {CRS} The CRS the map must be in to show it: EPSG:3395 for Yandex, EPSG:3857 for the others
  */
-export const tileProviderCrs = (provider: MapTileProvider): CRS => {
-  void provider
-  return CRS.EPSG3857
-}
+export const tileProviderCrs = (provider: MapTileProvider): CRS =>
+  yandexTileProviders.includes(provider) ? CRS.EPSG3395 : CRS.EPSG3857

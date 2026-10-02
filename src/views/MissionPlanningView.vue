@@ -429,6 +429,14 @@
             <v-list-item class="py-0" :title="$t('missionPlanning.saveVisibleEsriTiles')" @click="saveEsri" />
             <v-divider />
             <v-list-item class="py-0" :title="$t('missionPlanning.saveVisibleOsmTiles')" @click="saveOSM" />
+            <v-divider />
+            <v-list-item
+              class="py-0"
+              :title="$t('missionPlanning.saveVisibleYandexSatelliteTiles')"
+              @click="saveYandexSatellite"
+            />
+            <v-divider />
+            <v-list-item class="py-0" :title="$t('missionPlanning.saveVisibleYandexMapTiles')" @click="saveYandexMap" />
           </v-list>
         </v-menu>
       </template>
@@ -588,7 +596,8 @@ import {
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
 import { MavAutopilot, MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { esriTileLayerOffline, osmTileLayerOffline } from '@/libs/map-tiles'
+import { BaseMapProjection } from '@/libs/map-projection'
+import { esriTileLayerOffline, osmTileLayerOffline, tileProviderCrs, yandexTileLayerOffline } from '@/libs/map-tiles'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
 import { missionCheckMessages, missionCheckText } from '@/libs/mission/mission-check-text'
 import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
@@ -893,6 +902,9 @@ const downloadMenuOpen = ref(false)
 const gridLayer = shallowRef<L.LayerGroup | undefined>(undefined)
 let esriSaveBtn: HTMLAnchorElement | undefined
 let osmSaveBtn: HTMLAnchorElement | undefined
+let yandexSatelliteSaveBtn: HTMLAnchorElement | undefined
+let yandexMapSaveBtn: HTMLAnchorElement | undefined
+let baseMapProjection: BaseMapProjection | undefined
 const nearMissionPathTolerance = 16 // in pixels
 const isMissionEstimatesVisible = ref(true)
 const measureLayer = shallowRef<L.LayerGroup | null>(null)
@@ -1033,14 +1045,19 @@ const toggleMissionEstimates = (): void => {
   isMissionEstimatesVisible.value = !isMissionEstimatesVisible.value
 }
 
-const saveEsri = (): void => {
-  esriSaveBtn?.click()
+// The area to save is computed in the map's projection, so a layer is saved only while the map is in its own
+const saveTiles = (button: HTMLAnchorElement | undefined, provider: MapTileProvider, label: string): void => {
   downloadMenuOpen.value = false
+  if (baseMapProjection && !baseMapProjection.canSaveTilesOf(provider)) {
+    openSnackbar({ message: t('widgetConfig.map.saveTilesOtherProjection', { layer: label }), variant: 'warning' })
+    return
+  }
+  button?.click()
 }
-const saveOSM = (): void => {
-  osmSaveBtn?.click()
-  downloadMenuOpen.value = false
-}
+const saveEsri = (): void => saveTiles(esriSaveBtn, 'Esri World Imagery', 'Esri')
+const saveOSM = (): void => saveTiles(osmSaveBtn, 'OpenStreetMap', 'OSM')
+const saveYandexSatellite = (): void => saveTiles(yandexSatelliteSaveBtn, 'Яндекс Спутник', 'Яндекс Спутник')
+const saveYandexMap = (): void => saveTiles(yandexMapSaveBtn, 'Яндекс Схема', 'Яндекс Схема')
 
 // Grid overlay functions for mission planning view
 const createGridOverlayLocal = (): void => {
@@ -3233,17 +3250,27 @@ onMounted(async () => {
     maxNativeZoom: 19,
   })
 
+  const yandexSatellite = yandexTileLayerOffline('satellite', { maxZoom: 23 }, missionStore.yandexTilesVersion)
+  const yandexMap = yandexTileLayerOffline('map', { maxZoom: 23 }, missionStore.yandexTilesVersion)
+
   const baseMaps = {
     'OpenStreetMap': osm,
     'Esri World Imagery': esri,
+    'Яндекс Спутник': yandexSatellite,
+    'Яндекс Схема': yandexMap,
   }
 
-  const initialBaseLayer = baseMaps[missionStore.userLastMapTileProvider as keyof typeof baseMaps] || osm
-
-  planningMap.value = L.map('planningMap', { layers: [initialBaseLayer] }).setView(
-    mapCenter.value as LatLngTuple,
-    zoom.value
-  )
+  const initialProvider = baseMaps[missionStore.userLastMapTileProvider]
+    ? missionStore.userLastMapTileProvider
+    : 'OpenStreetMap'
+  // In the projection of its base map (Yandex: EPSG:3395)
+  planningMap.value = L.map('planningMap', {
+    crs: tileProviderCrs(initialProvider),
+    layers: [baseMaps[initialProvider]],
+  }) as Map
+  baseMapProjection = new BaseMapProjection(planningMap.value, [])
+  baseMapProjection.followBaseMaps(baseMaps)
+  planningMap.value.setView(mapCenter.value as LatLngTuple, zoom.value)
   planningMap.value.zoomControl.setPosition('bottomright')
 
   const pane = planningMap.value!.createPane('measurePane')
@@ -3275,10 +3302,14 @@ onMounted(async () => {
 
   const saveCtlEsri = downloadOfflineMapTiles(esri, 'Esri', 19)
   const saveCtlOSM = downloadOfflineMapTiles(osm, 'OSM', 19)
+  const saveCtlYandexSatellite = downloadOfflineMapTiles(yandexSatellite, 'Яндекс Спутник', 19)
+  const saveCtlYandexMap = downloadOfflineMapTiles(yandexMap, 'Яндекс Схема', 19)
 
   if (planningMap.value) {
     saveCtlEsri.addTo(planningMap.value)
     saveCtlOSM.addTo(planningMap.value)
+    saveCtlYandexSatellite.addTo(planningMap.value)
+    saveCtlYandexMap.addTo(planningMap.value)
   }
 
   // Hide native UI for offline map download controls
@@ -3290,6 +3321,8 @@ onMounted(async () => {
   }
   hideCtl(saveCtlEsri)
   hideCtl(saveCtlOSM)
+  hideCtl(saveCtlYandexSatellite)
+  hideCtl(saveCtlYandexMap)
 
   await nextTick()
   const getBtns = (ctl: any): HTMLAnchorElement[] => {
@@ -3298,10 +3331,14 @@ onMounted(async () => {
   }
   ;[esriSaveBtn] = getBtns(saveCtlEsri) // [0]=save, [1]=remove
   ;[osmSaveBtn] = getBtns(saveCtlOSM)
+  ;[yandexSatelliteSaveBtn] = getBtns(saveCtlYandexSatellite)
+  ;[yandexMapSaveBtn] = getBtns(saveCtlYandexMap)
 
   // Download progress hooks
   attachOfflineProgress(esri, 'Esri')
   attachOfflineProgress(osm, 'OSM')
+  attachOfflineProgress(yandexSatellite, 'Яндекс Спутник')
+  attachOfflineProgress(yandexMap, 'Яндекс Схема')
 
   await nextTick()
 

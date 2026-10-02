@@ -117,19 +117,42 @@ describe('switching between Yandex and the other base maps', () => {
     const map = testMap()
     const [seamarks, profile] = [L.layerGroup().addTo(map), L.layerGroup()]
     const blocked = vi.fn()
-    const projection = new BaseMapProjection(map, [seamarks, profile], blocked)
+    const changed = vi.fn()
+    const projection = new BaseMapProjection(map, [seamarks, profile], blocked, changed)
 
     projection.apply('Яндекс Спутник')
     expect(map.hasLayer(seamarks)).toBe(false)
+    // So that the layer control shows it off
+    expect(changed).toHaveBeenCalledTimes(1)
     map.addLayer(profile)
     map.fire('overlayadd', { layer: profile, name: 'Marine Profile' })
     expect(map.hasLayer(profile)).toBe(false)
     expect(blocked).toHaveBeenCalledTimes(1)
 
     projection.apply('OpenStreetMap')
+    expect(changed).toHaveBeenCalledTimes(2)
     // Only what was on before Yandex comes back
     expect(map.hasLayer(seamarks)).toBe(true)
     expect(map.hasLayer(profile)).toBe(false)
+    map.remove()
+  })
+
+  // Found in the browser: switched on baselayerchange, a Yandex layer first fetched a screen of tiles numbered in
+  // EPSG:3857, as the layer control adds the layer before it fires the event
+  test('the projection is switched before the new base map asks for any tile', () => {
+    const map = testMap()
+    const projection = new BaseMapProjection(map, [])
+    const yandex = L.layerGroup()
+    let crsWhenAdded: L.CRS | undefined
+    yandex.onAdd = function (this: L.LayerGroup, addedTo: L.Map) {
+      crsWhenAdded = addedTo.options.crs
+      return this
+    }
+    projection.followBaseMaps({ 'Яндекс Спутник': yandex })
+
+    map.addLayer(yandex)
+
+    expect(crsWhenAdded).toBe(L.CRS.EPSG3395)
     map.remove()
   })
 
@@ -153,7 +176,7 @@ describe('the flight map and the planner offer Yandex', () => {
     // Opened in the projection of its base map, switched on every base map change
     expect(source).toMatch(/crs: tileProviderCrs\(/)
     expect(source).toMatch(/new BaseMapProjection\(/)
-    expect(source).toMatch(/\.apply\(event\.name as MapTileProvider\)/)
+    expect(source).toMatch(/\.followBaseMaps\(baseMaps\)/)
     // Saving tiles checks the projection first
     expect(source).toMatch(/canSaveTilesOf\(/)
   })

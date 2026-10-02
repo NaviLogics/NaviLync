@@ -64,6 +64,8 @@ export const useMissionStore = defineStore('mission', () => {
     'cockpit-survey-parameters',
     defaultSurveyParameters()
   )
+  // The `v` parameter of the Yandex tile servers, if they ever ask for one; empty while they do not
+  const yandexTilesVersion = useBlueOsStorage<string>('cockpit-yandex-tiles-version', '')
   const userLastMapTileProvider = useBlueOsStorage<MapTileProvider>(
     'cockpit-user-last-map-tile-provider',
     'OpenStreetMap'
@@ -662,6 +664,7 @@ export const useMissionStore = defineStore('mission', () => {
     defaultCruiseSpeed,
     surveyParameters,
     userLastMapTileProvider,
+    yandexTilesVersion,
     followVehicleOnMap,
     stopMission,
     executeMissionOnVehicle,

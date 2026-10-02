@@ -27,6 +27,14 @@
           <v-list-item class="py-0" :title="$t('widgetConfig.map.saveOsmTiles')" @click="saveOSM" />
           <v-divider />
           <v-list-item class="py-0" :title="$t('widgetConfig.map.saveSeamarksTiles')" @click="saveSeamarks" />
+          <v-divider />
+          <v-list-item
+            class="py-0"
+            :title="t('widgetConfig.map.saveYandexSatelliteTiles')"
+            @click="saveYandexSatellite"
+          />
+          <v-divider />
+          <v-list-item class="py-0" :title="t('widgetConfig.map.saveYandexMapTiles')" @click="saveYandexMap" />
         </v-list>
       </v-menu>
       <v-tooltip location="top" :text="$t('widgetConfig.map.switchToMissionPlanning')">
@@ -214,7 +222,14 @@ import { useMissionRefreshWhenIdle } from '@/composables/missionRefreshWhenIdle'
 import { useSetHomeAction } from '@/composables/setHomeAction'
 import { openSnackbar } from '@/composables/snackbar'
 import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { esriTileLayerOffline, initialTileProvider, osmTileLayerOffline } from '@/libs/map-tiles'
+import { BaseMapProjection } from '@/libs/map-projection'
+import {
+  esriTileLayerOffline,
+  initialTileProvider,
+  osmTileLayerOffline,
+  tileProviderCrs,
+  yandexTileLayerOffline,
+} from '@/libs/map-tiles'
 import { markerNumberByMissionSeq } from '@/libs/mission/mission-sequence'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { degrees } from '@/libs/utils'
@@ -274,6 +289,9 @@ const savingLayerName = ref<string>('')
 let esriSaveBtn: HTMLAnchorElement | undefined
 let osmSaveBtn: HTMLAnchorElement | undefined
 let seamarksSaveBtn: HTMLAnchorElement | undefined
+let yandexSatelliteSaveBtn: HTMLAnchorElement | undefined
+let yandexMapSaveBtn: HTMLAnchorElement | undefined
+let baseMapProjection: BaseMapProjection | undefined
 const downloadMenuOpen = ref(false)
 const missionItemsInVehicle = ref<Waypoint[]>([])
 const missionSeqToMarkerSeq = shallowRef<Record<number, number>>({})
@@ -286,18 +304,21 @@ const glassMenuCssVars = computed(() => ({
   '--glass-box-shadow': interfaceStore.globalGlassMenuStyles.boxShadow,
 }))
 
-const saveEsri = (): void => {
-  esriSaveBtn?.click()
+// The area to save is computed in the map's projection, so a layer is saved only while the map is in its own
+const saveTiles = (button: HTMLAnchorElement | undefined, provider: MapTileProvider, label: string): void => {
   downloadMenuOpen.value = false
+  if (baseMapProjection && !baseMapProjection.canSaveTilesOf(provider)) {
+    openSnackbar({ message: t('widgetConfig.map.saveTilesOtherProjection', { layer: label }), variant: 'warning' })
+    return
+  }
+  button?.click()
 }
-const saveOSM = (): void => {
-  osmSaveBtn?.click()
-  downloadMenuOpen.value = false
-}
-const saveSeamarks = (): void => {
-  seamarksSaveBtn?.click()
-  downloadMenuOpen.value = false
-}
+const saveEsri = (): void => saveTiles(esriSaveBtn, 'Esri World Imagery', 'Esri')
+const saveOSM = (): void => saveTiles(osmSaveBtn, 'OpenStreetMap', 'OSM')
+// Seamarks are in the projection of OSM
+const saveSeamarks = (): void => saveTiles(seamarksSaveBtn, 'OpenStreetMap', 'Seamarks')
+const saveYandexSatellite = (): void => saveTiles(yandexSatelliteSaveBtn, 'Яндекс Спутник', 'Яндекс Спутник')
+const saveYandexMap = (): void => saveTiles(yandexMapSaveBtn, 'Яндекс Схема', 'Яндекс Схема')
 
 let pinchTimeout: number | undefined
 
@@ -445,6 +466,9 @@ const esri = esriTileLayerOffline({
   maxNativeZoom: 19,
 })
 
+const yandexSatellite = yandexTileLayerOffline('satellite', { maxZoom: 23 }, missionStore.yandexTilesVersion)
+const yandexMap = yandexTileLayerOffline('map', { maxZoom: 23 }, missionStore.yandexTilesVersion)
+
 // Overlays
 const seamarks = tileLayerOffline('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
   maxZoom: 18,
@@ -464,6 +488,8 @@ const marineProfile = L.tileLayer.wms('https://geoserver.openseamap.org/geoserve
 const baseMaps = {
   'OpenStreetMap': osm,
   'Esri World Imagery': esri,
+  'Яндекс Спутник': yandexSatellite,
+  'Яндекс Схема': yandexMap,
 }
 
 const overlays = {
@@ -477,6 +503,20 @@ const isMouseOver = useElementHover(mapBase)
 
 const zoomControl = L.control.zoom({ position: 'bottomright' })
 const layerControl = L.control.layers(baseMaps, overlays)
+
+// The layer control does not redraw its checkboxes for layers changed while it handles a click (a base map change
+// hides or brings back overlays), so it is redrawn once the click is handled
+const refreshLayerControl = (): void => {
+  setTimeout(() => {
+    const control = layerControl as unknown as {
+      /** Set while the control is on the map */
+      _map?: Map
+      /** Redraws the control */
+      _update: () => void
+    }
+    if (control._map) control._update()
+  })
+}
 const gridLayer = shallowRef<L.LayerGroup | undefined>(undefined)
 
 watch(showButtons, () => {
@@ -584,12 +624,24 @@ onMounted(async () => {
   mapBase.value?.addEventListener('touchend', onTouchEnd, { passive: true })
   // The base map is kept in the widget, so a profile (Navis: OpenStreetMap) opens on its own base map
   const initialProvider = initialTileProvider(widget.value.options.tileProvider, missionStore.userLastMapTileProvider)
-  const initialBaseLayer = baseMaps[initialProvider as keyof typeof baseMaps] || osm
+  const initialBaseLayer = baseMaps[initialProvider] || osm
 
-  // Bind leaflet instance to map element
+  // Bind leaflet instance to map element, in the projection of its base map (Yandex: EPSG:3395)
   map.value = L.map(mapId.value, {
+    crs: tileProviderCrs(initialProvider),
     layers: [initialBaseLayer, seamarks, marineProfile],
-  }).setView(mapCenter.value as LatLngTuple, zoom.value) as Map
+  }) as Map
+  baseMapProjection = new BaseMapProjection(
+    map.value,
+    [seamarks, marineProfile],
+    () => {
+      openSnackbar({ message: t('widgetConfig.map.overlayNotOnYandex'), variant: 'info' })
+      refreshLayerControl()
+    },
+    refreshLayerControl
+  )
+  baseMapProjection.followBaseMaps(baseMaps)
+  map.value.setView(mapCenter.value as LatLngTuple, zoom.value)
 
   // Listen for base layer changes to save user preference
   map.value.on('baselayerchange', (event: LayersControlEvent) => {
@@ -621,11 +673,15 @@ onMounted(async () => {
   const saveCtlEsri = downloadOfflineMapTiles(esri, 'Esri', 19)
   const saveCtlOSM = downloadOfflineMapTiles(osm, 'OSM', 19)
   const saveCtlSeamarks = downloadOfflineMapTiles(seamarks, 'Seamarks', 18)
+  const saveCtlYandexSatellite = downloadOfflineMapTiles(yandexSatellite, 'Яндекс Спутник', 19)
+  const saveCtlYandexMap = downloadOfflineMapTiles(yandexMap, 'Яндекс Схема', 19)
 
   if (map.value) {
     saveCtlEsri.addTo(map.value)
     saveCtlOSM.addTo(map.value)
     saveCtlSeamarks.addTo(map.value)
+    saveCtlYandexSatellite.addTo(map.value)
+    saveCtlYandexMap.addTo(map.value)
   }
 
   // Hide native UI for offline map download controls
@@ -639,6 +695,8 @@ onMounted(async () => {
   hideCtl(saveCtlEsri)
   hideCtl(saveCtlOSM)
   hideCtl(saveCtlSeamarks)
+  hideCtl(saveCtlYandexSatellite)
+  hideCtl(saveCtlYandexMap)
 
   await nextTick()
 
@@ -650,6 +708,8 @@ onMounted(async () => {
   const [esriSave] = getBtns(saveCtlEsri)
   const [osmSave] = getBtns(saveCtlOSM)
   const [seaSave] = getBtns(saveCtlSeamarks)
+  ;[yandexSatelliteSaveBtn] = getBtns(saveCtlYandexSatellite)
+  ;[yandexMapSaveBtn] = getBtns(saveCtlYandexMap)
 
   esriSaveBtn = esriSave
   osmSaveBtn = osmSave
@@ -658,6 +718,8 @@ onMounted(async () => {
   attachOfflineProgress(esri, 'Esri')
   attachOfflineProgress(osm, 'OSM')
   attachOfflineProgress(seamarks, 'Seamarks')
+  attachOfflineProgress(yandexSatellite, 'Яндекс Спутник')
+  attachOfflineProgress(yandexMap, 'Яндекс Схема')
 
   map.value.on('dragstart', () => {
     isDragging.value = true
