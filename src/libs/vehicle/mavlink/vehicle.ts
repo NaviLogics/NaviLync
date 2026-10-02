@@ -894,6 +894,25 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
   }
 
   /**
+   * Request one parameter from the vehicle by its name; it comes back as PARAM_VALUE
+   * @param {string} name - The parameter name, e.g. 'RO_SPEED_LIM'
+   */
+  requestParameter(name: string): void {
+    // param_id is a char[16], padded with NUL; param_index -1 means "by name"
+    const paramId = [...name.slice(0, 16)]
+    while (paramId.length < 16) paramId.push('\0')
+    const paramRequestMessage: Message.ParamRequestRead = {
+      type: MAVLinkType.PARAM_REQUEST_READ,
+      target_system: this.currentSystemId,
+      target_component: 1,
+      // @ts-ignore: The correct type is indeed a char array
+      param_id: paramId,
+      param_index: -1,
+    }
+    sendMavlinkMessage(paramRequestMessage)
+  }
+
+  /**
    * Request parameters list from vehicle
    */
   requestParametersList(): void {
