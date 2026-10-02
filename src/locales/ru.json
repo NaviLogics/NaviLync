@@ -1624,6 +1624,7 @@
     }
   },
   "navisAtlasStatus": {
+    "horizontalAccuracy": "{value} см",
     "systemStatus": "СОСТОЯНИЕ СИСТЕМЫ",
     "noLink": "НЕТ СВЯЗИ",
     "readyPrefix": "ГОТОВНОСТЬ",

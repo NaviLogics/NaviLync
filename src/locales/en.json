@@ -1624,6 +1624,7 @@
     }
   },
   "navisAtlasStatus": {
+    "horizontalAccuracy": "{value} cm",
     "systemStatus": "SYSTEM STATUS",
     "noLink": "NO LINK",
     "readyPrefix": "READY",
