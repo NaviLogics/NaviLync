@@ -179,7 +179,7 @@ describe('survey planner: mission items', () => {
     expect(Math.hypot(r[0] - a[0], r[1] - a[1])).toBeCloseTo(p.runOut, 1)
   })
 
-  test('an L-shaped area: a line cut by the notch gives two lines, both passed', () => {
+  test('an L-shaped area: the lines the notch shortens are passed as well', () => {
     // 30 × 20 m without its top right 15 × 10 m quarter
     const area = [
       toLatLon(0, 0),
@@ -196,6 +196,31 @@ describe('survey planner: mission items', () => {
     expect(covered.filter((length) => Math.abs(length - 20) < 0.2)).toHaveLength(3)
     expect(covered.filter((length) => Math.abs(length - 10) < 0.2)).toHaveLength(3)
     expect([...plan.lineOrder.order].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5])
+  })
+
+  test('a U-shaped area: a line cut by the notch gives two lines, both passed', () => {
+    // 30 × 20 m without the 10 × 10 m middle of its north side
+    const area = [
+      toLatLon(0, 0),
+      toLatLon(30, 0),
+      toLatLon(30, 20),
+      toLatLon(20, 20),
+      toLatLon(20, 10),
+      toLatLon(10, 10),
+      toLatLon(10, 20),
+      toLatLon(0, 20),
+    ]
+    const plan = planSurvey(area, params({ lineSpacing: 5, minTurnWidth: 4 }))
+    // East-west lines at y = 2.5, 7.5 (30 m) and 12.5, 17.5 (cut into two 10 m lines each)
+    const lengths = plan.lines.map(([start, end]) => Math.abs(toXY(end)[0] - toXY(start)[0]))
+    expect(lengths.filter((length) => Math.abs(length - 30) < 0.2)).toHaveLength(2)
+    expect(lengths.filter((length) => Math.abs(length - 10) < 0.2)).toHaveLength(4)
+    expect([...plan.lineOrder.order].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5])
+    // No line runs across the notch
+    plan.lines.forEach(([start, end]) => {
+      const middle: WaypointCoordinates = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2]
+      expect(inside(area, middle)).toBe(true)
+    })
   })
 
   test('totals: lines, their length, the route and the time with speeds and holds', () => {

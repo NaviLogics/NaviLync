@@ -1651,5 +1651,19 @@
     "savedTo": "Файл сохранён: {path}",
     "savedToBrowserDownloads": "Файл «{fileName}» сохранён в папку загрузок браузера",
     "failed": "Не удалось сохранить файл «{fileName}»"
+  },
+  "surveyForm": {
+    "runIn": "Выбег до галса, м",
+    "runOut": "Выбег после галса, м",
+    "minTurnWidth": "Мин. ширина разворота, м",
+    "lineSpeed": "Скорость на галсе, м/с",
+    "brakeSpeed": "Скорость у точек поворота, м/с",
+    "holdSeconds": "Удержание в точке поворота, с",
+    "transitSpeed": "Скорость перехода, м/с",
+    "turnRadius": "Радиус приёма точек поворота, м",
+    "lineRadius": "Радиус приёма на краях галса, м",
+    "summary": "Галсов: {lines} · галсы {lineLength} м · маршрут {total} м · ≈ {minutes} мин",
+    "skipLine": "пропуск галсов: k = {k}",
+    "narrowTurns": "Разворотов уже минимальной ширины: {count}"
   }
 }

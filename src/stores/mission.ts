@@ -9,6 +9,7 @@ import { openSnackbar } from '@/composables/snackbar'
 import { askForUsername } from '@/composables/usernamePrompDialog'
 import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { currentMarkerNumber } from '@/libs/mission/mission-sequence'
+import { type SurveyParameters, defaultSurveyParameters } from '@/libs/mission/survey-planner'
 import { eventCategoriesDefaultMapping } from '@/libs/slide-to-confirm'
 import {
   AltitudeReferenceType,
@@ -57,6 +58,11 @@ export const useMissionStore = defineStore('mission', () => {
   const showGridOnMissionPlanning = useBlueOsStorage('cockpit-show-grid-on-mission-planning', false)
   const showMissionEstimates = useBlueOsStorage('cockpit-show-mission-estimates', true)
   const defaultCruiseSpeed = useBlueOsStorage<number>('cockpit-default-cruise-speed', 1)
+  // The survey form of release 1.0 (run-ins, stops, speeds); spacing and angle are set on the map
+  const surveyParameters = useBlueOsStorage<Omit<SurveyParameters, 'lineSpacing' | 'linesAngle'>>(
+    'cockpit-survey-parameters',
+    defaultSurveyParameters()
+  )
   const userLastMapTileProvider = useBlueOsStorage<MapTileProvider>(
     'cockpit-user-last-map-tile-provider',
     'Esri World Imagery'
@@ -644,6 +650,7 @@ export const useMissionStore = defineStore('mission', () => {
     removeCommandFromWaypoint,
     updateWaypointCommand,
     defaultCruiseSpeed,
+    surveyParameters,
     userLastMapTileProvider,
     followVehicleOnMap,
     stopMission,
