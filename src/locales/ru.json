@@ -1651,5 +1651,19 @@
     "savedTo": "Файл сохранён: {path}",
     "savedToBrowserDownloads": "Файл «{fileName}» сохранён в папку загрузок браузера",
     "failed": "Не удалось сохранить файл «{fileName}»"
+  },
+  "linkHealth": {
+    "ok": "Связь с автопилотом: норма (последний HEARTBEAT {age} с назад)",
+    "degraded": "Связь с автопилотом ухудшилась: HEARTBEAT {age} с назад",
+    "lost": "Связь с автопилотом потеряна: HEARTBEAT {age} с назад",
+    "none": "Нет HEARTBEAT от автопилота",
+    "journalTitle": "Разрывы связи за сессию",
+    "noOutages": "Разрывов не было",
+    "armed": "ARMED",
+    "disarmed": "DISARMED",
+    "unknownArming": "армирование неизвестно",
+    "ongoing": "продолжается",
+    "duration": "{seconds} с",
+    "commandFailed": "Команда не выполнена: {error}"
   }
 }

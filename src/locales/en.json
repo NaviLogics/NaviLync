@@ -1651,5 +1651,19 @@
     "savedTo": "File saved: {path}",
     "savedToBrowserDownloads": "File \"{fileName}\" saved to the browser's downloads folder",
     "failed": "Could not save the file \"{fileName}\""
+  },
+  "linkHealth": {
+    "ok": "Autopilot link: normal (last HEARTBEAT {age} s ago)",
+    "degraded": "Autopilot link degraded: HEARTBEAT {age} s ago",
+    "lost": "Autopilot link lost: HEARTBEAT {age} s ago",
+    "none": "No HEARTBEAT from the autopilot",
+    "journalTitle": "Link losses in this session",
+    "noOutages": "No losses",
+    "armed": "ARMED",
+    "disarmed": "DISARMED",
+    "unknownArming": "arming unknown",
+    "ongoing": "ongoing",
+    "duration": "{seconds} s",
+    "commandFailed": "Command failed: {error}"
   }
 }
