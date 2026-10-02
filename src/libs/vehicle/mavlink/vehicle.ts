@@ -442,6 +442,18 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
         this._statusGPS.visibleSatellites = gpsMessage.satellites_visible
         this._statusGPS.HDOP = round(gpsMessage.eph / 100)
         this._statusGPS.VDOP = round(gpsMessage.epv / 100)
+        // GPS_FIX_TYPE numbers in MAVLink: 5 = RTK float, 6 = RTK fixed
+        const gpsFixNumbers: Record<GpsFixType, number> = {
+          [GpsFixType.GPS_FIX_TYPE_NO_GPS]: 0,
+          [GpsFixType.GPS_FIX_TYPE_NO_FIX]: 1,
+          [GpsFixType.GPS_FIX_TYPE_2D_FIX]: 2,
+          [GpsFixType.GPS_FIX_TYPE_3D_FIX]: 3,
+          [GpsFixType.GPS_FIX_TYPE_DGPS]: 4,
+          [GpsFixType.GPS_FIX_TYPE_RTK_FLOAT]: 5,
+          [GpsFixType.GPS_FIX_TYPE_RTK_FIXED]: 6,
+          [GpsFixType.GPS_FIX_TYPE_STATIC]: 7,
+          [GpsFixType.GPS_FIX_TYPE_PPP]: 8,
+        }
         const gpsFixTable = {
           [GpsFixType.GPS_FIX_TYPE_NO_GPS]: FixTypeGPS.NO_GPS,
           [GpsFixType.GPS_FIX_TYPE_NO_FIX]: FixTypeGPS.NO_FIX,
@@ -453,7 +465,12 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
           [GpsFixType.GPS_FIX_TYPE_STATIC]: FixTypeGPS.STATIC,
           [GpsFixType.GPS_FIX_TYPE_PPP]: FixTypeGPS.PPP,
         }
-        this._statusGPS.fixType = gpsFixTable[(gpsMessage.fix_type as unknown as Type<GpsFixType>).type]
+        const fixType = (gpsMessage.fix_type as unknown as Type<GpsFixType>).type
+        this._statusGPS.fixType = gpsFixTable[fixType]
+        this._statusGPS.fixTypeNumber = gpsFixNumbers[fixType]
+        // h_acc is a MAVLink v2 extension: a v1 message reaches mavlink2rest without it and arrives zeroed
+        this._statusGPS.horizontalAccuracyCm = gpsMessage.h_acc > 0 ? gpsMessage.h_acc / 10 : undefined
+        this._statusGPS.receivedAt = performance.now()
         this.onStatusGPS.emit()
         break
       }
