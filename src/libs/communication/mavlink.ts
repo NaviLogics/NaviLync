@@ -1,9 +1,16 @@
+import { openSnackbar } from '@/composables/snackbar'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
 import type { Message as MavMessage, Package } from '@/libs/connection/m2r/messages/mavlink2rest'
+import { i18n } from '@/plugins/i18n'
 
 import { MavComponent, MAVLinkType } from '../connection/m2r/messages/mavlink2rest-enum'
 import { type Message } from '../connection/m2r/messages/mavlink2rest-message'
 import { MavlinkManualControlState } from '../joystick/protocols/mavlink-manual-control'
+import {
+  type OutgoingMessage,
+  AutopilotRebootBlockedError,
+  isBlockedAutopilotReboot,
+} from '../vehicle/autopilot-reboot'
 
 let lastTimeLoggedConnectionError = new Date(0)
 
@@ -12,6 +19,14 @@ let lastTimeLoggedConnectionError = new Date(0)
  * @param {MavMessage} message
  */
 export const sendMavlinkMessage = (message: MavMessage): void => {
+  // After a software reboot the Pixhawk could hang until its power was removed: never while armed, whatever sends it
+  // Not dropped silently: a custom action would give no answer, and sendCommand would wait 5 s and report a link timeout
+  if (isBlockedAutopilotReboot(message as unknown as OutgoingMessage)) {
+    const error = new AutopilotRebootBlockedError()
+    console.warn(error.message)
+    openSnackbar({ message: i18n.global.t('autopilotReboot.onlyDisarmed'), variant: 'error' })
+    throw error
+  }
   const pack: Package = {
     header: {
       system_id: 255, // GCS system ID
