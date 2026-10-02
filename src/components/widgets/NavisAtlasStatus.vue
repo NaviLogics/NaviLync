@@ -25,7 +25,7 @@ import {
 } from '@/libs/actions/data-lake'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const vehicle = useMainVehicleStore()
 const tick = ref(0)
 const shoreLinkReachable = ref<boolean | undefined>(undefined)
@@ -89,6 +89,12 @@ const metric = (name: Alias): number | undefined => {
   return typeof value === 'number' ? value : undefined
 }
 
+// Whole centimetres, but one decimal under 1 cm so that a few millimetres do not read «0 см»
+const horizontalAccuracyText = (centimeters: number): string => {
+  const text = centimeters.toFixed(centimeters < 1 ? 1 : 0)
+  return t('navisAtlasStatus.horizontalAccuracy', { value: locale.value === 'ru' ? text.replace('.', ',') : text })
+}
+
 // GPS_RAW_INT older than this is not shown
 const GPS_MAX_AGE_MS = 3000
 
@@ -142,7 +148,7 @@ const rows = computed(() => {
   // The horizontal accuracy comes with MAVLink v2 only (GPS_RAW_INT.h_acc is an extension)
   const rtk =
     gnssKnown && gps.horizontalAccuracyCm !== undefined
-      ? { ...rtkState, value: `${rtkState.value} ${gps.horizontalAccuracyCm.toFixed(0)} cm` }
+      ? { ...rtkState, value: `${rtkState.value} ${horizontalAccuracyText(gps.horizontalAccuracyCm)}` }
       : rtkState
   const ready = state(metric('READY') === 1, readyKnown)
 
