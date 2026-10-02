@@ -1,4 +1,6 @@
 import * as turf from '@turf/turf'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
@@ -9,6 +11,7 @@ import {
 } from '@/libs/mission/mission-validation'
 import { type MissionCommand, type Waypoint, AltitudeReferenceType, MissionCommandType } from '@/types/mission'
 
+const read = (file: string): string => readFileSync(join(process.cwd(), file), 'utf8')
 const origin: [number, number] = [55.75, 37.6]
 // A point `meters` east of the origin
 const east = (meters: number): [number, number] => {
@@ -106,10 +109,11 @@ describe('mission check before upload', () => {
     expect(kinds(fast, undefined, { acceptanceRadius: 2 })).not.toContain('speedOverLimit')
   })
 
-  test('(d) an acceptance radius over half the line spacing: warning', () => {
-    expect(kinds(plain(), 1)).toContain('turnRadiusOverHalfSpacing')
-    expect(kinds(plain(), 5)).not.toContain('turnRadiusOverHalfSpacing')
-    expect(kinds(plain())).not.toContain('turnRadiusOverHalfSpacing')
+  // Review of #39: check (d) is removed; the survey planner sets the turn radii itself
+  test('an acceptance radius over half the line spacing is not reported', () => {
+    expect(kinds(plain(), 1)).toEqual(kinds(plain()))
+    expect(read('src/libs/mission/mission-validation.ts')).not.toMatch(/turnRadiusOverHalfSpacing/)
+    expect(read('src/views/MissionPlanningView.vue')).not.toMatch(/turnRadiusOverHalfSpacing/)
   })
 
   test('obvious errors stop the upload: no waypoint, a speed of 0, no coordinates', () => {
