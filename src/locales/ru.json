@@ -923,6 +923,7 @@
     "recordingOngoing": "Идёт запись видео. Не забудьте остановить её перед закрытием NaviLync, иначе запись будет потеряна."
   },
   "genericIndicator": {
+    "ekfSpeed": "Скорость по EKF: {value} м/с",
     "presets": "Шаблоны",
     "custom": "Настраиваемый",
     "displayName": "Отображаемое имя",
@@ -939,7 +940,7 @@
     "searchIcons": "Поиск иконок...",
     "noVariablesFound": "Переменные не найдены. Убедитесь, что аппарат подключён.",
     "builtIn": {
-      "speedGps": "Скорость (GPS)",
+      "speedGps": "Скорость (GNSS)",
       "metersPerSecond": "м/с"
     }
   },
