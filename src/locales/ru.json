@@ -1651,5 +1651,21 @@
     "savedTo": "Файл сохранён: {path}",
     "savedToBrowserDownloads": "Файл «{fileName}» сохранён в папку загрузок браузера",
     "failed": "Не удалось сохранить файл «{fileName}»"
+  },
+  "missionCheck": {
+    "title": "Проверка миссии перед загрузкой",
+    "errorsTitle": "Миссию нельзя загрузить",
+    "cancel": "Отмена",
+    "addStop": "Добавить остановку",
+    "uploadAnyway": "Загрузить как есть",
+    "parametersUnknown": "Параметры аппарата RO_SPEED_LIM и NAV_ACC_RAD не получены: проверка неполная.",
+    "speedUnset": "не задана",
+    "lastWaypointNotStopped": "Последняя точка: подход на скорости {speed} м/с, удержание {hold} с. Лодка может проскочить её по инерции — предлагается остановка: 0,3 м/с и удержание 3 с.",
+    "legShorterThanAcceptance": "Точка {marker}: участок {length} м короче двух радиусов приёма ({radius} м) — точка может засчитаться до подхода к ней.",
+    "speedOverLimit": "Скорость {speed} м/с выше предела аппарата RO_SPEED_LIM = {limit} м/с.",
+    "turnRadiusOverHalfSpacing": "Точка {marker}: радиус приёма {radius} м больше половины межгалсового расстояния {spacing} м.",
+    "noWaypoints": "В миссии нет точек.",
+    "invalidSpeed": "Скорость {speed} м/с недопустима.",
+    "invalidCoordinates": "У точки {marker} нет правильных координат."
   }
 }

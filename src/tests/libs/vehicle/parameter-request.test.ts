@@ -8,9 +8,9 @@ import type { PX4 } from '@/libs/vehicle/px4/px4'
 const sent: unknown[] = []
 vi.mock('mavlink2rest-wasm', () => ({ default: vi.fn(), ParserEmitter: vi.fn() }))
 vi.mock('mavlink2rest-wasm/mavlink2rest_wasm_bg.wasm?url', () => ({ default: '' }))
-vi.mock('@/libs/communication/mavlink', () => ({
+vi.mock('@/libs/communication/mavlink', async () => ({
+  ...(await vi.importActual<typeof import('@/libs/communication/mavlink')>('@/libs/communication/mavlink')),
   sendMavlinkMessage: (message: unknown) => sent.push(message),
-  sendManualControl: vi.fn(),
 }))
 
 let PX4Class: typeof PX4
