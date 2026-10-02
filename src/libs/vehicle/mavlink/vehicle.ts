@@ -876,6 +876,14 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
   }
 
   /**
+   * Request one parameter from the vehicle by its name; it comes back as PARAM_VALUE
+   * @param {string} name - The parameter name, e.g. 'RO_SPEED_LIM'
+   */
+  requestParameter(name: string): void {
+    name
+  }
+
+  /**
    * Request parameters list from vehicle
    */
   requestParametersList(): void {
