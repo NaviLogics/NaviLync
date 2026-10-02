@@ -589,7 +589,9 @@ import {
 } from '@/composables/useMissionEstimates'
 import { MavAutopilot, MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
+import { missionCheckMessages, missionCheckText } from '@/libs/mission/mission-check-text'
 import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
+import { type MissionWarning, validateMission, withStopAtLastWaypoint } from '@/libs/mission/mission-validation'
 import {
   type SurveyParameters,
   type SurveyPlan,
@@ -635,6 +637,14 @@ const { openSnackbar } = useSnackbar()
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
+// A transfer that timed out is said in plain words, the vehicle's message kept for the record. The dialog stays
+// until closed: on the pilot the link dropped during transfers, and a dialog closing itself was easy to miss
+const missionTransferErrorText = (error: unknown, operation: 'upload' | 'download'): string[] => {
+  const details = errorMessage(error)
+  if (!/timeout|timed out/i.test(details)) return [details]
+  return [t(operation === 'upload' ? 'linkHealth.uploadTimeout' : 'linkHealth.downloadTimeout'), details]
+}
+
 const clearMissionOnVehicle = async (): Promise<void> => {
   try {
     await vehicleStore.clearMissions()
@@ -665,6 +675,31 @@ const cloneCommands = (commands?: MissionCommand[]): MissionCommand[] => {
   return makeDefaultNavCommands()
 }
 
+const askAboutMissionWarnings = (
+  warnings: MissionWarning[],
+  message: string[]
+): Promise<'cancel' | 'addStop' | 'upload'> =>
+  new Promise((resolve) => {
+    const answer = (choice: 'cancel' | 'addStop' | 'upload') => () => {
+      closeDialog()
+      resolve(choice)
+    }
+    showDialog({
+      variant: 'warning',
+      title: t('missionCheck.title'),
+      message,
+      maxWidth: 650,
+      persistent: true,
+      actions: [
+        { text: t('missionCheck.cancel'), action: answer('cancel') },
+        ...(warnings.some((warning) => warning.kind === 'lastWaypointNotStopped')
+          ? [{ text: t('missionCheck.addStop'), action: answer('addStop') }]
+          : []),
+        { text: t('missionCheck.uploadAnyway'), action: answer('upload') },
+      ],
+    })
+  })
+
 const uploadMissionToVehicle = async (): Promise<void> => {
   // ArduPilot/Cockpit historically represents HOME as mission item 0. PX4 does not: QGC keeps planned home
   // outside the mission-item sequence. Sending the synthetic HOME waypoint to PX4 can make the upload invalid.
@@ -674,12 +709,32 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     return
   }
 
-  uploadingMission.value = true
-  missionUploadProgress.value = 0
-  const missionItemsToUpload: Waypoint[] = withCruiseSpeed(
+  let missionItemsToUpload: Waypoint[] = withCruiseSpeed(
     JSON.parse(JSON.stringify(missionStore.currentPlanningWaypoints)),
     Number(missionStore.defaultCruiseSpeed)
   )
+
+  // Release 1.0, task 2: warn before the upload; only obvious errors stop it
+  const missionCheckParameters = { ...vehicleStore.missionCheckParameters }
+  const check = validateMission(missionItemsToUpload, missionCheckParameters)
+  if (check.errors.length > 0) {
+    showDialog({
+      variant: 'error',
+      title: t('missionCheck.errorsTitle'),
+      message: check.errors.map(missionCheckText),
+      maxWidth: 600,
+    })
+    return
+  }
+  const missionCheckLines = missionCheckMessages(check.warnings, missionCheckParameters)
+  if (missionCheckLines.length > 0) {
+    const choice = await askAboutMissionWarnings(check.warnings, missionCheckLines)
+    if (choice === 'cancel') return
+    if (choice === 'addStop') missionItemsToUpload = withStopAtLastWaypoint(missionItemsToUpload)
+  }
+
+  uploadingMission.value = true
+  missionUploadProgress.value = 0
 
   const loadingCallback = async (loadingPerc: number): Promise<void> => {
     missionUploadProgress.value = loadingPerc
@@ -741,9 +796,7 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     showDialog({
       variant: 'error',
       title: t('missionPlanning.missionUploadFailed'),
-      message: errorMessage(error),
-      timer: 3000,
-      persistent: false,
+      message: missionTransferErrorText(error, 'upload'),
     })
     hasUploadedMission.value = false
   } finally {
@@ -781,8 +834,7 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
     showDialog({
       variant: 'error',
       title: t('missionPlanning.missionDownloadFailed'),
-      message: errorMessage(error),
-      timer: 5000,
+      message: missionTransferErrorText(error, 'download'),
     })
   } finally {
     loading.value = false

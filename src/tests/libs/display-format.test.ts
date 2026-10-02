@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 
 import {
   formatClockDateTime,
+  gnssSpeedReading,
   gpsFixVariableFor,
   indicatorDisplayName,
   indicatorDisplayUnit,
@@ -81,18 +82,72 @@ describe('GPS speed is shown only with a 3D fix and fresh data', () => {
 
 // Branding task, item 3: the stored indicator options stay as they are, only what is shown is translated
 describe('built-in indicator name and unit are shown in the interface language', () => {
-  test('in Russian: «Скорость (GPS)», «м/с»', () => {
-    expect(indicatorDisplayName('Speed (GPS)', translator(ru))).toBe('Скорость (GPS)')
+  test('in Russian: «Скорость (GNSS)», «м/с»', () => {
+    expect(indicatorDisplayName('Speed (GPS)', translator(ru))).toBe('Скорость (GNSS)')
     expect(indicatorDisplayUnit('m/s', translator(ru))).toBe('м/с')
   })
 
-  test('in English: «Speed (GPS)», «m/s»', () => {
-    expect(indicatorDisplayName('Speed (GPS)', translator(en))).toBe('Speed (GPS)')
+  test('in English: «Speed (GNSS)», «m/s»', () => {
+    expect(indicatorDisplayName('Speed (GPS)', translator(en))).toBe('Speed (GNSS)')
     expect(indicatorDisplayUnit('m/s', translator(en))).toBe('m/s')
   })
 
   test('names and units the operator typed stay as typed', () => {
     expect(indicatorDisplayName('Напряжение', translator(ru))).toBe('Напряжение')
     expect(indicatorDisplayUnit('V', translator(ru))).toBe('V')
+  })
+})
+
+// Release 1.0, task 3: on 30.09 the EKF speed read 2.5 m/s with a wrong heading while GNSS gave 1.75 m/s
+describe('the speed indicator shows the GNSS speed, the EKF one second', () => {
+  const now = 100_000
+  const fresh = now - 500
+  const base = {
+    velCmPerS: 185,
+    velUpdatedAt: fresh,
+    fixType: 'GPS_FIX_TYPE_RTK_FIXED' as string | number | undefined,
+    fixUpdatedAt: fresh,
+    ekfSpeed: 2.5,
+    ekfUpdatedAt: fresh,
+    now,
+  }
+  const text = (
+    reading: {
+      /**
+       *
+       */
+      value: string
+    },
+    locale: object
+  ): string => `${reading.value} ${indicatorDisplayUnit('m/s', translator(locale))}`
+
+  test('vel = 185 cm/s → «1,85 м/с» in Russian, "1.85 m/s" in English', () => {
+    expect(text(gnssSpeedReading(base, 'ru'), ru)).toBe('1,85 м/с')
+    expect(text(gnssSpeedReading(base, 'en'), en)).toBe('1.85 m/s')
+  })
+
+  test('the EKF speed is the second value, never the main one', () => {
+    const reading = gnssSpeedReading(base, 'ru')
+    expect(reading.value).toBe('1,85')
+    expect(reading.ekfValue).toBe('2,50')
+  })
+
+  test('fix_type 1 → «—», and no EKF value is offered as a substitute', () => {
+    const reading = gnssSpeedReading({ ...base, fixType: 1 }, 'ru')
+    expect(reading.value).toBe('—')
+  })
+
+  test('GNSS data older than 3 s → «—» (Pilot rule kept)', () => {
+    expect(gnssSpeedReading({ ...base, velUpdatedAt: now - 3500 }, 'ru').value).toBe('—')
+    expect(gnssSpeedReading({ ...base, fixUpdatedAt: now - 3500 }, 'ru').value).toBe('—')
+  })
+
+  test('vel = 65535 is "unknown" in MAVLink → «—»', () => {
+    expect(gnssSpeedReading({ ...base, velCmPerS: 65535 }, 'ru').value).toBe('—')
+  })
+
+  test('a stale or missing EKF speed is not shown as the second value', () => {
+    expect(gnssSpeedReading({ ...base, ekfUpdatedAt: now - 3500 }, 'ru').ekfValue).toBeUndefined()
+    expect(gnssSpeedReading({ ...base, ekfSpeed: undefined }, 'ru').ekfValue).toBeUndefined()
   })
 })

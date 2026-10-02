@@ -923,6 +923,7 @@
     "recordingOngoing": "You have a video recording ongoing. Remember to stop it before closing NaviLync, or the record will be lost."
   },
   "genericIndicator": {
+    "ekfSpeed": "EKF speed: {value} m/s",
     "presets": "Presets",
     "custom": "Custom",
     "displayName": "Display name",
@@ -939,7 +940,7 @@
     "searchIcons": "Search icons...",
     "noVariablesFound": "No variables found to choose from. Please make sure your vehicle is connected.",
     "builtIn": {
-      "speedGps": "Speed (GPS)",
+      "speedGps": "Speed (GNSS)",
       "metersPerSecond": "m/s"
     }
   },
@@ -1624,6 +1625,7 @@
     }
   },
   "navisAtlasStatus": {
+    "horizontalAccuracy": "{value} cm",
     "systemStatus": "SYSTEM STATUS",
     "noLink": "NO LINK",
     "readyPrefix": "READY",
@@ -1666,5 +1668,45 @@
     "skipLine": "line skipping: k = {k}",
     "narrowTurns": "Turns narrower than the minimum: {count}",
     "nonConvex": "The area is not convex: lines may be cut, with turns of no width between the parts. Split the area into convex parts."
+  },
+  "missionCheck": {
+    "title": "Mission check before upload",
+    "errorsTitle": "The mission cannot be uploaded",
+    "cancel": "Cancel",
+    "addStop": "Add a stop",
+    "uploadAnyway": "Upload as is",
+    "parametersUnknown": "Vehicle parameters were not received, the speed check was not done.",
+    "speedUnset": "not set",
+    "lastWaypointNotStopped": "Last waypoint: approached at {speed} m/s, hold {hold} s. The boat may overshoot it — a stop is suggested: 0.3 m/s and a 3 s hold.",
+    "legShorterThanAcceptance": "Waypoint {marker}: the {length} m leg is shorter than two acceptance radii ({radius} m) — it may count as reached before the boat gets there.",
+    "speedOverLimit": "Speed {speed} m/s is over the vehicle limit RO_SPEED_LIM = {limit} m/s.",
+    "noWaypoints": "The mission has no waypoint.",
+    "invalidSpeed": "Speed {speed} m/s is not valid.",
+    "invalidCoordinates": "Waypoint {marker} has no valid coordinates."
+  },
+  "linkHealth": {
+    "uploadTimeout": "The vehicle did not answer during the mission upload (timeout). The mission on the vehicle may be unchanged — check the link and upload again.",
+    "downloadTimeout": "The vehicle did not answer during the mission download (timeout). Check the link and try again.",
+    "ok": "Autopilot link: normal (last HEARTBEAT {age} s ago)",
+    "degraded": "Autopilot link degraded: HEARTBEAT {age} s ago",
+    "lost": "Autopilot link lost: HEARTBEAT {age} s ago",
+    "none": "No HEARTBEAT from the autopilot",
+    "journalTitle": "Link losses in this session",
+    "noOutages": "No losses",
+    "armed": "ARMED",
+    "disarmed": "DISARMED",
+    "unknownArming": "arming unknown",
+    "ongoing": "ongoing",
+    "duration": "{seconds} s",
+    "commandFailed": "Command failed: {error}"
+  },
+  "autopilotReboot": {
+    "button": "Reboot autopilot",
+    "title": "Autopilot reboot",
+    "warning": "A software reboot may leave the autopilot hung. Rebooting with the main power switch is recommended.",
+    "confirm": "Reboot",
+    "cancel": "Cancel",
+    "onlyDisarmed": "Reboot is available only with the vehicle disarmed.",
+    "failed": "Could not reboot the autopilot: {error}"
   }
 }
