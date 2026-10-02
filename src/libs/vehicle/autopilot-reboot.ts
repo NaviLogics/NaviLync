@@ -7,14 +7,14 @@ let isRebootAllowedNow: () => boolean = () => false
  * What NaviLync needs to know about an outgoing MAVLink message to tell an autopilot reboot apart
  */
 export interface OutgoingMessage {
-  /** The MAVLink message type, e.g. 'COMMAND_LONG' */
+  /** The MAVLink message type, e.g. 'COMMAND_LONG' or 'COMMAND_INT' */
   type: string
-  /** COMMAND_LONG.command, as mavlink2rest encodes it */
+  /** COMMAND_LONG/COMMAND_INT.command, as mavlink2rest encodes it */
   command?: {
     /** The MAV_CMD name */
     type: string
   }
-  /** COMMAND_LONG.param1 */
+  /** COMMAND_LONG/COMMAND_INT.param1 */
   param1?: number
 }
 
@@ -24,7 +24,7 @@ export interface OutgoingMessage {
  * @returns {boolean} True for MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN acting on the autopilot
  */
 export const isAutopilotRebootCommand = (message: OutgoingMessage): boolean =>
-  message.type === MAVLinkType.COMMAND_LONG &&
+  (message.type === MAVLinkType.COMMAND_LONG || message.type === MAVLinkType.COMMAND_INT) &&
   message.command?.type === MavCmd.MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN &&
   // param1 0 does nothing to the autopilot; 1 reboots it, 2 shuts it down, 3 reboots into the bootloader
   (message.param1 ?? 0) !== 0
@@ -55,4 +55,12 @@ export const isBlockedAutopilotReboot = (message: OutgoingMessage): boolean =>
 /**
  * A reboot command held back because the vehicle is not known to be disarmed
  */
-export class AutopilotRebootBlockedError extends Error {}
+export class AutopilotRebootBlockedError extends Error {
+  /**
+   * Create the error
+   */
+  constructor() {
+    super('Autopilot reboot not sent: the vehicle is not known to be disarmed.')
+    this.name = 'AutopilotRebootBlockedError'
+  }
+}
