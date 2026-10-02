@@ -66,7 +66,7 @@ export const useMissionStore = defineStore('mission', () => {
   )
   const userLastMapTileProvider = useBlueOsStorage<MapTileProvider>(
     'cockpit-user-last-map-tile-provider',
-    'Esri World Imagery'
+    'OpenStreetMap'
   )
   const mapDownloadMissionFromVehicle = ref<(() => Promise<void>) | null>(null)
   const mapClearMapDrawing = ref<(() => void) | null>(null)

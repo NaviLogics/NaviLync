@@ -214,6 +214,7 @@ import { useMissionRefreshWhenIdle } from '@/composables/missionRefreshWhenIdle'
 import { useSetHomeAction } from '@/composables/setHomeAction'
 import { openSnackbar } from '@/composables/snackbar'
 import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { esriTileLayerOffline, initialTileProvider, osmTileLayerOffline } from '@/libs/map-tiles'
 import { markerNumberByMissionSeq } from '@/libs/mission/mission-sequence'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { degrees } from '@/libs/utils'
@@ -433,20 +434,16 @@ onBeforeMount(() => {
 })
 
 // Configure the available map tile providers
-const osm = tileLayerOffline('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+const osm = osmTileLayerOffline({
   maxZoom: 23,
   maxNativeZoom: 19,
   attribution: '© OpenStreetMap',
 })
 
-const esri = tileLayerOffline(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  {
-    maxZoom: 23,
-    maxNativeZoom: 19,
-    attribution: '© Esri World Imagery',
-  }
-)
+const esri = esriTileLayerOffline({
+  maxZoom: 23,
+  maxNativeZoom: 19,
+})
 
 // Overlays
 const seamarks = tileLayerOffline('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
@@ -585,12 +582,13 @@ onMounted(async () => {
 
   mapBase.value?.addEventListener('touchstart', onTouchStart, { passive: true })
   mapBase.value?.addEventListener('touchend', onTouchEnd, { passive: true })
-  const initialBaseLayer = baseMaps[missionStore.userLastMapTileProvider] || esri
+  // The base map is kept in the widget, so a profile (Navis: OpenStreetMap) opens on its own base map
+  const initialBaseLayer =
+    baseMaps[initialTileProvider(widget.value.options.tileProvider, missionStore.userLastMapTileProvider)] || osm
 
   // Bind leaflet instance to map element
   map.value = L.map(mapId.value, {
     layers: [initialBaseLayer, seamarks, marineProfile],
-    attributionControl: false,
   }).setView(mapCenter.value as LatLngTuple, zoom.value) as Map
 
   // Listen for base layer changes to save user preference
@@ -600,6 +598,7 @@ onMounted(async () => {
       return
     }
     missionStore.userLastMapTileProvider = event.name as MapTileProvider
+    widget.value.options.tileProvider = event.name as MapTileProvider
   })
 
   // Remove default zoom control
@@ -1728,6 +1727,11 @@ watch(
   color: var(--glass-color);
   border: var(--glass-border);
   font-weight: bolder;
+}
+
+/* Map credits (Esri requires its own while its imagery is shown), kept above the bottom bar like the other controls */
+:deep(.leaflet-control-attribution) {
+  margin-bottom: v-bind('bottomButtonsDisplacement');
 }
 
 /* Style the Leaflet zoom control */

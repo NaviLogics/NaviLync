@@ -706,6 +706,7 @@ export const widgetProfiles: Profile[] = [
               height: 1,
             },
             options: {
+              tileProvider: 'OpenStreetMap',
               showVehiclePath: true,
             },
           },
