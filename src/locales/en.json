@@ -1653,6 +1653,8 @@
     "failed": "Could not save the file \"{fileName}\""
   },
   "linkHealth": {
+    "uploadTimeout": "The vehicle did not answer during the mission upload (timeout). The mission on the vehicle may be unchanged — check the link and upload again.",
+    "downloadTimeout": "The vehicle did not answer during the mission download (timeout). Check the link and try again.",
     "ok": "Autopilot link: normal (last HEARTBEAT {age} s ago)",
     "degraded": "Autopilot link degraded: HEARTBEAT {age} s ago",
     "lost": "Autopilot link lost: HEARTBEAT {age} s ago",
