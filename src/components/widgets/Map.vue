@@ -214,6 +214,7 @@ import { useMissionRefreshWhenIdle } from '@/composables/missionRefreshWhenIdle'
 import { useSetHomeAction } from '@/composables/setHomeAction'
 import { openSnackbar } from '@/composables/snackbar'
 import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { esriWorldImageryTileUrl, initialTileProvider, osmTileUrl } from '@/libs/map-tiles'
 import { markerNumberByMissionSeq } from '@/libs/mission/mission-sequence'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { degrees } from '@/libs/utils'
@@ -433,20 +434,17 @@ onBeforeMount(() => {
 })
 
 // Configure the available map tile providers
-const osm = tileLayerOffline('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+const osm = tileLayerOffline(osmTileUrl, {
   maxZoom: 23,
   maxNativeZoom: 19,
   attribution: '© OpenStreetMap',
 })
 
-const esri = tileLayerOffline(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  {
-    maxZoom: 23,
-    maxNativeZoom: 19,
-    attribution: '© Esri World Imagery',
-  }
-)
+const esri = tileLayerOffline(esriWorldImageryTileUrl, {
+  maxZoom: 23,
+  maxNativeZoom: 19,
+  attribution: '© Esri World Imagery',
+})
 
 // Overlays
 const seamarks = tileLayerOffline('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
@@ -585,7 +583,9 @@ onMounted(async () => {
 
   mapBase.value?.addEventListener('touchstart', onTouchStart, { passive: true })
   mapBase.value?.addEventListener('touchend', onTouchEnd, { passive: true })
-  const initialBaseLayer = baseMaps[missionStore.userLastMapTileProvider] || esri
+  // The base map is kept in the widget, so a profile (Navis: Esri World Imagery) opens on its own base map
+  const initialBaseLayer =
+    baseMaps[initialTileProvider(widget.value.options.tileProvider, missionStore.userLastMapTileProvider)] || esri
 
   // Bind leaflet instance to map element
   map.value = L.map(mapId.value, {
@@ -600,6 +600,7 @@ onMounted(async () => {
       return
     }
     missionStore.userLastMapTileProvider = event.name as MapTileProvider
+    widget.value.options.tileProvider = event.name as MapTileProvider
   })
 
   // Remove default zoom control

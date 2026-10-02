@@ -1,9 +1,10 @@
 import type { MapTileProvider } from '@/types/mission'
 
 // OSM asks for its main host; the a/b/c subdomains are kept only for old clients
-export const osmTileUrl = ''
+export const osmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
-export const esriWorldImageryTileUrl = ''
+export const esriWorldImageryTileUrl =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
 /**
  * The base map a map opens with
@@ -14,4 +15,4 @@ export const esriWorldImageryTileUrl = ''
 export const initialTileProvider = (
   widgetChoice: MapTileProvider | undefined,
   userLastChoice: MapTileProvider | undefined
-): MapTileProvider => userLastChoice ?? widgetChoice ?? 'OpenStreetMap'
+): MapTileProvider => widgetChoice ?? userLastChoice ?? 'Esri World Imagery'

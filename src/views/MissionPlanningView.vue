@@ -541,6 +541,7 @@ import {
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
 import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { esriWorldImageryTileUrl, osmTileUrl } from '@/libs/map-tiles'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
 import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
 import { degrees } from '@/libs/utils'
@@ -3053,19 +3054,16 @@ const attachOfflineProgress = (layer: any, layerName: string): void => {
 }
 
 onMounted(async () => {
-  const osm = tileLayerOffline('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  const osm = tileLayerOffline(osmTileUrl, {
     maxZoom: 23,
     maxNativeZoom: 19,
     attribution: '© OpenStreetMap',
   })
-  const esri = tileLayerOffline(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    {
-      maxZoom: 23,
-      maxNativeZoom: 19,
-      attribution: '© Esri World Imagery',
-    }
-  )
+  const esri = tileLayerOffline(esriWorldImageryTileUrl, {
+    maxZoom: 23,
+    maxNativeZoom: 19,
+    attribution: '© Esri World Imagery',
+  })
 
   const baseMaps = {
     'OpenStreetMap': osm,
@@ -3078,10 +3076,6 @@ onMounted(async () => {
     mapCenter.value as LatLngTuple,
     zoom.value
   )
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  }).addTo(planningMap.value)
   planningMap.value.zoomControl.setPosition('bottomright')
 
   const pane = planningMap.value!.createPane('measurePane')
