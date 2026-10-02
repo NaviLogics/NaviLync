@@ -1,5 +1,5 @@
-import type { TileLayerOptions } from 'leaflet'
-import { type TileLayerOffline, tileLayerOffline } from 'leaflet.offline'
+import type { Coords, TileLayerOptions } from 'leaflet'
+import { type TileInfo, type TileLayerOffline, getTileUrl, tileLayerOffline } from 'leaflet.offline'
 
 import type { MapTileProvider } from '@/types/mission'
 
@@ -14,8 +14,16 @@ export const legacyOsmTileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.
  * @param {TileLayerOptions} options - Leaflet tile layer options
  * @returns {TileLayerOffline} The OSM layer
  */
-export const osmTileLayerOffline = (options: TileLayerOptions): TileLayerOffline =>
-  tileLayerOffline(osmTileUrl, options)
+export const osmTileLayerOffline = (options: TileLayerOptions): TileLayerOffline => {
+  const layer = tileLayerOffline(osmTileUrl, options)
+  const legacyKey = ({ x, y, z }: Coords | TileInfo): string => getTileUrl(legacyOsmTileUrl, { x, y, z, s: 'a' })
+  const getTileUrls = layer.getTileUrls.bind(layer)
+  // Tiles are fetched from the new host but stored, looked up and removed under the old key and template
+  layer._getStorageKey = legacyKey
+  layer.getTileUrls = (area, zoom) =>
+    getTileUrls(area, zoom).map((tile) => ({ ...tile, key: legacyKey(tile), urlTemplate: legacyOsmTileUrl }))
+  return layer
+}
 
 export const esriWorldImageryTileUrl =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'

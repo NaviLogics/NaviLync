@@ -214,7 +214,7 @@ import { useMissionRefreshWhenIdle } from '@/composables/missionRefreshWhenIdle'
 import { useSetHomeAction } from '@/composables/setHomeAction'
 import { openSnackbar } from '@/composables/snackbar'
 import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { esriWorldImageryTileUrl, initialTileProvider, osmTileUrl } from '@/libs/map-tiles'
+import { esriWorldImageryTileUrl, initialTileProvider, osmTileLayerOffline } from '@/libs/map-tiles'
 import { markerNumberByMissionSeq } from '@/libs/mission/mission-sequence'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { degrees } from '@/libs/utils'
@@ -434,7 +434,7 @@ onBeforeMount(() => {
 })
 
 // Configure the available map tile providers
-const osm = tileLayerOffline(osmTileUrl, {
+const osm = osmTileLayerOffline({
   maxZoom: 23,
   maxNativeZoom: 19,
   attribution: '© OpenStreetMap',

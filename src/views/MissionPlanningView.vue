@@ -541,7 +541,7 @@ import {
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
 import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { esriWorldImageryTileUrl, osmTileUrl } from '@/libs/map-tiles'
+import { esriWorldImageryTileUrl, osmTileLayerOffline } from '@/libs/map-tiles'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
 import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
 import { degrees } from '@/libs/utils'
@@ -3054,7 +3054,7 @@ const attachOfflineProgress = (layer: any, layerName: string): void => {
 }
 
 onMounted(async () => {
-  const osm = tileLayerOffline(osmTileUrl, {
+  const osm = osmTileLayerOffline({
     maxZoom: 23,
     maxNativeZoom: 19,
     attribution: '© OpenStreetMap',
