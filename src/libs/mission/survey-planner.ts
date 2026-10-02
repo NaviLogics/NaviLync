@@ -66,6 +66,8 @@ export interface SurveyPlan {
   lines: [WaypointCoordinates, WaypointCoordinates][]
   /** The pass order */
   lineOrder: LineOrder
+  /** The area is not convex: rows may be cut into several lines, with turns of no width between them */
+  nonConvex: boolean
   /** Totals shown under the survey */
   stats: {
     /** Number of lines */
@@ -192,15 +194,23 @@ const EARTH_RADIUS = 6_371_008.8
  * Plan a survey of an area
  * @param {WaypointCoordinates[]} polygon - The area, as [lat, lon] vertices
  * @param {SurveyParameters} parameters - The survey form
+ * @param {number} [transitSpeed] - The mission cruise speed `v_transit`, in m/s, the vehicle comes to the area at
  * @returns {SurveyPlan} The mission items, the lines and the totals
  */
-export const planSurvey = (polygon: WaypointCoordinates[], parameters: SurveyParameters): SurveyPlan => {
+export const planSurvey = (
+  polygon: WaypointCoordinates[],
+  parameters: SurveyParameters,
+  transitSpeed = 0
+): SurveyPlan => {
   const p = parameters
+  // Stub until the approach depends on it
+  void transitSpeed
   const empty: SurveyPlan = {
     waypoints: [],
     kinds: [],
     lines: [],
     lineOrder: { order: [], k: 1, turnWidths: [], narrowTurns: 0 },
+    nonConvex: false,
     stats: { lineCount: 0, lineLength: 0, totalLength: 0, durationSeconds: 0 },
   }
   if (polygon.length < 3 || !(p.lineSpacing > 0)) return empty
@@ -342,6 +352,7 @@ export const planSurvey = (polygon: WaypointCoordinates[], parameters: SurveyPar
     kinds,
     lines: segments.map(({ c, from, to }) => [toPoint(from, c), toPoint(to, c)]),
     lineOrder,
+    nonConvex: false,
     stats: {
       lineCount: segments.length,
       lineLength: segments.reduce((sum, { from, to }) => sum + (to - from), 0),

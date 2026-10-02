@@ -1,14 +1,20 @@
 import * as turf from '@turf/turf'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { extractCruiseSpeed, withCruiseSpeed } from '@/libs/mission/mission-items'
 import {
   type SurveyParameters,
   defaultSurveyParameters,
   planSurvey,
   skipLineOrder,
 } from '@/libs/mission/survey-planner'
+import { convertCockpitWaypointsToMavlink, convertMavlinkWaypointsToCockpit } from '@/libs/vehicle/mavlink/types'
 import type { WaypointCoordinates } from '@/types/mission'
+
+const read = (file: string): string => readFileSync(join(process.cwd(), file), 'utf8')
 
 // A local frame in metres: x east, y north, from a point in the Moscow region
 const origin = { lat: 55.75, lon: 37.6 }
@@ -38,21 +44,14 @@ const params = (overrides: Partial<SurveyParameters> = {}): SurveyParameters => 
   linesAngle: 90,
   ...overrides,
 })
-const navParams = (
-  plan: ReturnType<typeof planSurvey>,
-  index: number
-): {
-  /**
-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc *
-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-   */
+/** The NAV_WAYPOINT parameters of a survey waypoint */
+interface NavParams {
+  /** Hold time, in s */
   hold: number
-  /**
-hhhhhhhhhhhhhh *
-hhhhhhhhhhhhhh
-   */
+  /** Acceptance radius, in m */
   radius: number
-} => {
+}
+const navParams = (plan: ReturnType<typeof planSurvey>, index: number): NavParams => {
   const nav = plan.waypoints[index].commands.find((c) => c.command === MavCmd.MAV_CMD_NAV_WAYPOINT)!
   return { hold: nav.param1, radius: nav.param2 }
 }
@@ -73,7 +72,6 @@ describe('survey planner: defaults of the Navis profile', () => {
       lineSpeed: 1.5,
       brakeSpeed: 0.3,
       holdSeconds: 3,
-      transitSpeed: 2,
       turnRadius: 1,
       lineRadius: 1,
     })
@@ -171,7 +169,7 @@ describe('survey planner: mission items', () => {
     expect(sequence(plan).slice(-2)).toEqual(['speed 0.3', 'runOutEnd'])
   })
 
-  test('the approach to the first run-in is braked too: v_brake from a point d_out before R', () => {
+  test('the approach to the first run-in is braked too: v_brake from a point d_out before R (slow transit)', () => {
     const p = params()
     const plan = planSurvey(rectangle(20, 10), p)
     const [a, r] = [toXY(plan.waypoints[0].coordinates), toXY(plan.waypoints[1].coordinates)]
@@ -230,5 +228,123 @@ describe('survey planner: mission items', () => {
     expect(plan.stats.totalLength).toBeGreaterThan(plan.stats.lineLength)
     // Lines at 1.5 m/s, everything else at 0.3 m/s, four 3 s holds
     expect(plan.stats.durationSeconds).toBeGreaterThan(40 / 1.5 + 4 * 3)
+  })
+})
+
+const u = (): WaypointCoordinates[] => [
+  toLatLon(0, 0),
+  toLatLon(30, 0),
+  toLatLon(30, 20),
+  toLatLon(20, 20),
+  toLatLon(20, 10),
+  toLatLon(10, 10),
+  toLatLon(10, 20),
+  toLatLon(0, 20),
+]
+const stripped = (items: ReturnType<typeof convertCockpitWaypointsToMavlink>): unknown[] =>
+  items.map(({ seq, command, param1, param2, x, y }) => ({ seq, command: command.type, param1, param2, x, y }))
+
+// Review of #41
+describe('survey planner: review of #41', () => {
+  test('cruise speed on a survey: SPEED(v_transit), NAV(approach), SPEED(v_brake), NAV(R0, hold), kept after download', () => {
+    const plan = planSurvey(rectangle(20, 10), params(), 2)
+    const items = convertCockpitWaypointsToMavlink(withCruiseSpeed(plan.waypoints, 2), 1)
+
+    expect(
+      items
+        .slice(0, 4)
+        .map((item) => [
+          item.command.type,
+          item.command.type === MavCmd.MAV_CMD_NAV_WAYPOINT ? item.param1 : item.param2,
+        ])
+    ).toEqual([
+      [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 2],
+      [MavCmd.MAV_CMD_NAV_WAYPOINT, 0],
+      [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 0.3],
+      [MavCmd.MAV_CMD_NAV_WAYPOINT, 3],
+    ])
+
+    // Downloaded from the vehicle: the cruise speed comes back, the braking stays on the approach point
+    const downloaded = extractCruiseSpeed(convertMavlinkWaypointsToCockpit(items))
+    expect(downloaded.cruiseSpeed).toBe(2)
+    expect(downloaded.waypoints[0].commands.map((c) => [c.command, c.param2])).toEqual([
+      [MavCmd.MAV_CMD_NAV_WAYPOINT, navParams(plan, 0).radius],
+      [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 0.3],
+    ])
+    const reuploaded = convertCockpitWaypointsToMavlink(
+      withCruiseSpeed(downloaded.waypoints, downloaded.cruiseSpeed),
+      1
+    )
+    expect(stripped(reuploaded)).toEqual(stripped(items))
+  })
+
+  test('a new cruise speed replaces only the speed item before the first NAV, never the braking after it', () => {
+    const plan = planSurvey(rectangle(20, 10), params(), 2)
+    const twice = withCruiseSpeed(withCruiseSpeed(plan.waypoints, 2), 3)
+    expect(
+      twice[0].commands.map((c) => [c.command, c.command === MavCmd.MAV_CMD_DO_CHANGE_SPEED ? c.param2 : 0])
+    ).toEqual([
+      [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 3],
+      [MavCmd.MAV_CMD_NAV_WAYPOINT, 0],
+      [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 0.3],
+    ])
+  })
+
+  test('approach point: acceptance radius max(3 m, r_turn), distance to R max(d_out, v_transit²/2)', () => {
+    const area = rectangle(20, 10)
+    const approachLength = (plan: ReturnType<typeof planSurvey>): number => {
+      const [a, r] = [0, 1].map((i) => toXY(plan.waypoints[i].coordinates))
+      return Math.hypot(r[0] - a[0], r[1] - a[1])
+    }
+    const slow = planSurvey(area, params(), 2)
+    const fast = planSurvey(area, params(), 4.5)
+
+    expect(approachLength(slow)).toBeCloseTo(5, 1)
+    // About 1 m/s² of braking: 4.5² / 2 ≈ 10 m
+    expect(approachLength(fast)).toBeCloseTo(10.125, 1)
+    expect(fast.kinds[0]).toBe('approach')
+    expect(navParams(slow, 0).radius).toBe(3)
+    expect(navParams(planSurvey(area, params({ turnRadius: 4 }), 2), 0).radius).toBe(4)
+  })
+
+  test('the transit speed is the mission cruise speed: not a survey parameter, not written by the survey', () => {
+    expect('transitSpeed' in defaultSurveyParameters(5)).toBe(false)
+    const planner = read('src/views/MissionPlanningView.vue')
+    expect(planner).not.toMatch(/missionStore\.defaultCruiseSpeed = parameters/)
+    expect(planner).not.toMatch(/key: 'transitSpeed'/)
+    // The survey form shows the cruise speed field of the mission itself
+    const form = planner.slice(planner.indexOf('class="survey-form'), planner.indexOf('v-if="surveyPreview"'))
+    expect(form).toMatch(/v-model\.number="missionStore\.defaultCruiseSpeed"/)
+    const calls = planner.match(/planSurvey\(/g) ?? []
+    const withCruise = planner.match(/planSurvey\([^;]*?Number\(missionStore\.defaultCruiseSpeed\)/gs) ?? []
+    expect(calls.length).toBeGreaterThan(0)
+    expect(withCruise).toHaveLength(calls.length)
+  })
+
+  test('rows: n = ceil(W/s), centred, so a 10.9 m wide area with s = 5 has 3 lines and no uncovered strip', () => {
+    const plan = planSurvey(rectangle(30, 10.9), params({ lineSpacing: 5 }))
+    const ys = plan.lines.map(([start]) => toXY(start)[1]).sort((a, b) => a - b)
+
+    expect(ys).toHaveLength(3)
+    expect(ys[0]).toBeCloseTo(0.45, 1)
+    expect(ys[1]).toBeCloseTo(5.45, 1)
+    expect(ys[2]).toBeCloseTo(10.45, 1)
+    for (let y = 0; y <= 10.9; y += 0.1) {
+      expect(Math.min(...ys.map((line) => Math.abs(line - y)))).toBeLessThanOrEqual(2.5 + 1e-3)
+    }
+    // An exact multiple of the spacing keeps its count
+    expect(planSurvey(rectangle(30, 10), params({ lineSpacing: 5 })).lines).toHaveLength(2)
+  })
+
+  test('a non-convex area is flagged so the planner asks to split it', () => {
+    expect(planSurvey(u(), params()).nonConvex).toBe(true)
+    expect(planSurvey(rectangle(20, 10), params()).nonConvex).toBe(false)
+    // A vertex on a straight edge does not make it non-convex
+    const withMidpoint = [toLatLon(0, 0), toLatLon(10, 0), toLatLon(20, 0), toLatLon(20, 10), toLatLon(0, 10)]
+    expect(planSurvey(withMidpoint, params()).nonConvex).toBe(false)
+
+    const planner = read('src/views/MissionPlanningView.vue')
+    expect(planner).toMatch(/v-if="surveyPreview\.nonConvex"/)
+    expect(read('src/locales/ru.json')).toMatch(/разбейте район на выпуклые части/)
   })
 })
