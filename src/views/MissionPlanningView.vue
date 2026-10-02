@@ -583,6 +583,14 @@ const { openSnackbar } = useSnackbar()
 
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
+// A transfer that timed out is said in plain words, the vehicle's message kept for the record. The dialog stays
+// until closed: on the pilot the link dropped during transfers, and a dialog closing itself was easy to miss
+const missionTransferErrorText = (error: unknown, operation: 'upload' | 'download'): string[] => {
+  const details = errorMessage(error)
+  if (!/timeout|timed out/i.test(details)) return [details]
+  return [t(operation === 'upload' ? 'linkHealth.uploadTimeout' : 'linkHealth.downloadTimeout'), details]
+}
+
 const clearMissionOnVehicle = async (): Promise<void> => {
   try {
     await vehicleStore.clearMissions()
@@ -689,9 +697,7 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     showDialog({
       variant: 'error',
       title: t('missionPlanning.missionUploadFailed'),
-      message: errorMessage(error),
-      timer: 3000,
-      persistent: false,
+      message: missionTransferErrorText(error, 'upload'),
     })
     hasUploadedMission.value = false
   } finally {
@@ -729,8 +735,7 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
     showDialog({
       variant: 'error',
       title: t('missionPlanning.missionDownloadFailed'),
-      message: errorMessage(error),
-      timer: 5000,
+      message: missionTransferErrorText(error, 'download'),
     })
   } finally {
     loading.value = false

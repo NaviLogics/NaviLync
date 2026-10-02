@@ -1625,6 +1625,7 @@
     }
   },
   "navisAtlasStatus": {
+    "horizontalAccuracy": "{value} cm",
     "systemStatus": "SYSTEM STATUS",
     "noLink": "NO LINK",
     "readyPrefix": "READY",
@@ -1652,5 +1653,30 @@
     "savedTo": "File saved: {path}",
     "savedToBrowserDownloads": "File \"{fileName}\" saved to the browser's downloads folder",
     "failed": "Could not save the file \"{fileName}\""
+  },
+  "linkHealth": {
+    "uploadTimeout": "The vehicle did not answer during the mission upload (timeout). The mission on the vehicle may be unchanged — check the link and upload again.",
+    "downloadTimeout": "The vehicle did not answer during the mission download (timeout). Check the link and try again.",
+    "ok": "Autopilot link: normal (last HEARTBEAT {age} s ago)",
+    "degraded": "Autopilot link degraded: HEARTBEAT {age} s ago",
+    "lost": "Autopilot link lost: HEARTBEAT {age} s ago",
+    "none": "No HEARTBEAT from the autopilot",
+    "journalTitle": "Link losses in this session",
+    "noOutages": "No losses",
+    "armed": "ARMED",
+    "disarmed": "DISARMED",
+    "unknownArming": "arming unknown",
+    "ongoing": "ongoing",
+    "duration": "{seconds} s",
+    "commandFailed": "Command failed: {error}"
+  },
+  "autopilotReboot": {
+    "button": "Reboot autopilot",
+    "title": "Autopilot reboot",
+    "warning": "A software reboot may leave the autopilot hung. Rebooting with the main power switch is recommended.",
+    "confirm": "Reboot",
+    "cancel": "Cancel",
+    "onlyDisarmed": "Reboot is available only with the vehicle disarmed.",
+    "failed": "Could not reboot the autopilot: {error}"
   }
 }
