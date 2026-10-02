@@ -222,6 +222,12 @@ export class StatusGPS {
   fixType = FixTypeGPS.NO_GPS
   HDOP: number
   VDOP: number
+  /** GPS_RAW_INT.fix_type as its MAVLink number (5 = RTK float, 6 = RTK fixed) */
+  fixTypeNumber?: number
+  /** GPS_RAW_INT.h_acc in cm; undefined when not sent (a MAVLink v1 message has no extensions) */
+  horizontalAccuracyCm?: number
+  /** When the last GPS_RAW_INT arrived in NaviLync, in performance.now() milliseconds */
+  receivedAt?: number
 }
 
 /**
