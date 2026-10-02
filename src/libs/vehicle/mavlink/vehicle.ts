@@ -811,7 +811,8 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       autopilot: { type: MavAutopilot.MAV_AUTOPILOT_INVALID },
       base_mode: { bits: MavModeFlag.MAV_MODE_FLAG_SAFETY_ARMED | MavModeFlag.MAV_MODE_FLAG_MANUAL_INPUT_ENABLED },
       system_status: { type: MavState.MAV_STATE_ACTIVE },
-      mavlink_version: 1,
+      // The MAVLink protocol revision, 3 for MAVLink 1.0 and 2.0 alike (what PX4 sends); not the wire version
+      mavlink_version: 3,
     }
 
     sendMavlinkMessage(heartbeatMessage)
