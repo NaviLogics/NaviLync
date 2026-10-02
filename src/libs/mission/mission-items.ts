@@ -25,6 +25,21 @@ export const makeDefaultNavCommands = (): MissionCommand[] => [
 
 const isSpeedCommand = (command: MissionCommand): boolean => command.command === MavCmd.MAV_CMD_DO_CHANGE_SPEED
 
+// The cruise speed is the speed item before the first NAV of the first waypoint. Speed items after that NAV belong to
+// the plan (e.g. the braking of a survey approach) and are never touched.
+const splitAtFirstNav = (
+  commands: MissionCommand[]
+): {
+  /** The commands before the first NAV */
+  before: MissionCommand[]
+  /** The first NAV and everything after it */
+  rest: MissionCommand[]
+} => {
+  const firstNav = commands.findIndex((command) => String(command.command).startsWith('MAV_CMD_NAV'))
+  const split = firstNav === -1 ? commands.length : firstNav
+  return { before: commands.slice(0, split), rest: commands.slice(split) }
+}
+
 /**
  * Put the mission cruise speed at the start of the mission, as a DO_CHANGE_SPEED item before the first waypoint, so
  * the vehicle already runs the first leg at that speed. It is added at 1 m/s too: without it PX4 would run at its own
@@ -53,7 +68,8 @@ export const withCruiseSpeed = (waypoints: Waypoint[], cruiseSpeed: number): Way
     y: 0,
     z: 0,
   }
-  return [{ ...first, commands: [speedCommand, ...first.commands.filter((c) => !isSpeedCommand(c))] }, ...rest]
+  const { before, rest: fromFirstNav } = splitAtFirstNav(first.commands)
+  return [{ ...first, commands: [speedCommand, ...before.filter((c) => !isSpeedCommand(c)), ...fromFirstNav] }, ...rest]
 }
 
 /**
@@ -72,12 +88,22 @@ export const extractCruiseSpeed = (
   cruiseSpeed: number
 } => {
   const [first, ...rest] = waypoints
-  const speedCommands = first?.commands.filter(isSpeedCommand) ?? []
+  if (!first) return { waypoints, cruiseSpeed: defaultCruiseSpeed }
+  const { before, rest: fromFirstNav } = splitAtFirstNav(first.commands)
+  let commands: MissionCommand[]
+  let speedCommands = before.filter(isSpeedCommand)
+  if (speedCommands.length > 0) {
+    commands = [...before.filter((c) => !isSpeedCommand(c)), ...fromFirstNav]
+  } else {
+    // Older NaviLync put the cruise speed right after the first NAV
+    speedCommands = first.commands.filter(isSpeedCommand)
+    commands = first.commands.filter((c) => !isSpeedCommand(c))
+  }
   const speed = speedCommands[speedCommands.length - 1]?.param2
   if (speedCommands.length === 0) return { waypoints, cruiseSpeed: defaultCruiseSpeed }
 
   return {
-    waypoints: [{ ...first, commands: first.commands.filter((c) => !isSpeedCommand(c)) }, ...rest],
+    waypoints: [{ ...first, commands }, ...rest],
     cruiseSpeed: speed !== undefined && speed > 0 ? speed : defaultCruiseSpeed,
   }
 }

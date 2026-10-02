@@ -1,4 +1,5 @@
 import { MavCmd, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import type { SurveyParameters } from '@/libs/mission/survey-planner'
 import { BatteryChemistry } from '@/libs/vehicle/types'
 
 /**
@@ -182,6 +183,10 @@ export interface Survey {
    * Executable mission waypoints.
    */
   waypoints: Waypoint[]
+  /**
+   * The survey form it was made with (run-ins, stops, speeds); missing for surveys made before release 1.0
+   */
+  parameters?: SurveyParameters
 }
 
 /**
