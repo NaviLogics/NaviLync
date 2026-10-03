@@ -91,9 +91,36 @@ export const shutdownBlockedBy = (
  * @returns {Promise<ShutdownStage>} The last stage: `off`, `timeout` or `failed`
  */
 export const shutDownOnboardComputer = async (steps: ShutdownSteps): Promise<ShutdownStage> => {
-  void steps
-  return { kind: 'off' }
+  const report = (stage: ShutdownStage): ShutdownStage => {
+    steps.onStage(stage)
+    return stage
+  }
+  // A ping that does not work before the command could not tell the onboard computer went off afterwards
+  const firstPing = await steps.ping().catch((): PingResult => 'unavailable')
+  const detection: OffDetection = firstPing === 'reply' ? 'ping' : 'status'
+
+  try {
+    await steps.powerOff()
+  } catch (error) {
+    return report({ kind: 'failed', error: String(error) })
+  }
+  report({ kind: 'shuttingDown', detection })
+
+  const answers = detection === 'ping' ? async () => (await steps.ping()) === 'reply' : steps.status
+  const misses = detection === 'ping' ? PING_MISSES_FOR_OFF : STATUS_MISSES_FOR_OFF
+  if ((await waitUntilOffline(answers, 1000, misses, SHUTDOWN_TIMEOUT_MS)) === 'timeout') {
+    return report({ kind: 'timeout' })
+  }
+
+  const finishing = detection === 'ping' ? FINISHING_AFTER_PING_S : FINISHING_AFTER_STATUS_S
+  for (let secondsLeft = finishing; secondsLeft > 0; secondsLeft--) {
+    report({ kind: 'finishing', secondsLeft })
+    await sleep(1000)
+  }
+  return report({ kind: 'off' })
 }
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
  * Wait until the onboard computer stops answering after the shutdown command
@@ -109,13 +136,18 @@ export const waitUntilOffline = async (
   offlineChecks = 3,
   timeoutMs = 90000
 ): Promise<'off' | 'timeout'> => {
+  const startedAt = Date.now()
   let missed = 0
-  // The first check waits too: BlueOS answers the command and keeps running for a few seconds
-  for (let waited = 0; waited < timeoutMs; waited += intervalMs) {
-    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  let checkMs = 0
+  for (;;) {
+    // The first check waits too: BlueOS answers the command and keeps running for a few seconds. A slow check (a
+    // ping waits up to 1 s for its reply) shortens the wait before the next one, so there is one check a second
+    await sleep(Math.max(0, intervalMs - checkMs))
+    const checkStartedAt = Date.now()
     const online = await isOnline().catch(() => false)
+    checkMs = Date.now() - checkStartedAt
     missed = online ? 0 : missed + 1
     if (missed >= offlineChecks) return 'off'
+    if (Date.now() - startedAt >= timeoutMs) return 'timeout'
   }
-  return 'timeout'
 }

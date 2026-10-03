@@ -3,7 +3,7 @@ import { isBrowser } from 'browser-or-node'
 import { type ElectronLog, type FinishedDownload } from '@/types/electron-general'
 import { ElectronStorageDB } from '@/types/general'
 import type { ElectronSDLJoystickControllerStateEventData } from '@/types/joystick'
-import { NetworkInfo } from '@/types/network'
+import { NetworkInfo, PingResult } from '@/types/network'
 import type { TelemetrySystemHardwareInfo } from '@/types/platform'
 import { SDLStatus } from '@/types/sdl'
 import type { SerialData } from '@/types/serial'
@@ -213,6 +213,12 @@ declare global {
        * @returns Promise containing subnet information
        */
       getInfoOnSubnets: () => Promise<NetworkInfo[]>
+      /**
+       * Ping a host once from the main process
+       * @param address - IPv4 address or host name
+       * @returns Whether the host answered, or that ping could not be run
+       */
+      pingHost: (address: string) => Promise<PingResult>
       /**
        * Get memory usage information from the main process
        * @returns Promise containing memory usage data

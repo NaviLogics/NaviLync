@@ -64,19 +64,20 @@ export const parsePingLatencyMs = (output: string): number | undefined => {
   return undefined
 }
 
+// One echo request with a 1 s wait
+const pingArgs = (address: string): string[] =>
+  process.platform === 'win32'
+    ? ['-n', '1', '-w', '1000', address]
+    : process.platform === 'darwin'
+    ? ['-c', '1', '-W', '1000', address]
+    : ['-c', '1', '-W', '1', address]
+
 export const checkHostReachability = async (address: string): Promise<HostReachability> => {
   if (!isValidIpv4(address)) throw new Error(`Invalid IPv4 address: ${address}`)
 
-  const args =
-    process.platform === 'win32'
-      ? ['-n', '1', '-w', '1000', address]
-      : process.platform === 'darwin'
-      ? ['-c', '1', '-W', '1000', address]
-      : ['-c', '1', '-W', '1', address]
-
   const startedAt = performance.now()
   try {
-    const { stdout } = await execFileAsync('ping', args, { windowsHide: true, timeout: 2000 })
+    const { stdout } = await execFileAsync('ping', pingArgs(address), { windowsHide: true, timeout: 2000 })
     return {
       reachable: true,
       latencyMs: parsePingLatencyMs(stdout) ?? Math.max(0, performance.now() - startedAt),
@@ -91,10 +92,7 @@ export const checkHostReachability = async (address: string): Promise<HostReacha
  * @param {string} output - What ping printed; on Windows in the OEM code page of the console
  * @returns {boolean} True for an echo reply
  */
-export const parsePingReply = (output: string): boolean => {
-  void output
-  return false
-}
+export const parsePingReply = (output: string): boolean => /\bTTL=\d+/i.test(output)
 
 /**
  * Ping a host once with the system ping, which needs no administrator rights
@@ -102,8 +100,17 @@ export const parsePingReply = (output: string): boolean => {
  * @returns {Promise<PingResult>} Whether the host answered, or that ping could not be run
  */
 export const pingHost = async (address: string): Promise<PingResult> => {
-  void address
-  return 'unavailable'
+  // Anything else, a leading '-' above all, could reach ping as an option
+  if (!/^[A-Za-z0-9][A-Za-z0-9.-]*$/.test(address)) return 'unavailable'
+  return new Promise((resolve) => {
+    // latin1 keeps the ASCII «TTL=» of a reply, whatever the OEM code page of the Windows console
+    execFile('ping', pingArgs(address), { encoding: 'latin1', windowsHide: true, timeout: 2000 }, (error, stdout) => {
+      // A system error code (ENOENT: no ping program) means ping did not run; an exit status means it did
+      if (typeof error?.code === 'string') return resolve('unavailable')
+      // Windows ping exits with 0 when a router answers that the host is unreachable: only the output tells
+      resolve(parsePingReply(String(stdout)) ? 'reply' : 'noReply')
+    })
+  })
 }
 
 const ipv4ToInt = (address: string): number => {
@@ -199,4 +206,5 @@ const getInfoOnSubnets = (): NetworkInfo[] => {
 export const setupNetworkService = (): void => {
   ipcMain.handle('get-info-on-subnets', getInfoOnSubnets)
   ipcMain.handle('check-host-reachability', (_event, address: string) => checkHostReachability(address))
+  ipcMain.handle('ping-host', (_event, address: string) => pingHost(address))
 }

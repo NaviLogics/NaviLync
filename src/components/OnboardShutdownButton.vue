@@ -13,7 +13,11 @@
     >
       {{ holding ? t('onboardShutdown.holdHint') : t('onboardShutdown.button') }}
     </v-btn>
-    <p v-if="statusText" class="mt-1 text-xs text-right" :class="state === 'off' ? 'text-green-400' : 'text-amber-300'">
+    <p
+      v-if="statusText"
+      class="mt-1 text-xs text-right"
+      :class="stage?.kind === 'off' ? 'text-green-400' : 'text-amber-300'"
+    >
       {{ statusText }}
     </p>
   </div>
@@ -23,43 +27,99 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useInteractionDialog } from '@/composables/interactionDialog'
 import { getStatus, requestOnboardPoweroff } from '@/libs/blueos'
-import { SHUTDOWN_HOLD_MS, shutdownBlockedBy, waitUntilOffline } from '@/libs/vehicle/onboard-shutdown'
+import {
+  type OffDetection,
+  type ShutdownStage,
+  SHUTDOWN_HOLD_MS,
+  shutdownBlockedBy,
+  shutDownOnboardComputer,
+} from '@/libs/vehicle/onboard-shutdown'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
+import type { PingResult } from '@/types/network'
 
 const { t } = useI18n()
 const vehicleStore = useMainVehicleStore()
+const { showDialog, closeDialog } = useInteractionDialog()
 
 const blockedBy = computed(() => shutdownBlockedBy(vehicleStore.isArmed, vehicleStore.velocity.ground))
 const holding = ref(false)
-const state = ref<'idle' | 'shuttingDown' | 'off' | 'timeout' | 'failed'>('idle')
-const error = ref('')
-const busy = computed(() => state.value === 'shuttingDown' || state.value === 'off')
+const running = ref(false)
+const stage = ref<ShutdownStage | undefined>(undefined)
+const busy = computed(() => running.value || stage.value?.kind === 'off')
 let holdTimer: ReturnType<typeof setTimeout> | undefined
 
 const statusText = computed(() => {
-  if (state.value === 'shuttingDown') return t('onboardShutdown.shuttingDown')
-  if (state.value === 'off') return t('onboardShutdown.canPowerOff')
-  if (state.value === 'timeout') return t('onboardShutdown.timeout')
-  if (state.value === 'failed') return t('onboardShutdown.failed', { error: error.value })
-  return ''
+  switch (stage.value?.kind) {
+    case 'shuttingDown':
+      return stage.value.detection === 'ping'
+        ? t('onboardShutdown.shuttingDown')
+        : `${t('onboardShutdown.shuttingDown')} ${t('onboardShutdown.noPing')}`
+    case 'finishing':
+      return t('onboardShutdown.finishing', { seconds: stage.value.secondsLeft })
+    case 'off':
+      return t('onboardShutdown.canPowerOff')
+    case 'timeout':
+      return t('onboardShutdown.timeout')
+    case 'failed':
+      return t('onboardShutdown.failed', { error: stage.value.error })
+    default:
+      return ''
+  }
 })
 
 const shutDown = async (): Promise<void> => {
   const address = vehicleStore.globalAddress
-  state.value = 'shuttingDown'
-  try {
-    await requestOnboardPoweroff(address)
-  } catch (failure) {
-    error.value = String(failure)
-    state.value = 'failed'
-    return
+  // How the end is told, for the journal: the first stage after the command says it
+  let detection: OffDetection | undefined
+  const onStage = (next: ShutdownStage): void => {
+    stage.value = next
+    if (next.kind === 'shuttingDown') {
+      detection = next.detection
+      vehicleStore.logSessionEvent({ kind: 'onboardShutdown', stage: 'commandSent', detection })
+    } else if (next.kind === 'off' || next.kind === 'timeout') {
+      vehicleStore.logSessionEvent({ kind: 'onboardShutdown', stage: next.kind, detection })
+    } else if (next.kind === 'failed') {
+      vehicleStore.logSessionEvent({ kind: 'onboardShutdown', stage: 'failed', error: next.error })
+    }
   }
-  // BlueOS powers off a few seconds after it answers: the main power may go off only once it stopped answering
-  state.value = await waitUntilOffline(() => getStatus(address))
+  running.value = true
+  stage.value = undefined
+  try {
+    await shutDownOnboardComputer({
+      // Only the desktop app can ping; in the browser BlueOS /status tells instead
+      ping: (): Promise<PingResult> => window.electronAPI?.pingHost?.(address) ?? Promise.resolve('unavailable'),
+      status: () => getStatus(address),
+      powerOff: () => requestOnboardPoweroff(address),
+      onStage,
+    })
+  } finally {
+    running.value = false
+  }
 }
 
-// Holding the button is the confirmation, so a stray click does not shut the computer down
+const askToShutDown = (): void => {
+  showDialog({
+    variant: 'warning',
+    title: t('onboardShutdown.button'),
+    message: t('onboardShutdown.confirmText'),
+    maxWidth: 500,
+    actions: [
+      { text: t('onboardShutdown.cancel'), action: () => closeDialog() },
+      {
+        text: t('onboardShutdown.confirm'),
+        action: () => {
+          closeDialog()
+          // The vehicle may have been armed or moved while the dialog was open
+          if (blockedBy.value === undefined && !busy.value) shutDown()
+        },
+      },
+    ],
+  })
+}
+
+// Holding the button, then the dialog, so a stray click does not shut the computer down
 const startHold = (): void => {
   if (blockedBy.value !== undefined || busy.value) return
   holding.value = true
@@ -67,7 +127,7 @@ const startHold = (): void => {
     holding.value = false
     holdTimer = undefined
     // A disabled button may never get the pointerup, so the conditions are checked again at the end of the hold
-    if (blockedBy.value === undefined) shutDown()
+    if (blockedBy.value === undefined) askToShutDown()
   }, SHUTDOWN_HOLD_MS)
 }
 

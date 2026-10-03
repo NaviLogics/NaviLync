@@ -108,6 +108,7 @@ Below is a table summarizing the current status, but in general, you can expect 
 | **Vehicle Discovery** | ❌ Not available | ✅ Auto-scan for vehicles in the network|
 | **Updates** | Manual updates required | ✅ Auto-updates / update notifications |
 | **System Monitoring** | Memory usage only | ✅ CPU and Memory tracking |
+| **Onboard computer shutdown** | Told off by BlueOS `/status` (no ping in the browser), then a 20 s wait | ✅ Told off by ping to the onboard computer, then a 10 s wait |
 | **Workspace Capture** | ❌ Not available | ✅ Full interface screenshots |
 | **Performance** | Standard | ✅ Optimized build for each system |
 | **Installation** | ✅ No install needed | Requires download |

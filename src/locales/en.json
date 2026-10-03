@@ -1700,6 +1700,7 @@
     "none": "No HEARTBEAT from the autopilot",
     "journalTitle": "Link losses in this session",
     "noOutages": "No losses",
+    "eventsTitle": "Session events",
     "armed": "ARMED",
     "disarmed": "DISARMED",
     "unknownArming": "arming unknown",
@@ -1715,6 +1716,7 @@
     "moving": "The vehicle is moving: wait until it stops (speed under 0.2 m/s)",
     "speedUnknown": "The vehicle speed is unknown",
     "shuttingDown": "The onboard computer is shutting down…",
+    "noPing": "Ping is not available: the shutdown is told by BlueOS answers, the wait is longer.",
     "canPowerOff": "You can switch the main power off. Make sure the Raspberry Pi light is off",
     "timeout": "The onboard computer still answers: do not switch the power off until it shuts down",
     "failed": "Could not shut the onboard computer down: {error}",
@@ -1722,7 +1724,6 @@
     "confirmText": "The onboard computer will be shut down. Stop the echo sounder recording. After the shutdown the link to the vehicle is lost until the power is switched on again.",
     "confirm": "Shut down",
     "cancel": "Cancel",
-    "journalTitle": "Session events",
     "journal": {
       "commandSent": "Onboard computer: power off command sent, watched by {detection}",
       "off": "Onboard computer off ({detection})",

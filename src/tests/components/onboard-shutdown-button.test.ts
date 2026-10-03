@@ -222,6 +222,7 @@ describe('the «Подготовить к выключению» button', () => 
 
     await report({ kind: 'shuttingDown', detection: 'ping' })
     expect(wrapper.text()).toContain(t('onboardShutdown.shuttingDown'))
+    expect(wrapper.text()).not.toContain(t('onboardShutdown.noPing'))
     expect(vehicle.logSessionEvent).toHaveBeenLastCalledWith({
       kind: 'onboardShutdown',
       stage: 'commandSent',
@@ -245,6 +246,8 @@ describe('the «Подготовить к выключению» button', () => 
     const wrapper = render()
     await confirmShutdown(wrapper)
     await report({ kind: 'shuttingDown', detection: 'status' })
+    // Without ping the operator is told why the wait is longer (the browser, or no ping on the system)
+    expect(wrapper.text()).toContain(t('onboardShutdown.noPing'))
     await report({ kind: 'timeout' })
 
     expect(wrapper.text()).toContain(t('onboardShutdown.timeout'))

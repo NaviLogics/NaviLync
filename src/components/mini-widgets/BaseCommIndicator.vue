@@ -30,6 +30,17 @@
         <span>{{ outage.context.mode ?? '—' }}</span>
         <span>{{ armingText(outage.context.armed) }}</span>
       </div>
+      <template v-if="store.sessionEvents.length > 0">
+        <p class="font-semibold mt-3 mb-2">{{ t('linkHealth.eventsTitle') }}</p>
+        <div
+          v-for="event in [...store.sessionEvents].reverse()"
+          :key="`${event.at}-${event.stage}`"
+          class="session-event flex gap-x-3 py-[2px]"
+        >
+          <span class="font-mono">{{ format(event.at, 'HH:mm:ss') }}</span>
+          <span>{{ eventText(event) }}</span>
+        </div>
+      </template>
     </div>
   </v-menu>
 </template>
@@ -39,6 +50,7 @@ import { format } from 'date-fns'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import type { SessionEvent } from '@/libs/link-health'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 
 const { t } = useI18n()
@@ -49,6 +61,12 @@ const stateText = computed((): string => {
   const age = ((store.heartbeatAgeMs ?? 0) / 1000).toFixed(1)
   return t(`linkHealth.${store.linkHealthState}`, { age })
 })
+
+const eventText = (event: SessionEvent): string =>
+  t(`onboardShutdown.journal.${event.stage}`, {
+    detection: event.detection === undefined ? '—' : t(`onboardShutdown.detection.${event.detection}`),
+    error: event.error ?? '',
+  })
 
 const armingText = (armed: boolean | undefined): string =>
   armed === undefined ? t('linkHealth.unknownArming') : armed ? t('linkHealth.armed') : t('linkHealth.disarmed')

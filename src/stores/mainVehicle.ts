@@ -262,7 +262,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   // Other events of the session the operator should find in the same journal
   const sessionEvents = reactive<SessionEvent[]>([])
   const logSessionEvent = (event: Omit<SessionEvent, 'at'>): void => {
-    void event
+    sessionEvents.push({ ...event, at: Date.now() })
   }
   watch(timeNow, (now) => {
     linkOutageJournal.update(now, lastHeartbeat.value?.getTime(), { mode: mode.value, armed: isArmed.value })

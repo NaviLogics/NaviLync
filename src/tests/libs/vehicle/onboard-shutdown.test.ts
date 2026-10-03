@@ -173,6 +173,7 @@ describe('shutting the onboard computer down', () => {
   test('the misses must be in a row: a ping that answers again starts the count over', async () => {
     const ping = vi.fn(inTurn<PingResult>('reply', 'noReply', 'noReply', 'noReply', 'noReply', 'reply', 'noReply'))
     const shutdown = start({ ping })
+    await advance(0)
     // Misses at 1–4 s, an answer at 5 s, then misses from 6 s: the 5th at 10 s
     await advance(9900)
     expect(kinds(shutdown.stages)).not.toContain('finishing')
@@ -214,6 +215,7 @@ describe('shutting the onboard computer down', () => {
     ['status', { ping: vi.fn(async (): Promise<PingResult> => 'unavailable'), status: vi.fn(async () => true) }],
   ])('%s: still answering 90 s after the command is a timeout, never off', async (_, steps) => {
     const shutdown = start(steps)
+    await advance(0)
     await advance(89500)
     expect(shutdown.result()).toBeUndefined()
     await advance(500)
