@@ -40,6 +40,8 @@ interface Dialog {
 }
 const dialogs: Dialog[] = []
 const closeDialog = vi.fn()
+const openSnackbar = vi.fn()
+vi.mock('@/composables/snackbar', () => ({ openSnackbar: (options: unknown) => openSnackbar(options) }))
 vi.mock('@/composables/interactionDialog', () => ({
   useInteractionDialog: () => ({ showDialog: (dialog: Dialog) => dialogs.push(dialog), closeDialog }),
 }))
@@ -118,6 +120,7 @@ describe('the «Подготовить к выключению» button', () => 
     vehicle.isArmed = false
     vehicle.velocity = { ground: 0 }
     vehicle.logSessionEvent.mockClear()
+    openSnackbar.mockClear()
     blueos.requestOnboardPoweroff.mockClear()
     blueos.getStatus.mockClear()
     shutDownOnboardComputer.mockClear()
@@ -270,6 +273,35 @@ describe('the «Подготовить к выключению» button', () => 
       stage: 'failed',
       error: 'Error: timeout',
     })
+  })
+
+  // The operator may have left the settings page by the time the onboard computer is off
+  test.each([
+    [
+      'off',
+      { kind: 'off' } as ShutdownStage,
+      'success',
+      'Можно выключать главный выключатель. Убедитесь, что индикатор Raspberry Pi погас',
+    ],
+    ['timeout', { kind: 'timeout' } as ShutdownStage, 'warning', t('onboardShutdown.timeout')],
+    [
+      'failed',
+      { kind: 'failed', error: 'Error: timeout' } as ShutdownStage,
+      'error',
+      t('onboardShutdown.failed', { error: 'Error: timeout' }),
+    ],
+  ])('the outcome %s is a snackbar on any page, kept until closed', async (_, outcome, variant, message) => {
+    const wrapper = render()
+    await confirmShutdown(wrapper)
+    await report({ kind: 'shuttingDown', detection: 'ping' })
+    await report({ kind: 'finishing', secondsLeft: 3 })
+    expect(openSnackbar).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+    await report(outcome)
+
+    expect(openSnackbar).toHaveBeenCalledTimes(1)
+    expect(openSnackbar).toHaveBeenCalledWith({ message, variant, closeButton: true })
   })
 
   test('it is on the general settings page, next to the autopilot reboot', () => {
