@@ -79,11 +79,19 @@ jobs:
           if (-not (Test-Path $archive)) {
             throw "Failed to package Windows x64 directory: $archive"
           }
+          # The hash of the ZIP itself: the artifact digest GitHub shows covers the download around it
+          $name = Split-Path $archive -Leaf
+          $hash = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          Write-Host "SHA-256 $name $hash"
+          # sha256sum format with LF, so that `sha256sum -c` checks it as well as Get-FileHash
+          [System.IO.File]::WriteAllText("$archive.sha256", "$hash  $name`n")
       - name: Upload NaviLync Windows x64 directory package
         uses: actions/upload-artifact@v4
         with:
           name: NaviLync-Windows-x64
-          path: dist/NaviLync-*-windows-x64.zip
+          path: |
+            dist/NaviLync-*-windows-x64.zip
+            dist/NaviLync-*-windows-x64.zip.sha256
           if-no-files-found: error
 
       - name: Publish GitHub Release
