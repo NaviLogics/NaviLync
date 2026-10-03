@@ -1687,6 +1687,7 @@
     "legShorterThanAcceptance": "Waypoint {marker}: the {length} m leg is shorter than two acceptance radii ({radius} m) — it may count as reached before the boat gets there.",
     "speedOverLimit": "Speed {speed} m/s is over the vehicle limit RO_SPEED_LIM = {limit} m/s.",
     "acceptanceRadiusWideForLines": "NAV_ACC_RAD = {radius} m with lines {spacing} m apart: the boat may enter a line up to {radius} m to the side. For narrow lines 1.0 m is advised.",
+    "missionRunning": "Stop the mission before uploading a new one.",
     "noWaypoints": "The mission has no waypoint.",
     "invalidSpeed": "Speed {speed} m/s is not valid.",
     "invalidCoordinates": "Waypoint {marker} has no valid coordinates."
