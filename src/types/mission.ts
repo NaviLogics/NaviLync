@@ -488,7 +488,7 @@ export interface VehicleMissionEstimate {
 /**
  * Types of map tile providers supported.
  */
-export type MapTileProvider = 'Esri World Imagery' | 'OpenStreetMap'
+export type MapTileProvider = 'Esri World Imagery' | 'OpenStreetMap' | 'Яндекс Спутник' | 'Яндекс Схема'
 
 export type IconDimensions = {
   /**
