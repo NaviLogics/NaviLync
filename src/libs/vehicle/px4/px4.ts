@@ -80,6 +80,8 @@ export const decodePx4Mode = (customMode: number): string => {
  */
 export class PX4 extends MAVLinkVehicle.MAVLinkVehicle<string> {
   _mode = 'Unknown'
+  // PX4 keeps the mission index of the mission before when no uploaded item is marked current
+  protected firstMissionItemCurrent = true
 
   protected currentSystemId = 1
 

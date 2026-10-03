@@ -398,7 +398,7 @@ src/libs/joystick/manager.ts(384,11) TS2741
 src/libs/joystick/manager.ts(577,32) TS2339
 src/libs/utils-data-lake.ts(80,3) TS2322
 src/migration/profile-migrations.ts(30,46) TS2344
-src/stores/mainVehicle.ts(931,9) TS2353
+src/stores/mainVehicle.ts(935,9) TS2353
 src/stores/video.ts(71,47) TS2345
 src/stores/video.ts(576,45) TS2345
 src/views/ConfigurationActionsView.vue(25,17) TS2322
@@ -446,6 +446,6 @@ src/views/ConfigurationUIView.vue(186,22) TS2551
 src/views/ConfigurationUIView.vue(194,22) TS2551
 src/views/ConfigurationUIView.vue(199,28) TS2551
 src/views/MissionPlanningView.vue(589,15) TS2305
-src/views/MissionPlanningView.vue(2968,31) TS2345
-src/views/MissionPlanningView.vue(3680,38) TS2345
+src/views/MissionPlanningView.vue(2975,31) TS2345
+src/views/MissionPlanningView.vue(3687,38) TS2345
 src/views/WidgetsView.vue(67,11) TS7053

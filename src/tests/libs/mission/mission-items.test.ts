@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
 import { MavCmd, MavFrame } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
@@ -12,6 +14,7 @@ import { convertCockpitWaypointsToMavlink, convertMavlinkWaypointsToCockpit } fr
 import { type Waypoint, AltitudeReferenceType, MissionCommandType } from '@/types/mission'
 
 const systemId = 1
+const read = (file: string): string => readFileSync(join(process.cwd(), file), 'utf8')
 
 const waypoint = (
   latitude: number,
@@ -205,5 +208,27 @@ describe('stops as NAV_DELAY', () => {
     const [held] = line(1)
     held.commands = [{ ...held.commands[0], param1: 5 }]
     expect(holdSecondsOf(held)).toBe(0)
+  })
+})
+
+// SITL PX4 v1.17: without an item marked current, PX4 keeps the index of the previous mission (mission_base.cpp), so a
+// mission started by a mode change (RC) went on from item 26 of the one before
+describe('the first item is marked current for PX4', () => {
+  test('with firstItemCurrent, seq 0 has current 1 and every other item 0', () => {
+    const items = convertCockpitWaypointsToMavlink(withCruiseSpeed(line(3), 1.5), systemId, true)
+    expect(items.map((item) => item.current)).toEqual([1, 0, 0, 0])
+  })
+
+  test('without it (ArduPilot) no item is marked current', () => {
+    const items = convertCockpitWaypointsToMavlink(withCruiseSpeed(line(3), 1.5), systemId)
+    expect(items.every((item) => item.current === 0)).toBe(true)
+  })
+
+  test('a PX4 vehicle uploads with the first item current, an ArduPilot one does not', () => {
+    const vehicle = read('src/libs/vehicle/mavlink/vehicle.ts')
+    expect(vehicle).toMatch(
+      /convertCockpitWaypointsToMavlink\(items, this\.currentSystemId, this\.firstMissionItemCurrent\)/
+    )
+    expect(read('src/libs/vehicle/px4/px4.ts')).toMatch(/firstMissionItemCurrent = true/)
   })
 })

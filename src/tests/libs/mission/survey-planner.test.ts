@@ -149,8 +149,10 @@ describe('survey planner: mission items', () => {
     const p = params({ lineSpacing: 5, minTurnWidth: 4 })
     const plan = planSurvey(rectangle(20, 10), p)
     const perLine = ['runInStart', 'delay 3', 'speed 1.5', 'lineStart', 'lineEnd', 'speed 0.3', 'runOutEnd', 'delay 3']
+    // The first R is on the straight from A0 to S: no stop there (see the SITL test below)
+    const firstLine = perLine.filter((_, i) => i !== 1)
 
-    expect(sequence(plan)).toEqual(['approach', 'speed 0.3', ...perLine, ...perLine])
+    expect(sequence(plan)).toEqual(['approach', 'speed 0.3', ...firstLine, ...perLine])
 
     for (let line = 0; line < 2; line++) {
       const base = 1 + line * 4
@@ -175,7 +177,7 @@ describe('survey planner: mission items', () => {
   test('stops are MAV_CMD_NAV_DELAY (param1 t_hold, the others -1); none when t_hold is 0', () => {
     const plan = planSurvey(rectangle(20, 10), params())
     const delays = plan.waypoints.flatMap((w) => w.commands).filter((c) => c.command === MavCmd.MAV_CMD_NAV_DELAY)
-    expect(delays).toHaveLength(4)
+    expect(delays).toHaveLength(3)
     delays.forEach((delay) =>
       expect(delay).toMatchObject({
         type: MissionCommandType.MAVLINK_NON_NAV_COMMAND,
@@ -255,10 +257,10 @@ describe('survey planner: mission items', () => {
     expect(plan.stats.lineCount).toBe(2)
     expect(plan.stats.lineLength).toBeCloseTo(40, 0)
     expect(plan.stats.totalLength).toBeGreaterThan(plan.stats.lineLength)
-    // Lines at 1.5 m/s, everything else at 0.3 m/s, four 3 s holds
-    expect(plan.stats.durationSeconds).toBeGreaterThan(40 / 1.5 + 4 * 3)
+    // Lines at 1.5 m/s, everything else at 0.3 m/s, three 3 s holds (none at the first R)
+    expect(plan.stats.durationSeconds).toBeGreaterThan(40 / 1.5 + 3 * 3)
     const noHold = planSurvey(rectangle(20, 10), params({ holdSeconds: 0 }))
-    expect(plan.stats.durationSeconds - noHold.stats.durationSeconds).toBeCloseTo(4 * 3, 6)
+    expect(plan.stats.durationSeconds - noHold.stats.durationSeconds).toBeCloseTo(3 * 3, 6)
   })
 })
 
@@ -277,7 +279,7 @@ const stripped = (items: ReturnType<typeof convertCockpitWaypointsToMavlink>): u
 
 // Review of #41
 describe('survey planner: review of #41', () => {
-  test('cruise speed on a survey: SPEED(v_transit), NAV(A0), SPEED(v_brake), NAV(R0), DELAY, SPEED(v_line), kept after download', () => {
+  test('cruise speed on a survey: SPEED(v_transit), NAV(A0), SPEED(v_brake), NAV(R0), SPEED(v_line), kept after download', () => {
     const plan = planSurvey(rectangle(20, 10), params(), 2)
     const items = convertCockpitWaypointsToMavlink(withCruiseSpeed(plan.waypoints, 2), 1)
 
@@ -293,12 +295,13 @@ describe('survey planner: review of #41', () => {
       [MavCmd.MAV_CMD_NAV_WAYPOINT, 0],
       [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 0.3],
       [MavCmd.MAV_CMD_NAV_WAYPOINT, 0],
-      [MavCmd.MAV_CMD_NAV_DELAY, 3],
       [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 1.5],
+      [MavCmd.MAV_CMD_NAV_WAYPOINT, 0],
     ])
     // PX4 takes NAV_DELAY in MAV_FRAME_MISSION only, without a position (mavlink_mission.cpp)
-    expect(items[4].frame.type).toBe(MavFrame.MAV_FRAME_MISSION)
-    expect([items[4].x, items[4].y, items[4].z]).toEqual([0, 0, 0])
+    const delay = items.find((item) => item.command.type === MavCmd.MAV_CMD_NAV_DELAY)!
+    expect(delay.frame.type).toBe(MavFrame.MAV_FRAME_MISSION)
+    expect([delay.x, delay.y, delay.z]).toEqual([0, 0, 0])
 
     // Downloaded from the vehicle: the cruise speed comes back, the braking stays on the approach point
     const downloaded = extractCruiseSpeed(convertMavlinkWaypointsToCockpit(items))
@@ -401,5 +404,25 @@ describe('survey form: NAV_ACC_RAD of the vehicle instead of the acceptance radi
     const planner = read('src/views/MissionPlanningView.vue')
     const marker = planner.slice(planner.indexOf('const waypointMarkerClass'))
     expect(marker.slice(0, 300)).toMatch(/holdSecondsOf\(/)
+  })
+})
+
+// SITL PX4 v1.17 rover: A0, the first R and S are on one straight line, so the rover passes R without stopping
+// (arrival speed above 0, DifferentialPosControl.cpp) and a NAV_DELAY there only made it creep at v_brake for t_hold
+describe('no stop at the first run-in start', () => {
+  test('the first R has no NAV_DELAY; every later R and every T has one', () => {
+    for (const plan of [
+      planSurvey(rectangle(20, 15), params({ lineSpacing: 5 }), 2),
+      planSurvey(rectangle(20, 6), params({ lineSpacing: 1 }), 2),
+    ]) {
+      const holdOf = (i: number): number =>
+        plan.waypoints[i].commands.filter((c) => c.command === MavCmd.MAV_CMD_NAV_DELAY).length
+      const rs = plan.kinds.flatMap((kind, i) => (kind === 'runInStart' ? [i] : []))
+      const ts = plan.kinds.flatMap((kind, i) => (kind === 'runOutEnd' ? [i] : []))
+      expect(rs.length).toBeGreaterThan(1)
+      expect(holdOf(rs[0])).toBe(0)
+      rs.slice(1).forEach((i) => expect(holdOf(i)).toBe(1))
+      ts.forEach((i) => expect(holdOf(i)).toBe(1))
+    }
   })
 })
