@@ -283,6 +283,17 @@ export const getArdupilotVersion = async (vehicleAddress: string): Promise<strin
   }
 }
 
+/**
+ * Power the onboard computer off, as the BlueOS power menu does: BlueOS answers, then powers off 5 s later
+ * @param {string} vehicleAddress - Address of the vehicle
+ */
+export const requestOnboardPoweroff = async (vehicleAddress: string): Promise<void> => {
+  await ky.post(`${protocol}//${vehicleAddress}/commander/v1.0/shutdown`, {
+    searchParams: { shutdown_type: 'poweroff', i_know_what_i_am_doing: true },
+    timeout: defaultTimeout,
+  })
+}
+
 export const getStatus = async (vehicleAddress: string): Promise<boolean> => {
   try {
     const url = `${protocol}//${vehicleAddress}/status`

@@ -1701,12 +1701,40 @@
     "none": "No HEARTBEAT from the autopilot",
     "journalTitle": "Link losses in this session",
     "noOutages": "No losses",
+    "eventsTitle": "Session events",
     "armed": "ARMED",
     "disarmed": "DISARMED",
     "unknownArming": "arming unknown",
     "ongoing": "ongoing",
     "duration": "{seconds} s",
     "commandFailed": "Command failed: {error}"
+  },
+  "onboardShutdown": {
+    "section": "Reboot and power off",
+    "button": "Prepare to power off",
+    "holdHint": "Hold the button for 2 s",
+    "notDisarmed": "Available only while the vehicle is disarmed",
+    "moving": "The vehicle is moving: wait until it stops (speed under 0.2 m/s)",
+    "speedUnknown": "The vehicle speed is unknown",
+    "shuttingDown": "The onboard computer is shutting down…",
+    "noPing": "Ping is not available: the shutdown is told by BlueOS answers, the wait is longer.",
+    "canPowerOff": "You can switch the main power off. Make sure the Raspberry Pi light is off",
+    "timeout": "The onboard computer still answers: do not switch the power off until it shuts down",
+    "failed": "Could not shut the onboard computer down: {error}",
+    "finishing": "The onboard computer is finishing… {seconds} s",
+    "confirmText": "The onboard computer will be shut down. Stop the echo sounder recording. After the shutdown the link to the vehicle is lost until the power is switched on again.",
+    "confirm": "Shut down",
+    "cancel": "Cancel",
+    "journal": {
+      "commandSent": "Onboard computer: power off command sent, watched by {detection}",
+      "off": "Onboard computer off ({detection})",
+      "timeout": "Onboard computer still answered 90 s after the power off command ({detection})",
+      "failed": "Onboard computer: power off command failed: {error}"
+    },
+    "detection": {
+      "ping": "ping loss",
+      "status": "BlueOS /status, ping did not work"
+    }
   },
   "autopilotReboot": {
     "button": "Reboot autopilot",

@@ -1,3 +1,5 @@
+import type { OffDetection } from '@/libs/vehicle/onboard-shutdown'
+
 /** How the link to the autopilot looks from its HEARTBEAT */
 export type LinkHealth = 'ok' | 'degraded' | 'lost' | 'none'
 
@@ -87,4 +89,20 @@ export class LinkOutageJournal {
   }
 
   private contextWhenDegraded: LinkContext | undefined
+}
+
+/**
+ * An event of the session the operator should find later in the journal, next to the link losses
+ */
+export interface SessionEvent {
+  /** When it happened, as epoch milliseconds */
+  at: number
+  /** The onboard computer shutdown */
+  kind: 'onboardShutdown'
+  /** The command was sent, the onboard computer went off, it kept answering, or the command failed */
+  stage: 'commandSent' | 'off' | 'timeout' | 'failed'
+  /** How NaviLync told the onboard computer went off */
+  detection?: OffDetection
+  /** The error of a failed command */
+  error?: string
 }

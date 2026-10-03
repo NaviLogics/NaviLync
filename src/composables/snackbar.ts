@@ -9,7 +9,7 @@ export interface SnackbarOptions {
    */
   message: string
   /**
-   * The duration in milliseconds to show the snackbar
+   * The duration in milliseconds to show the snackbar; -1 keeps it until it is closed
    */
   duration?: number
   /**
@@ -38,7 +38,7 @@ let idCounter = 0
 export const openSnackbar = (options: SnackbarOptions): void => {
   const snackbar: SnackbarType = { ...options, id: idCounter++ }
   state.snackbars.push(snackbar)
-  if (snackbar.duration) {
+  if (snackbar.duration && snackbar.duration > 0) {
     setTimeout((): void => {
       const index = state.snackbars.findIndex((s): boolean => s.id === snackbar.id)
       if (index !== -1) state.snackbars.splice(index, 1)

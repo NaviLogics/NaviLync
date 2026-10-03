@@ -155,8 +155,11 @@
               </div>
             </v-form>
             <div class="flex items-center justify-between w-full mt-3 pr-2">
-              <span class="text-sm opacity-70">{{ t('autopilotReboot.title') }}</span>
-              <AutopilotRebootButton />
+              <span class="text-sm opacity-70">{{ t('onboardShutdown.section') }}</span>
+              <div class="flex items-start gap-2">
+                <AutopilotRebootButton />
+                <OnboardShutdownButton />
+              </div>
             </div>
           </template>
         </ExpansiblePanel>
@@ -447,6 +450,7 @@ import { defaultGlobalAddress } from '@/assets/defaults'
 import AutopilotRebootButton from '@/components/AutopilotRebootButton.vue'
 import ManageCockpitSettings from '@/components/configuration/CockpitSettingsManager.vue'
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
+import OnboardShutdownButton from '@/components/OnboardShutdownButton.vue'
 import VehicleDiscoveryDialog from '@/components/VehicleDiscoveryDialog.vue'
 import { useSnackbar } from '@/composables/snackbar'
 import * as Connection from '@/libs/connection/connection'
