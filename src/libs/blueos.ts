@@ -288,7 +288,10 @@ export const getArdupilotVersion = async (vehicleAddress: string): Promise<strin
  * @param {string} vehicleAddress - Address of the vehicle
  */
 export const requestOnboardPoweroff = async (vehicleAddress: string): Promise<void> => {
-  void vehicleAddress
+  await ky.post(`${protocol}//${vehicleAddress}/commander/v1.0/shutdown`, {
+    searchParams: { shutdown_type: 'poweroff', i_know_what_i_am_doing: true },
+    timeout: defaultTimeout,
+  })
 }
 
 export const getStatus = async (vehicleAddress: string): Promise<boolean> => {

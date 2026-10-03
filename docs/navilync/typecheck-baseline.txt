@@ -402,10 +402,10 @@ src/stores/mainVehicle.ts(931,9) TS2353
 src/stores/video.ts(71,47) TS2345
 src/stores/video.ts(576,45) TS2345
 src/views/ConfigurationActionsView.vue(25,17) TS2322
-src/views/ConfigurationGeneralView.vue(589,3) TS2769
-src/views/ConfigurationGeneralView.vue(591,28) TS18048
-src/views/ConfigurationGeneralView.vue(607,11) TS18048
-src/views/ConfigurationGeneralView.vue(611,23) TS2345
+src/views/ConfigurationGeneralView.vue(593,3) TS2769
+src/views/ConfigurationGeneralView.vue(595,28) TS18048
+src/views/ConfigurationGeneralView.vue(611,11) TS18048
+src/views/ConfigurationGeneralView.vue(615,23) TS2345
 src/views/ConfigurationJoystickView.vue(77,65) TS2551
 src/views/ConfigurationJoystickView.vue(752,30) TS18048
 src/views/ConfigurationJoystickView.vue(756,77) TS2345

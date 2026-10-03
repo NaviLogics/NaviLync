@@ -17,8 +17,9 @@ export const shutdownBlockedBy = (
   armed: boolean | undefined,
   groundSpeed: number | undefined
 ): ShutdownBlock | undefined => {
-  void armed, groundSpeed
-  return undefined
+  if (armed !== false) return 'notDisarmed'
+  if (groundSpeed === undefined || !Number.isFinite(groundSpeed)) return 'speedUnknown'
+  return groundSpeed < SHUTDOWN_MAX_SPEED ? undefined : 'moving'
 }
 
 /**
@@ -35,6 +36,13 @@ export const waitUntilOffline = async (
   offlineChecks = 3,
   timeoutMs = 90000
 ): Promise<'off' | 'timeout'> => {
-  void isOnline, intervalMs, offlineChecks, timeoutMs
-  return 'off'
+  let missed = 0
+  // The first check waits too: BlueOS answers the command and keeps running for a few seconds
+  for (let waited = 0; waited < timeoutMs; waited += intervalMs) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    const online = await isOnline().catch(() => false)
+    missed = online ? 0 : missed + 1
+    if (missed >= offlineChecks) return 'off'
+  }
+  return 'timeout'
 }

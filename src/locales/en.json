@@ -1708,6 +1708,7 @@
     "commandFailed": "Command failed: {error}"
   },
   "onboardShutdown": {
+    "section": "Reboot and power off",
     "button": "Prepare to power off",
     "holdHint": "Hold the button for 2 s",
     "notDisarmed": "Available only while the vehicle is disarmed",
