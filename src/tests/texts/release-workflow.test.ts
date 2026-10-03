@@ -31,6 +31,8 @@ describe('the SHA-256 of the Windows build', () => {
   test('is computed for NaviLync-<version>-windows-x64.zip and printed in the log', () => {
     expect(packaging).toMatch(/Get-FileHash -Algorithm SHA256 \$archive/)
     expect(packaging).toMatch(/Write-Host "SHA-256 /)
+    // Also as a notice on the run page, readable without the log
+    expect(packaging).toMatch(/Write-Host "::notice title=SHA-256::\$name \$hash"/)
   })
 
   test('is written next to the ZIP as <name>.zip.sha256, and that file is in the artifact', () => {

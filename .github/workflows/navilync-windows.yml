@@ -83,6 +83,7 @@ jobs:
           $name = Split-Path $archive -Leaf
           $hash = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
           Write-Host "SHA-256 $name $hash"
+          Write-Host "::notice title=SHA-256::$name $hash"
           # sha256sum format with LF, so that `sha256sum -c` checks it as well as Get-FileHash
           [System.IO.File]::WriteAllText("$archive.sha256", "$hash  $name`n")
       - name: Upload NaviLync Windows x64 directory package
