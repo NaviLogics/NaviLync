@@ -10,7 +10,12 @@ describe('publishing a NaviLync release', () => {
   test('versions with -rc, -beta or -alpha are published as a pre-release', () => {
     expect(publish).toMatch(/\$prerelease = \$version -match '-\(rc\|beta\|alpha\)'/)
     expect(publish).toMatch(/if \(\$prerelease\) \{[^}]*'--prerelease'/)
-    expect(publish).toMatch(/gh release create \$tag \$asset @createFlags/)
+    expect(publish).toMatch(/gh release create \$tag \$asset \$checksum @createFlags/)
+  })
+
+  test('the .sha256 next to the ZIP goes to the release too, new or existing', () => {
+    expect(publish).toMatch(/\$checksum = "\$asset\.sha256"/)
+    expect(publish).toMatch(/gh release upload \$tag \$asset \$checksum --clobber/)
   })
 
   test('the PowerShell pattern matches the pre-release versions only', () => {
