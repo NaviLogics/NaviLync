@@ -393,7 +393,7 @@ describe('survey form: NAV_ACC_RAD of the vehicle instead of the acceptance radi
     expect(form).toMatch(/vehicleStore\.missionCheckParameters\.acceptanceRadius/)
     expect(form).toMatch(/surveyForm\.navAccRadHint/)
     expect(read('src/locales/ru.json')).toContain(
-      'для узких галсов рекомендуется 1,0 м: лодка останавливается на этом расстоянии от точки поворота'
+      'Для узких галсов рекомендуется 1,0 м: лодка останавливается на этом расстоянии от точки поворота'
     )
   })
 
