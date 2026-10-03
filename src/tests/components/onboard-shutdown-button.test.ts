@@ -301,7 +301,7 @@ describe('the «Подготовить к выключению» button', () => 
     await report(outcome)
 
     expect(openSnackbar).toHaveBeenCalledTimes(1)
-    expect(openSnackbar).toHaveBeenCalledWith({ message, variant, closeButton: true })
+    expect(openSnackbar).toHaveBeenCalledWith({ message, variant, duration: -1, closeButton: true })
   })
 
   test('it is on the general settings page, next to the autopilot reboot', () => {

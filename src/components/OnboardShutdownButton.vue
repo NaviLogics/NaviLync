@@ -28,6 +28,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useInteractionDialog } from '@/composables/interactionDialog'
+import { openSnackbar } from '@/composables/snackbar'
 import { getStatus, requestOnboardPoweroff } from '@/libs/blueos'
 import {
   type OffDetection,
@@ -82,6 +83,11 @@ const shutDown = async (): Promise<void> => {
       vehicleStore.logSessionEvent({ kind: 'onboardShutdown', stage: next.kind, detection })
     } else if (next.kind === 'failed') {
       vehicleStore.logSessionEvent({ kind: 'onboardShutdown', stage: 'failed', error: next.error })
+    }
+    // The outcome reaches the operator on any page, as the settings page may have been left meanwhile
+    if (next.kind === 'off' || next.kind === 'timeout' || next.kind === 'failed') {
+      const variant = next.kind === 'off' ? 'success' : next.kind === 'timeout' ? 'warning' : 'error'
+      openSnackbar({ message: statusText.value, variant, duration: -1, closeButton: true })
     }
   }
   running.value = true
