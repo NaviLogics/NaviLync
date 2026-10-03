@@ -59,7 +59,8 @@ describe('vehicle parameters for the mission check', () => {
   test('the store asks for RO_SPEED_LIM and NAV_ACC_RAD when a vehicle connects and keeps them', () => {
     const store = read('src/stores/mainVehicle.ts')
     expect(store).toMatch(/requestParameter\(name\)/)
-    expect(store).toMatch(/\['RO_SPEED_LIM', 'NAV_ACC_RAD'\]/)
+    // Other parameters (BAT1_N_CELLS) may ride along in the same request
+    expect(store).toMatch(/\['RO_SPEED_LIM', 'NAV_ACC_RAD'(, '[A-Z0-9_]+')*\]/)
     expect(store).toMatch(/missionCheckParameters/)
   })
 

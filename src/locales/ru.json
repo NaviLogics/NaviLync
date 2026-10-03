@@ -503,7 +503,9 @@
       "mediumVoltage": "Среднее напряжение (В)",
       "highVoltage": "Высокое напряжение (В)",
       "atLeastOneOption": "Должна быть включена хотя бы одна опция.",
-      "intervalMinimum": "Интервал должен быть не менее {min} мс."
+      "intervalMinimum": "Интервал должен быть не менее {min} мс.",
+      "currentNotMeasured": "ток не измеряется",
+      "lowVoltageAlert": "Напряжение батареи ниже {threshold} В ({cells} банок × 3,5 В)"
     },
     "satelliteIndicator": {
       "sats": "спутн."
@@ -1744,5 +1746,9 @@
     "cancel": "Отмена",
     "onlyDisarmed": "Перезагрузка доступна только при разоружённом аппарате.",
     "failed": "Не удалось перезагрузить автопилот: {error}"
+  },
+  "batteryAlert": {
+    "started": "Напряжение батареи {voltage} В: ниже {threshold} В ({cells} банок × 3,5 В) дольше 3 с",
+    "ended": "Напряжение батареи восстановилось: {voltage} В"
   }
 }

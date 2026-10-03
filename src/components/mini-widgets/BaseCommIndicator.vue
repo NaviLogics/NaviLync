@@ -53,7 +53,7 @@ import { useI18n } from 'vue-i18n'
 import type { SessionEvent } from '@/libs/link-health'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const store = useMainVehicleStore()
 
 // Green under 2 s since the last autopilot HEARTBEAT, yellow from 2 to 5 s, red over 5 s (COM_DL_LOSS_T)
@@ -62,11 +62,21 @@ const stateText = computed((): string => {
   return t(`linkHealth.${store.linkHealthState}`, { age })
 })
 
-const eventText = (event: SessionEvent): string =>
-  t(`onboardShutdown.journal.${event.stage}`, {
+const volts = (value: number): string => value.toLocaleString(locale.value, { maximumFractionDigits: 1 })
+
+const eventText = (event: SessionEvent): string => {
+  if (event.kind === 'lowVoltage') {
+    return t(`batteryAlert.${event.stage}`, {
+      voltage: volts(event.voltage),
+      threshold: volts(event.threshold),
+      cells: event.cells,
+    })
+  }
+  return t(`onboardShutdown.journal.${event.stage}`, {
     detection: event.detection === undefined ? '—' : t(`onboardShutdown.detection.${event.detection}`),
     error: event.error ?? '',
   })
+}
 
 const armingText = (armed: boolean | undefined): string =>
   armed === undefined ? t('linkHealth.unknownArming') : armed ? t('linkHealth.armed') : t('linkHealth.disarmed')

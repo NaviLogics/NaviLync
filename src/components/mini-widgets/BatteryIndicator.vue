@@ -46,7 +46,9 @@
         <div class="relative right-0 flex flex-col w-[4rem] select-none text-sm font-semibold leading-4 text-end -mr-2">
           <div class="w-full">
             <div class="flex justify-end gap-x-1 items-center">
-              <span class="font-mono">{{ voltageDisplayValue }}</span>
+              <span class="font-mono" :class="{ 'battery-voltage-low text-red-400 animate-pulse': store.lowVoltage }">{{
+                voltageDisplayValue
+              }}</span>
               <div class="w-[15px] mr-[1px] -ml-[1px]">V</div>
             </div>
           </div>
@@ -214,7 +216,7 @@ import { useWidgetManagerStore } from '@/stores/widgetManager'
 import { BatteryLevel, BatteryLevelThresholds } from '@/types/general'
 import type { MiniWidget } from '@/types/widgets'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 /**
  * Props for the BatteryIndicator component
@@ -281,7 +283,9 @@ const voltageDisplayValue = computed(() => {
     : store.powerSupply.voltage.toFixed(1)
 })
 
+// The motor ESCs bypass the power module: until it reads a real current, 0.0 A and 0.0 W would be wrong
 const currentDisplayValue = computed(() => {
+  if (!store.currentMeasured) return '—'
   if (store?.powerSupply?.current === undefined) return '--'
   return Math.abs(store.powerSupply.current) >= 100
     ? store.powerSupply.current.toFixed(0)
@@ -289,6 +293,7 @@ const currentDisplayValue = computed(() => {
 })
 
 const instantaneousWattsDisplayValue = computed(() => {
+  if (!store.currentMeasured) return '—'
   return store.instantaneousWatts !== undefined ? store.instantaneousWatts.toFixed(1) : '--'
 })
 
@@ -300,7 +305,17 @@ const remainingDisplayValue = computed(() => {
 const batteryTooltipText = computed(() => {
   const remaining = t('miniWidgets.batteryIndicator.remaining')
   const noData = t('miniWidgets.batteryIndicator.noData')
-  return `${remaining}: ${remainingDisplayValue.value < 0 ? noData : remainingDisplayValue.value + '%'}`
+  const lines = [`${remaining}: ${remainingDisplayValue.value < 0 ? noData : remainingDisplayValue.value + '%'}`]
+  if (!store.currentMeasured) lines.push(t('miniWidgets.batteryIndicator.currentNotMeasured'))
+  if (store.lowVoltage && store.lowVoltageThreshold !== undefined) {
+    lines.push(
+      t('miniWidgets.batteryIndicator.lowVoltageAlert', {
+        threshold: store.lowVoltageThreshold.toLocaleString(locale.value, { maximumFractionDigits: 1 }),
+        cells: store.batteryCells,
+      })
+    )
+  }
+  return lines.join(' · ')
 })
 
 const setupToggleInterval = (): void => {
