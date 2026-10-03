@@ -1687,6 +1687,7 @@
     "legShorterThanAcceptance": "Точка {marker}: участок {length} м короче двух радиусов приёма ({radius} м) — точка может засчитаться до подхода к ней.",
     "speedOverLimit": "Скорость {speed} м/с выше предела аппарата RO_SPEED_LIM = {limit} м/с.",
     "acceptanceRadiusWideForLines": "NAV_ACC_RAD = {radius} м при межгалсовом расстоянии {spacing} м: боковое смещение на входе в галс до {radius} м. Для узких галсов рекомендуется 1,0 м.",
+    "missionRunning": "Остановите миссию перед загрузкой новой.",
     "noWaypoints": "В миссии нет точек.",
     "invalidSpeed": "Скорость {speed} м/с недопустима.",
     "invalidCoordinates": "У точки {marker} нет правильных координат."

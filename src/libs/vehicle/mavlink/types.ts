@@ -30,7 +30,6 @@ export const convertCockpitWaypointsToMavlink = (
   system_id: number,
   firstItemCurrent = false
 ): Message.MissionItemInt[] => {
-  void firstItemCurrent
   const mavlinkWaypoints: Message.MissionItemInt[] = []
   cockpitWaypoints.forEach((cockpitWaypoint) => {
     cockpitWaypoint.commands.forEach((waypointCommand) => {
@@ -56,7 +55,9 @@ export const convertCockpitWaypointsToMavlink = (
           seq: mavlinkWaypoints.length,
           frame: { type: frameType },
           command: { type: waypointCommand.command },
-          current: 0,
+          // PX4 starts an uploaded mission at the item marked current; with none it keeps the index of the mission
+          // before (mission_base.cpp), so a mission started by a mode change would not start at its first item
+          current: firstItemCurrent && mavlinkWaypoints.length === 0 ? 1 : 0,
           autocontinue: 1,
           param1: waypointCommand.param1,
           param2: waypointCommand.param2,

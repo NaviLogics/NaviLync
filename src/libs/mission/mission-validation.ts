@@ -202,7 +202,5 @@ export const withStopAtLastWaypoint = (waypoints: Waypoint[], brakeSpeed = 0.3, 
  * @param {boolean} px4 - Whether the autopilot is PX4
  * @returns {boolean} True if the upload must wait for the mission to stop
  */
-export const isMissionRunning = (armed: boolean | undefined, mode: string | undefined, px4: boolean): boolean => {
-  void armed, mode, px4
-  return false
-}
+export const isMissionRunning = (armed: boolean | undefined, mode: string | undefined, px4: boolean): boolean =>
+  px4 && armed === true && mode === 'Mission'

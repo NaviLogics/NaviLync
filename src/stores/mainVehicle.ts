@@ -37,7 +37,7 @@ import eventTracker from '@/libs/external-telemetry/event-tracking'
 import { availableCockpitActions, registerActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { MavlinkManualControlManager } from '@/libs/joystick/protocols/mavlink-manual-control'
 import { type LinkHealth, type LinkOutage, linkHealth, LinkOutageJournal } from '@/libs/link-health'
-import type { VehicleMissionParameters } from '@/libs/mission/mission-validation'
+import { type VehicleMissionParameters, isMissionRunning } from '@/libs/mission/mission-validation'
 import { canByPassCategory, EventCategory, slideToConfirm } from '@/libs/slide-to-confirm'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
 import { CustomMode } from '@/libs/vehicle/ardupilot/ardurover'
@@ -554,6 +554,10 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
    * @returns { Promise<Waypoint[]> } Mission items that were on the vehicle
    */
   async function uploadMission(items: Waypoint[], loadingCallback: MissionLoadingCallback): Promise<void> {
+    // The first item goes up marked current, so an upload would restart a running mission from its first item
+    if (isMissionRunning(isArmed.value, mode.value, mainVehicle.value?.firmware() === Vehicle.Firmware.PX4)) {
+      throw new Error(i18n.global.t('missionCheck.missionRunning'))
+    }
     return await runMissionTransfer(
       'upload',
       async () => await mainVehicle.value?.uploadMission(items, loadingCallback)

@@ -44,7 +44,7 @@ export const missionCheckText = (issue: MissionWarning | MissionError): string =
         spacing: formatNumber(issue.spacing),
       })
     case 'missionRunning':
-      return ''
+      return t('missionCheck.missionRunning')
     case 'noWaypoints':
       return t('missionCheck.noWaypoints')
     case 'invalidSpeed':

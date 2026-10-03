@@ -77,6 +77,8 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
   })
   _velocity = new Velocity({ x: 0, y: 0, z: 0, ground: 0, overall: 0 })
   _cpuLoad = 0 // CPU load in percentage
+  // Whether an uploaded mission marks its first item current, so that it starts there whatever ran before
+  protected firstMissionItemCurrent = false
   _isArmed = false // Defines if the vehicle is armed
   _powerSupply = new PowerSupply()
   _lastParameter = new Parameter()
@@ -1449,7 +1451,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
     timeoutBetweenItems = 3000
   ): Promise<void> {
     // Convert from Cockpit waypoints to MAVLink waypoints
-    const mavlinkWaypoints = convertCockpitWaypointsToMavlink(items, this.currentSystemId)
+    const mavlinkWaypoints = convertCockpitWaypointsToMavlink(items, this.currentSystemId, this.firstMissionItemCurrent)
 
     console.debug(`[Mission upload] Cockpit waypoints: ${JSON.stringify(items, null, 2)}`)
     console.debug(`[Mission upload] MAVLink waypoints: ${JSON.stringify(mavlinkWaypoints, null, 2)}`)
