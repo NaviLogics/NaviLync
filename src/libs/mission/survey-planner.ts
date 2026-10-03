@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid'
 
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { makeNavDelayCommand } from '@/libs/mission/mission-items'
 import {
   type MissionCommand,
   type Waypoint,
@@ -27,12 +28,11 @@ export interface SurveyParameters {
   lineSpeed: number
   /** Speed to the turn points and between lines `v_brake`, in m/s */
   brakeSpeed: number
-  /** Hold at the turn points `t_hold`, in s */
+  /**
+   * Hold at the turn points `t_hold`, in s: a NAV_DELAY after R and T. A PX4 rover accepts every point by
+   * NAV_ACC_RAD of the vehicle, so the survey sets no acceptance radius of its own
+   */
   holdSeconds: number
-  /** Acceptance radius of the turn points `r_turn`, in m */
-  turnRadius: number
-  /** Acceptance radius of the points at the ends of the lines `r_line`, in m */
-  lineRadius: number
 }
 
 /** What a survey waypoint is for */
@@ -93,8 +93,6 @@ export const defaultSurveyParameters = (lineSpacing = 5): SurveyParameters => ({
   lineSpeed: 1.5,
   brakeSpeed: 0.3,
   holdSeconds: 3,
-  turnRadius: 1,
-  lineRadius: 1,
 })
 
 // Tail orders are searched exhaustively up to this many lines, by interleaving patterns above it
@@ -187,9 +185,7 @@ export const skipLineOrder = (lineCount: number, lineSpacing: number, minTurnWid
 
 const EARTH_RADIUS = 6_371_008.8
 
-// The approach point: wide enough to be reached from any side, and far enough from R to brake from v_transit
-const APPROACH_MIN_RADIUS = 3
-// A rough braking estimate for the boat, in m/s²
+// The approach point is far enough from R to brake from v_transit; a rough braking estimate for the boat, in m/s²
 const APPROACH_DECELERATION = 1
 
 /**
@@ -301,14 +297,17 @@ export const planSurvey = (
     p.minTurnWidth
   )
 
-  const nav = (hold: number, radius: number): MissionCommand => ({
+  // PX4 v1.17 rover: hold (param1) and acceptance radius (param2) of NAV_WAYPOINT are used for multicopters only
+  // (mission_block.cpp); both stay at the PX4 default, 0, and the stops are NAV_DELAY items
+  const nav = (): MissionCommand => ({
     type: MissionCommandType.MAVLINK_NAV_COMMAND,
     command: MavCmd.MAV_CMD_NAV_WAYPOINT,
-    param1: hold,
-    param2: radius,
+    param1: 0,
+    param2: 0,
     param3: 0,
     param4: 0,
   })
+  const hold = (): MissionCommand[] => (p.holdSeconds > 0 ? [makeNavDelayCommand(p.holdSeconds)] : [])
   const speed = (metersPerSecond: number): MissionCommand => ({
     type: MissionCommandType.MAVLINK_NON_NAV_COMMAND,
     command: MavCmd.MAV_CMD_DO_CHANGE_SPEED,
@@ -343,15 +342,12 @@ export const planSurvey = (
     const [start, end] = forward ? [from, to] : [to, from]
     if (j === 0) {
       const approachDistance = Math.max(p.runOut, transitSpeed ** 2 / (2 * APPROACH_DECELERATION))
-      add('approach', start - direction * (p.runIn + approachDistance), c, [
-        nav(0, Math.max(APPROACH_MIN_RADIUS, p.turnRadius)),
-        speed(p.brakeSpeed),
-      ])
+      add('approach', start - direction * (p.runIn + approachDistance), c, [nav(), speed(p.brakeSpeed)])
     }
-    add('runInStart', start - direction * p.runIn, c, [nav(p.holdSeconds, p.turnRadius), speed(p.lineSpeed)])
-    add('lineStart', start, c, [nav(0, p.lineRadius)])
-    add('lineEnd', end, c, [nav(0, p.lineRadius), speed(p.brakeSpeed)])
-    add('runOutEnd', end + direction * p.runOut, c, [nav(p.holdSeconds, p.turnRadius)])
+    add('runInStart', start - direction * p.runIn, c, [nav(), ...hold(), speed(p.lineSpeed)])
+    add('lineStart', start, c, [nav()])
+    add('lineEnd', end, c, [nav(), speed(p.brakeSpeed)])
+    add('runOutEnd', end + direction * p.runOut, c, [nav(), ...hold()])
   })
 
   // Totals, from the approach point on (the transit to it depends on where the vehicle comes from)
@@ -366,7 +362,7 @@ export const planSurvey = (
       durationSeconds += leg / currentSpeed
     }
     for (const command of waypoint.commands) {
-      if (command.command === MavCmd.MAV_CMD_NAV_WAYPOINT) durationSeconds += command.param1
+      if (command.command === MavCmd.MAV_CMD_NAV_DELAY) durationSeconds += command.param1
       if (command.command === MavCmd.MAV_CMD_DO_CHANGE_SPEED) currentSpeed = command.param2
     }
   })

@@ -25,6 +25,36 @@ export const makeDefaultNavCommands = (): MissionCommand[] => [
 
 const isSpeedCommand = (command: MissionCommand): boolean => command.command === MavCmd.MAV_CMD_DO_CHANGE_SPEED
 
+/**
+ * A stop of some seconds where the vehicle is: MAV_CMD_NAV_DELAY, put after the waypoint to stop at. PX4 holds a rover
+ * only this way: NAV_WAYPOINT param1 (hold) is used for multicopters only. PX4 takes NAV_DELAY in MAV_FRAME_MISSION,
+ * without a position, which is how non-NAV commands are sent; downloaded, it stays on the waypoint before it.
+ * @param {number} seconds - How long to stop, in s
+ * @returns {MissionCommand} The command
+ */
+export const makeNavDelayCommand = (seconds: number): MissionCommand => ({
+  type: MissionCommandType.MAVLINK_NON_NAV_COMMAND,
+  command: MavCmd.MAV_CMD_NAV_DELAY,
+  param1: seconds,
+  // Hour, minute and second of the day: -1 for a delay counted from the arrival
+  param2: -1,
+  param3: -1,
+  param4: -1,
+  x: 0,
+  y: 0,
+  z: 0,
+})
+
+/**
+ * How long the vehicle stops at a waypoint; param1 of its NAV_WAYPOINT does not count, as a rover ignores it
+ * @param {Waypoint} waypoint - The waypoint
+ * @returns {number} The seconds of its NAV_DELAY commands
+ */
+export const holdSecondsOf = (waypoint: Waypoint): number =>
+  waypoint.commands
+    .filter((command) => command.command === MavCmd.MAV_CMD_NAV_DELAY)
+    .reduce((sum, command) => sum + Math.max(Number(command.param1), 0), 0)
+
 // The cruise speed is the speed item before the first NAV of the first waypoint. Speed items after that NAV belong to
 // the plan (e.g. the braking of a survey approach) and are never touched.
 const splitAtFirstNav = (

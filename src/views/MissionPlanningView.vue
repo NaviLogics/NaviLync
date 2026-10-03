@@ -213,6 +213,18 @@
                 :step="field.step"
               />
             </div>
+            <!-- A PX4 rover accepts every point by NAV_ACC_RAD of the vehicle, so it is shown here, not set per point -->
+            <div class="flex items-center justify-between mx-2" :title="$t('surveyForm.navAccRadHint')">
+              <p class="m-1 text-xs text-slate-200">{{ $t('surveyForm.navAccRad') }}</p>
+              <p class="w-16 px-2 py-[2px] m-1 text-sm text-right">
+                {{
+                  vehicleStore.missionCheckParameters.acceptanceRadius === undefined
+                    ? '—'
+                    : formatMissionCheckNumber(vehicleStore.missionCheckParameters.acceptanceRadius)
+                }}
+              </p>
+            </div>
+            <p class="mx-3 mb-1 text-[11px] leading-tight text-slate-300">{{ $t('surveyForm.navAccRadHint') }}</p>
           </div>
           <div v-if="surveyPreview" class="survey-summary mx-3 my-1 text-xs text-slate-200">
             <p>
@@ -595,12 +607,17 @@ import {
   setSurveyAreaSquareMeters,
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
-import { MavAutopilot, MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { MavAutopilot } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { BaseMapProjection } from '@/libs/map-projection'
 import { esriTileLayerOffline, osmTileLayerOffline, tileProviderCrs, yandexTileLayerOffline } from '@/libs/map-tiles'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
-import { missionCheckMessages, missionCheckText } from '@/libs/mission/mission-check-text'
-import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
+import { formatMissionCheckNumber, missionCheckMessages, missionCheckText } from '@/libs/mission/mission-check-text'
+import {
+  extractCruiseSpeed,
+  holdSecondsOf,
+  makeDefaultNavCommands,
+  withCruiseSpeed,
+} from '@/libs/mission/mission-items'
 import { type MissionWarning, validateMission, withStopAtLastWaypoint } from '@/libs/mission/mission-validation'
 import {
   type SurveyParameters,
@@ -726,7 +743,9 @@ const uploadMissionToVehicle = async (): Promise<void> => {
 
   // Release 1.0, task 2: warn before the upload; only obvious errors stop it
   const missionCheckParameters = { ...vehicleStore.missionCheckParameters }
-  const check = validateMission(missionItemsToUpload, missionCheckParameters)
+  const surveySpacings = missionStore.currentPlanningSurveys.map((survey) => Number(survey.distanceBetweenLines))
+  const narrowestLineSpacing = surveySpacings.length > 0 ? Math.min(...surveySpacings) : undefined
+  const check = validateMission(missionItemsToUpload, missionCheckParameters, narrowestLineSpacing)
   if (check.errors.length > 0) {
     showDialog({
       variant: 'error',
@@ -2418,8 +2437,6 @@ const surveyFormFields: {
   { key: 'lineSpeed', min: 0.3, max: 3, step: 0.1 },
   { key: 'brakeSpeed', min: 0.1, max: 1, step: 0.1 },
   { key: 'holdSeconds', min: 0, max: 10, step: 1 },
-  { key: 'turnRadius', min: 0.5, max: 5, step: 0.5 },
-  { key: 'lineRadius', min: 0.5, max: 5, step: 0.5 },
 ]
 
 const surveyEdgeAddMarkers: L.Marker[] = []
@@ -2914,7 +2931,7 @@ const undoGenerateWaypoints = (): void => {
 
 // A waypoint the vehicle holds at (the turn points of a survey) gets a marker of its own
 const waypointMarkerClass = (waypoint: Waypoint | undefined): string => {
-  const holds = waypoint?.commands.some((c) => c.command === MavCmd.MAV_CMD_NAV_WAYPOINT && Number(c.param1) > 0)
+  const holds = waypoint !== undefined && holdSecondsOf(waypoint) > 0
   return holds ? 'waypoint-marker-icon survey-stop-marker' : 'waypoint-marker-icon'
 }
 

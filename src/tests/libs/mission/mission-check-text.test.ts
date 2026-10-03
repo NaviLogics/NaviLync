@@ -25,6 +25,15 @@ describe('mission check dialog texts', () => {
     expect(missionCheckText(warning)).toContain('2.5 m/s')
   })
 
+  test('NAV_ACC_RAD wide for the lines: the side shift at the start of a line and the 1.0 m advice', () => {
+    setLocale('ru')
+    const text = missionCheckText({ kind: 'acceptanceRadiusWideForLines', radius: 2, spacing: 1.5 })
+    expect(text).toContain('NAV_ACC_RAD = 2 м')
+    expect(text).toContain('1,5 м')
+    expect(text).toContain('боковое смещение на входе в галс до 2 м')
+    expect(text).toContain('1,0 м')
+  })
+
   test('without the vehicle parameters the dialog says the speed check was not done, even with no other warning', () => {
     setLocale('ru')
     expect(missionCheckMessages([], {})).toEqual(['Параметры аппарата не получены, проверка скорости не выполнена.'])

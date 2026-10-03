@@ -1,6 +1,7 @@
 import * as turf from '@turf/turf'
 
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { holdSecondsOf, makeNavDelayCommand } from '@/libs/mission/mission-items'
 import { type MissionCommand, type Waypoint, type WaypointCoordinates, MissionCommandType } from '@/types/mission'
 
 /**
@@ -9,7 +10,7 @@ import { type MissionCommand, type Waypoint, type WaypointCoordinates, MissionCo
 export interface VehicleMissionParameters {
   /** RO_SPEED_LIM: the highest speed the rover controller allows, in m/s */
   speedLimit?: number
-  /** NAV_ACC_RAD: the acceptance radius PX4 uses for the last mission item (and items without their own), in m */
+  /** NAV_ACC_RAD: the acceptance radius of every waypoint of a PX4 rover (param2 is for multicopters only), in m */
   acceptanceRadius?: number
 }
 
@@ -32,6 +33,14 @@ export type MissionWarning =
       legLength: number
       /** The acceptance radius of that waypoint, in m */
       radius: number
+    }
+  | {
+      /** NAV_ACC_RAD is wide for the line spacing: the boat may enter a line up to that far to the side */
+      kind: 'acceptanceRadiusWideForLines'
+      /** NAV_ACC_RAD, in m */
+      radius: number
+      /** The distance between survey lines, in m */
+      spacing: number
     }
   | {
       /** A mission speed is over the vehicle's speed limit */
@@ -64,15 +73,21 @@ export type MissionError =
 // Over this the vehicle overshoots the last waypoint by inertia (pilot logs 26, 30 and 43)
 export const LAST_WAYPOINT_MAX_SPEED = 0.5
 
+// NAV_ACC_RAD over this, with lines closer than NARROW_LINE_SPACING, shifts the start of a line to the side
+const WIDE_ACCEPTANCE_RADIUS = 1.5
+const NARROW_LINE_SPACING = 2
+
 /**
  * Check a mission before it is uploaded
  * @param {Waypoint[]} waypoints - The mission as it will be uploaded, speed items included
  * @param {VehicleMissionParameters} parameters - The vehicle parameters known so far
+ * @param {number} [lineSpacing] - The narrowest distance between survey lines, in m, when the mission has a survey
  * @returns {{ warnings: MissionWarning[], errors: MissionError[] }} What the operator should know before uploading
  */
 export const validateMission = (
   waypoints: Waypoint[],
-  parameters: VehicleMissionParameters
+  parameters: VehicleMissionParameters,
+  lineSpacing?: number
 ): {
   /** Issues the operator may accept */
   warnings: MissionWarning[]
@@ -107,17 +122,11 @@ export const validateMission = (
   })
 
   const lastIndex = waypoints.length - 1
-  const navOf = (waypoint: Waypoint): MissionCommand | undefined =>
-    waypoint.commands.find((command) => command.command === MavCmd.MAV_CMD_NAV_WAYPOINT)
-  // PX4 accepts intermediate waypoints by their own radius (param2), the last one by NAV_ACC_RAD
-  const radiusOf = (index: number): number | undefined => {
-    const own = Number(navOf(waypoints[index])?.param2 ?? 0)
-    if (index === lastIndex && parameters.acceptanceRadius !== undefined) return parameters.acceptanceRadius
-    return own > 0 ? own : parameters.acceptanceRadius
-  }
+  // A PX4 rover accepts every waypoint by NAV_ACC_RAD; param2 is used for multicopters only (PX4 v1.17,
+  // mission_block.cpp, is_mission_item_reached)
+  const radius = parameters.acceptanceRadius
 
   for (let index = 1; index < waypoints.length; index++) {
-    const radius = radiusOf(index)
     if (radius === undefined || errors.some((error) => error.kind === 'invalidCoordinates')) continue
     const legLength = distanceInMeters(waypoints[index - 1].coordinates, waypoints[index].coordinates)
     if (legLength < 2 * radius) {
@@ -125,8 +134,18 @@ export const validateMission = (
     }
   }
 
+  // The rover stops within NAV_ACC_RAD of a turn point, wherever it is across the line it enters next
+  if (
+    radius !== undefined &&
+    lineSpacing !== undefined &&
+    radius > WIDE_ACCEPTANCE_RADIUS &&
+    lineSpacing < NARROW_LINE_SPACING
+  ) {
+    warnings.push({ kind: 'acceptanceRadiusWideForLines', radius, spacing: lineSpacing })
+  }
+
   const lastSpeed = approachSpeeds[lastIndex]
-  const lastHold = Number(navOf(waypoints[lastIndex])?.param1 ?? 0)
+  const lastHold = holdSecondsOf(waypoints[lastIndex])
   if (lastSpeed === undefined || lastSpeed > LAST_WAYPOINT_MAX_SPEED || !(lastHold > 0)) {
     warnings.push({ kind: 'lastWaypointNotStopped', speed: lastSpeed, holdSeconds: lastHold })
   }
@@ -138,7 +157,7 @@ const distanceInMeters = (from: WaypointCoordinates, to: WaypointCoordinates): n
   turf.distance(turf.point([from[1], from[0]]), turf.point([to[1], to[0]]), { units: 'meters' })
 
 /**
- * Make the vehicle stop at the last waypoint: approach it at a low speed and hold there
+ * Make the vehicle stop at the last waypoint: approach it at a low speed and hold there with NAV_DELAY
  * @param {Waypoint[]} waypoints - The mission; not modified
  * @param {number} [brakeSpeed] - The speed to approach the last waypoint at, in m/s
  * @param {number} [holdSeconds] - How long to hold at the last waypoint, in s
@@ -161,12 +180,13 @@ export const withStopAtLastWaypoint = (waypoints: Waypoint[], brakeSpeed = 0.3, 
     y: 0,
     z: 0,
   }
-  const others = last.commands.filter((command) => command.command !== MavCmd.MAV_CMD_DO_CHANGE_SPEED)
+  const others = last.commands.filter(
+    (command) => command.command !== MavCmd.MAV_CMD_DO_CHANGE_SPEED && command.command !== MavCmd.MAV_CMD_NAV_DELAY
+  )
   last.commands = [
     brake,
-    ...others.map((command) =>
-      command.command === MavCmd.MAV_CMD_NAV_WAYPOINT ? { ...command, param1: holdSeconds } : command
-    ),
+    ...others.map((command) => (command.command === MavCmd.MAV_CMD_NAV_WAYPOINT ? { ...command, param1: 0 } : command)),
+    makeNavDelayCommand(holdSeconds),
   ]
   return copy
 }
