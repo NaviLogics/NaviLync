@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
-import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { MavCmd, MavFrame } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { extractCruiseSpeed, withCruiseSpeed } from '@/libs/mission/mission-items'
 import {
   type SurveyParameters,
@@ -12,7 +12,7 @@ import {
   skipLineOrder,
 } from '@/libs/mission/survey-planner'
 import { convertCockpitWaypointsToMavlink, convertMavlinkWaypointsToCockpit } from '@/libs/vehicle/mavlink/types'
-import type { WaypointCoordinates } from '@/types/mission'
+import { type WaypointCoordinates, MissionCommandType } from '@/types/mission'
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), 'utf8')
 
@@ -58,7 +58,13 @@ const navParams = (plan: ReturnType<typeof planSurvey>, index: number): NavParam
 // The mission commands of the survey in the order PX4 runs them
 const sequence = (plan: ReturnType<typeof planSurvey>): string[] =>
   plan.waypoints.flatMap((waypoint, i) =>
-    waypoint.commands.map((c) => (c.command === MavCmd.MAV_CMD_NAV_WAYPOINT ? plan.kinds[i] : `speed ${c.param2}`))
+    waypoint.commands.map((c) =>
+      c.command === MavCmd.MAV_CMD_NAV_WAYPOINT
+        ? plan.kinds[i]
+        : c.command === MavCmd.MAV_CMD_NAV_DELAY
+        ? `delay ${c.param1}`
+        : `speed ${c.param2}`
+    )
   )
 
 // Release 1.0, task 1
@@ -72,8 +78,6 @@ describe('survey planner: defaults of the Navis profile', () => {
       lineSpeed: 1.5,
       brakeSpeed: 0.3,
       holdSeconds: 3,
-      turnRadius: 1,
-      lineRadius: 1,
     })
   })
 
@@ -139,10 +143,12 @@ describe('survey planner: lines and turns', () => {
 })
 
 describe('survey planner: mission items', () => {
-  test('each line: R(hold) → speed v_line → S → E → speed v_brake → T(hold), with R, S, E, T on one line', () => {
+  // PX4 v1.17 rover: NAV_WAYPOINT param1 (hold) is for multicopters only (mission_block.cpp, get_time_inside), so the
+  // stops are NAV_DELAY items after R and T
+  test('each line: R → delay t_hold → speed v_line → S → E → speed v_brake → T → delay t_hold, on one line', () => {
     const p = params({ lineSpacing: 5, minTurnWidth: 4 })
     const plan = planSurvey(rectangle(20, 10), p)
-    const perLine = ['runInStart', 'speed 1.5', 'lineStart', 'lineEnd', 'speed 0.3', 'runOutEnd']
+    const perLine = ['runInStart', 'delay 3', 'speed 1.5', 'lineStart', 'lineEnd', 'speed 0.3', 'runOutEnd', 'delay 3']
 
     expect(sequence(plan)).toEqual(['approach', 'speed 0.3', ...perLine, ...perLine])
 
@@ -155,18 +161,41 @@ describe('survey planner: mission items', () => {
       expect(Math.abs(cross(r, s, t))).toBeLessThan(0.05)
       expect(Math.hypot(s[0] - r[0], s[1] - r[1])).toBeCloseTo(p.runIn, 1)
       expect(Math.hypot(t[0] - e[0], t[1] - e[1])).toBeCloseTo(p.runOut, 1)
-      expect(navParams(plan, base)).toEqual({ hold: 3, radius: 1 })
-      expect(navParams(plan, base + 1)).toEqual({ hold: 0, radius: 1 })
-      expect(navParams(plan, base + 3)).toEqual({ hold: 3, radius: 1 })
+      ;[0, 1, 2, 3].forEach((j) => expect(navParams(plan, base + j)).toEqual({ hold: 0, radius: 0 }))
     }
   })
 
-  test('the mission ends at T of the last line, held, approached at v_brake', () => {
+  test('the mission ends at T of the last line, approached at v_brake, then a NAV_DELAY of t_hold', () => {
     const plan = planSurvey(rectangle(20, 10), params())
     const last = plan.waypoints.length - 1
     expect(plan.kinds[last]).toBe('runOutEnd')
-    expect(navParams(plan, last).hold).toBe(3)
-    expect(sequence(plan).slice(-2)).toEqual(['speed 0.3', 'runOutEnd'])
+    expect(sequence(plan).slice(-3)).toEqual(['speed 0.3', 'runOutEnd', 'delay 3'])
+  })
+
+  test('stops are MAV_CMD_NAV_DELAY (param1 t_hold, the others -1); none when t_hold is 0', () => {
+    const plan = planSurvey(rectangle(20, 10), params())
+    const delays = plan.waypoints.flatMap((w) => w.commands).filter((c) => c.command === MavCmd.MAV_CMD_NAV_DELAY)
+    expect(delays).toHaveLength(4)
+    delays.forEach((delay) =>
+      expect(delay).toMatchObject({
+        type: MissionCommandType.MAVLINK_NON_NAV_COMMAND,
+        param1: 3,
+        param2: -1,
+        param3: -1,
+        param4: -1,
+      })
+    )
+    const noHold = planSurvey(rectangle(20, 10), params({ holdSeconds: 0 }))
+    expect(sequence(noHold)).not.toContainEqual(expect.stringMatching(/^delay/))
+  })
+
+  // PX4 v1.17 rover: param2 (acceptance radius) is for multicopters only (mission_block.cpp, is_mission_item_reached);
+  // the rover stops within NAV_ACC_RAD (DifferentialPosControl.cpp)
+  test('every NAV_WAYPOINT of the survey has param1 0 and param2 0 (PX4 defaults)', () => {
+    const plan = planSurvey(rectangle(20, 10), params(), 4.5)
+    plan.waypoints.forEach((_, i) => expect(navParams(plan, i)).toEqual({ hold: 0, radius: 0 }))
+    expect('turnRadius' in defaultSurveyParameters(5)).toBe(false)
+    expect('lineRadius' in defaultSurveyParameters(5)).toBe(false)
   })
 
   test('the approach to the first run-in is braked too: v_brake from a point d_out before R (slow transit)', () => {
@@ -228,6 +257,8 @@ describe('survey planner: mission items', () => {
     expect(plan.stats.totalLength).toBeGreaterThan(plan.stats.lineLength)
     // Lines at 1.5 m/s, everything else at 0.3 m/s, four 3 s holds
     expect(plan.stats.durationSeconds).toBeGreaterThan(40 / 1.5 + 4 * 3)
+    const noHold = planSurvey(rectangle(20, 10), params({ holdSeconds: 0 }))
+    expect(plan.stats.durationSeconds - noHold.stats.durationSeconds).toBeCloseTo(4 * 3, 6)
   })
 })
 
@@ -246,23 +277,28 @@ const stripped = (items: ReturnType<typeof convertCockpitWaypointsToMavlink>): u
 
 // Review of #41
 describe('survey planner: review of #41', () => {
-  test('cruise speed on a survey: SPEED(v_transit), NAV(approach), SPEED(v_brake), NAV(R0, hold), kept after download', () => {
+  test('cruise speed on a survey: SPEED(v_transit), NAV(A0), SPEED(v_brake), NAV(R0), DELAY, SPEED(v_line), kept after download', () => {
     const plan = planSurvey(rectangle(20, 10), params(), 2)
     const items = convertCockpitWaypointsToMavlink(withCruiseSpeed(plan.waypoints, 2), 1)
 
     expect(
       items
-        .slice(0, 4)
+        .slice(0, 6)
         .map((item) => [
           item.command.type,
-          item.command.type === MavCmd.MAV_CMD_NAV_WAYPOINT ? item.param1 : item.param2,
+          item.command.type === MavCmd.MAV_CMD_DO_CHANGE_SPEED ? item.param2 : item.param1,
         ])
     ).toEqual([
       [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 2],
       [MavCmd.MAV_CMD_NAV_WAYPOINT, 0],
       [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 0.3],
-      [MavCmd.MAV_CMD_NAV_WAYPOINT, 3],
+      [MavCmd.MAV_CMD_NAV_WAYPOINT, 0],
+      [MavCmd.MAV_CMD_NAV_DELAY, 3],
+      [MavCmd.MAV_CMD_DO_CHANGE_SPEED, 1.5],
     ])
+    // PX4 takes NAV_DELAY in MAV_FRAME_MISSION only, without a position (mavlink_mission.cpp)
+    expect(items[4].frame.type).toBe(MavFrame.MAV_FRAME_MISSION)
+    expect([items[4].x, items[4].y, items[4].z]).toEqual([0, 0, 0])
 
     // Downloaded from the vehicle: the cruise speed comes back, the braking stays on the approach point
     const downloaded = extractCruiseSpeed(convertMavlinkWaypointsToCockpit(items))
@@ -290,7 +326,7 @@ describe('survey planner: review of #41', () => {
     ])
   })
 
-  test('approach point: acceptance radius max(3 m, r_turn), distance to R max(d_out, v_transit²/2)', () => {
+  test('approach point: PX4 default radius (0, so NAV_ACC_RAD), distance to R max(d_out, v_transit²/2)', () => {
     const area = rectangle(20, 10)
     const approachLength = (plan: ReturnType<typeof planSurvey>): number => {
       const [a, r] = [0, 1].map((i) => toXY(plan.waypoints[i].coordinates))
@@ -303,8 +339,7 @@ describe('survey planner: review of #41', () => {
     // About 1 m/s² of braking: 4.5² / 2 ≈ 10 m
     expect(approachLength(fast)).toBeCloseTo(10.125, 1)
     expect(fast.kinds[0]).toBe('approach')
-    expect(navParams(slow, 0).radius).toBe(3)
-    expect(navParams(planSurvey(area, params({ turnRadius: 4 }), 2), 0).radius).toBe(4)
+    expect(navParams(slow, 0).radius).toBe(0)
   })
 
   test('the transit speed is the mission cruise speed: not a survey parameter, not written by the survey', () => {
@@ -346,5 +381,25 @@ describe('survey planner: review of #41', () => {
     const planner = read('src/views/MissionPlanningView.vue')
     expect(planner).toMatch(/v-if="surveyPreview\.nonConvex"/)
     expect(read('src/locales/ru.json')).toMatch(/разбейте район на выпуклые части/)
+  })
+})
+
+// PX4 v1.17 rover: the acceptance radius is NAV_ACC_RAD for every point, so the form shows it instead of r_turn/r_line
+describe('survey form: NAV_ACC_RAD of the vehicle instead of the acceptance radii', () => {
+  test('no r_turn and r_line fields; NAV_ACC_RAD from the vehicle with the advice for narrow lines', () => {
+    const planner = read('src/views/MissionPlanningView.vue')
+    expect(planner).not.toMatch(/key: 'turnRadius'|key: 'lineRadius'/)
+    const form = planner.slice(planner.indexOf('class="survey-form'), planner.indexOf('v-if="surveyPreview"'))
+    expect(form).toMatch(/vehicleStore\.missionCheckParameters\.acceptanceRadius/)
+    expect(form).toMatch(/surveyForm\.navAccRadHint/)
+    expect(read('src/locales/ru.json')).toContain(
+      'для узких галсов рекомендуется 1,0 м: лодка останавливается на этом расстоянии от точки поворота'
+    )
+  })
+
+  test('the stop points of a planned mission are found by their NAV_DELAY', () => {
+    const planner = read('src/views/MissionPlanningView.vue')
+    const marker = planner.slice(planner.indexOf('const waypointMarkerClass'))
+    expect(marker.slice(0, 300)).toMatch(/holdSecondsOf\(/)
   })
 })

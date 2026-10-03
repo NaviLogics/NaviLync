@@ -1,7 +1,13 @@
 import { describe, expect, test } from 'vitest'
 
 import { MavCmd, MavFrame } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { extractCruiseSpeed, makeDefaultNavCommands, withCruiseSpeed } from '@/libs/mission/mission-items'
+import {
+  extractCruiseSpeed,
+  holdSecondsOf,
+  makeDefaultNavCommands,
+  makeNavDelayCommand,
+  withCruiseSpeed,
+} from '@/libs/mission/mission-items'
 import { convertCockpitWaypointsToMavlink, convertMavlinkWaypointsToCockpit } from '@/libs/vehicle/mavlink/types'
 import { type Waypoint, AltitudeReferenceType, MissionCommandType } from '@/types/mission'
 
@@ -163,5 +169,41 @@ describe('mission item serialization for PX4 (K3, P5)', () => {
       expect(result.cruiseSpeed).toBe(speed)
       expectSamePlan(result.waypoints, plan)
     }
+  })
+})
+
+// PX4 v1.17 rover: param1 of NAV_WAYPOINT (hold) is used for multicopters only, NAV_DELAY for every vehicle
+describe('stops as NAV_DELAY', () => {
+  test('a stop is MAV_CMD_NAV_DELAY with the seconds in param1 and -1 in the time-of-day params', () => {
+    expect(makeNavDelayCommand(3)).toMatchObject({
+      type: MissionCommandType.MAVLINK_NON_NAV_COMMAND,
+      command: MavCmd.MAV_CMD_NAV_DELAY,
+      param1: 3,
+      param2: -1,
+      param3: -1,
+      param4: -1,
+    })
+  })
+
+  test('it reaches PX4 in MAV_FRAME_MISSION without a position, and comes back on the same waypoint', () => {
+    const [first, second] = line(2)
+    first.commands.push(makeNavDelayCommand(3))
+    const items = convertCockpitWaypointsToMavlink([first, second], systemId)
+
+    expect(items[1]).toMatchObject({
+      command: { type: MavCmd.MAV_CMD_NAV_DELAY },
+      frame: { type: MavFrame.MAV_FRAME_MISSION },
+    })
+    expect([items[1].x, items[1].y, items[1].z]).toEqual([0, 0, 0])
+    const downloaded = convertMavlinkWaypointsToCockpit(items)
+    expect(downloaded).toHaveLength(2)
+    expect(holdSecondsOf(downloaded[0])).toBe(3)
+    expect(holdSecondsOf(downloaded[1])).toBe(0)
+  })
+
+  test('the hold of a waypoint counts its NAV_DELAY only, not param1 of its NAV_WAYPOINT', () => {
+    const [held] = line(1)
+    held.commands = [{ ...held.commands[0], param1: 5 }]
+    expect(holdSecondsOf(held)).toBe(0)
   })
 })

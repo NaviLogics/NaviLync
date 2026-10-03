@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { makeNavDelayCommand } from '@/libs/mission/mission-items'
 import {
   type VehicleMissionParameters,
   validateMission,
@@ -69,7 +70,9 @@ describe('mission check before upload', () => {
     expect(kinds(fixed)).not.toContain('lastWaypointNotStopped')
     const last = fixed[fixed.length - 1]
     expect(last.commands[0]).toMatchObject({ command: MavCmd.MAV_CMD_DO_CHANGE_SPEED, param2: 0.3 })
-    expect(last.commands[last.commands.length - 1]).toMatchObject({ command: MavCmd.MAV_CMD_NAV_WAYPOINT, param1: 3 })
+    // PX4 v1.17 holds a rover with NAV_DELAY only; param1 of NAV_WAYPOINT is for multicopters
+    expect(last.commands[last.commands.length - 1]).toMatchObject({ command: MavCmd.MAV_CMD_NAV_DELAY, param1: 3 })
+    expect(last.commands.find((c) => c.command === MavCmd.MAV_CMD_NAV_WAYPOINT)).toMatchObject({ param1: 0 })
     // The original mission is left as it was
     expect(kinds(plain())).toContain('lastWaypointNotStopped')
   })
@@ -79,8 +82,21 @@ describe('mission check before upload', () => {
     slow[2].commands = [speed(0.3), nav(0, 1)]
     expect(kinds(slow)).toContain('lastWaypointNotStopped')
     const fast = plain()
-    fast[2].commands = [nav(3, 1)]
+    fast[2].commands = [nav(0, 1), makeNavDelayCommand(3)]
     expect(kinds(fast)).toContain('lastWaypointNotStopped')
+  })
+
+  test('(a) a hold in param1 of NAV_WAYPOINT does not count: a rover ignores it', () => {
+    const param1Hold = plain()
+    param1Hold[2].commands = [speed(0.3), nav(3, 0)]
+    expect(validateMission(param1Hold, params).warnings).toContainEqual({
+      kind: 'lastWaypointNotStopped',
+      speed: 0.3,
+      holdSeconds: 0,
+    })
+    const delayHold = plain()
+    delayHold[2].commands = [speed(0.3), nav(0, 0), makeNavDelayCommand(3)]
+    expect(kinds(delayHold)).not.toContain('lastWaypointNotStopped')
   })
 
   test('(b) a leg shorter than twice the acceptance radius of its end: warning with the waypoint', () => {
@@ -90,7 +106,20 @@ describe('mission check before upload', () => {
       wp(east(30), [speed(0.3), nav(3, 1)]),
     ]
     const warning = validateMission(short, params).warnings.find((w) => w.kind === 'legShorterThanAcceptance')
-    expect(warning).toMatchObject({ kind: 'legShorterThanAcceptance', marker: 2, radius: 1 })
+    expect(warning).toMatchObject({ kind: 'legShorterThanAcceptance', marker: 2, radius: 2 })
+  })
+
+  test('(b) every waypoint is accepted by NAV_ACC_RAD on a rover: param2 is not used', () => {
+    // param2 0.5 m, NAV_ACC_RAD 2 m: a 3 m leg is short for a rover
+    const small = [wp(origin, [speed(0.3), nav(0, 0.5)]), wp(east(3), [nav(0, 0.5)]), wp(east(30), [nav(0, 0.5)])]
+    expect(validateMission(small, params).warnings).toContainEqual(
+      expect.objectContaining({ kind: 'legShorterThanAcceptance', marker: 2, radius: 2 })
+    )
+    // A large param2 does not make it short either
+    const large = [wp(origin, [speed(0.3), nav(0, 10)]), wp(east(5), [nav(0, 10)]), wp(east(30), [nav(0, 10)])]
+    expect(kinds(large)).not.toContain('legShorterThanAcceptance')
+    // Without NAV_ACC_RAD the radius is unknown: no leg is checked
+    expect(kinds(small, { speedLimit: 2 })).not.toContain('legShorterThanAcceptance')
   })
 
   test('(b) the last waypoint is accepted by NAV_ACC_RAD, whatever its own radius', () => {
@@ -100,6 +129,28 @@ describe('mission check before upload', () => {
     expect(kinds([wp(origin, [speed(0.3), nav(0, 1)]), wp(east(5), [nav(3, 1)])])).not.toContain(
       'legShorterThanAcceptance'
     )
+  })
+
+  test('NAV_ACC_RAD over 1.5 m with lines under 2 m apart: the boat may enter a line up to NAV_ACC_RAD to the side', () => {
+    const fine = withStopAtLastWaypoint(plain())
+    expect(validateMission(fine, { speedLimit: 2, acceptanceRadius: 2 }, 1).warnings).toContainEqual({
+      kind: 'acceptanceRadiusWideForLines',
+      radius: 2,
+      spacing: 1,
+    })
+    expect(kinds(fine, { speedLimit: 2, acceptanceRadius: 1.5 })).not.toContain('acceptanceRadiusWideForLines')
+    expect(validateMission(fine, { speedLimit: 2, acceptanceRadius: 1.5 }, 1).warnings).toEqual([])
+    expect(validateMission(fine, { speedLimit: 2, acceptanceRadius: 2 }, 2).warnings).toEqual([])
+    // Without a survey, or without NAV_ACC_RAD, nothing is assumed
+    expect(validateMission(fine, { speedLimit: 2, acceptanceRadius: 2 }).warnings).toEqual([])
+    expect(validateMission(fine, { speedLimit: 2 }, 1).warnings.map((w) => w.kind)).not.toContain(
+      'acceptanceRadiusWideForLines'
+    )
+  })
+
+  test('the planner passes the narrowest survey line spacing to the check', () => {
+    const planner = read('src/views/MissionPlanningView.vue')
+    expect(planner).toMatch(/validateMission\(missionItemsToUpload, missionCheckParameters, narrowestLineSpacing\)/)
   })
 
   test('(c) a speed over RO_SPEED_LIM: warning; without the parameter nothing is assumed', () => {

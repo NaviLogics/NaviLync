@@ -38,6 +38,8 @@ export const missionCheckText = (issue: MissionWarning | MissionError): string =
       })
     case 'speedOverLimit':
       return t('missionCheck.speedOverLimit', { speed: formatNumber(issue.speed), limit: formatNumber(issue.limit) })
+    case 'acceptanceRadiusWideForLines':
+      return ''
     case 'noWaypoints':
       return t('missionCheck.noWaypoints')
     case 'invalidSpeed':

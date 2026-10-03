@@ -25,6 +25,33 @@ export const makeDefaultNavCommands = (): MissionCommand[] => [
 
 const isSpeedCommand = (command: MissionCommand): boolean => command.command === MavCmd.MAV_CMD_DO_CHANGE_SPEED
 
+/**
+ * A stop of some seconds where the vehicle is: MAV_CMD_NAV_DELAY, put after the waypoint to stop at
+ * @param {number} seconds - How long to stop, in s
+ * @returns {MissionCommand} The command
+ */
+export const makeNavDelayCommand = (seconds: number): MissionCommand => ({
+  type: MissionCommandType.MAVLINK_NON_NAV_COMMAND,
+  command: MavCmd.MAV_CMD_NAV_DELAY,
+  param1: seconds * 0,
+  param2: 0,
+  param3: 0,
+  param4: 0,
+  x: 0,
+  y: 0,
+  z: 0,
+})
+
+/**
+ * How long the vehicle stops at a waypoint
+ * @param {Waypoint} waypoint - The waypoint
+ * @returns {number} The seconds of its NAV_DELAY commands
+ */
+export const holdSecondsOf = (waypoint: Waypoint): number => {
+  void waypoint
+  return 0
+}
+
 // The cruise speed is the speed item before the first NAV of the first waypoint. Speed items after that NAV belong to
 // the plan (e.g. the braking of a survey approach) and are never touched.
 const splitAtFirstNav = (

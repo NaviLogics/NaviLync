@@ -34,6 +34,14 @@ export type MissionWarning =
       radius: number
     }
   | {
+      /** NAV_ACC_RAD is wide for the line spacing: the boat may enter a line up to that far to the side */
+      kind: 'acceptanceRadiusWideForLines'
+      /** NAV_ACC_RAD, in m */
+      radius: number
+      /** The distance between survey lines, in m */
+      spacing: number
+    }
+  | {
       /** A mission speed is over the vehicle's speed limit */
       kind: 'speedOverLimit'
       /** The mission speed, in m/s */
@@ -68,11 +76,13 @@ export const LAST_WAYPOINT_MAX_SPEED = 0.5
  * Check a mission before it is uploaded
  * @param {Waypoint[]} waypoints - The mission as it will be uploaded, speed items included
  * @param {VehicleMissionParameters} parameters - The vehicle parameters known so far
+ * @param {number} [lineSpacing] - The narrowest distance between survey lines, in m, when the mission has a survey
  * @returns {{ warnings: MissionWarning[], errors: MissionError[] }} What the operator should know before uploading
  */
 export const validateMission = (
   waypoints: Waypoint[],
-  parameters: VehicleMissionParameters
+  parameters: VehicleMissionParameters,
+  lineSpacing?: number
 ): {
   /** Issues the operator may accept */
   warnings: MissionWarning[]
@@ -80,6 +90,7 @@ export const validateMission = (
   errors: MissionError[]
 } => {
   const warnings: MissionWarning[] = []
+  void lineSpacing
   const errors: MissionError[] = []
   if (waypoints.length === 0) return { warnings, errors: [{ kind: 'noWaypoints' }] }
 
