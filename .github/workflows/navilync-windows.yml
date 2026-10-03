@@ -107,6 +107,7 @@ jobs:
             throw "Tag $env:GITHUB_REF_NAME does not match package version $version"
           }
           $asset = "dist/NaviLync-$version-windows-x64.zip"
+          $checksum = "$asset.sha256"
           # A release candidate must not become the latest release
           $prerelease = $version -match '-(rc|beta|alpha)'
           # Do not use the native PowerShell success status of `gh release view` here:
@@ -116,11 +117,11 @@ jobs:
           $releaseExists = $LASTEXITCODE -eq 0
 
           if ($releaseExists) {
-            gh release upload $tag $asset --clobber
+            gh release upload $tag $asset $checksum --clobber
           } else {
             $createFlags = @('--title', "NaviLync $version", '--generate-notes', '--verify-tag')
             if ($prerelease) { $createFlags += '--prerelease' }
-            gh release create $tag $asset @createFlags
+            gh release create $tag $asset $checksum @createFlags
           }
 
           if ($LASTEXITCODE -ne 0) {
