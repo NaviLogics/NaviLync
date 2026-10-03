@@ -1707,6 +1707,17 @@
     "duration": "{seconds} s",
     "commandFailed": "Command failed: {error}"
   },
+  "onboardShutdown": {
+    "button": "Prepare to power off",
+    "holdHint": "Hold the button for 2 s",
+    "notDisarmed": "Available only while the vehicle is disarmed",
+    "moving": "The vehicle is moving: wait until it stops (speed under 0.2 m/s)",
+    "speedUnknown": "The vehicle speed is unknown",
+    "shuttingDown": "The onboard computer is shutting down…",
+    "canPowerOff": "You can switch the main power off",
+    "timeout": "The onboard computer still answers: do not switch the power off until it shuts down",
+    "failed": "Could not shut the onboard computer down: {error}"
+  },
   "autopilotReboot": {
     "button": "Reboot autopilot",
     "title": "Autopilot reboot",
