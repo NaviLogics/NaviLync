@@ -79,11 +79,20 @@ jobs:
           if (-not (Test-Path $archive)) {
             throw "Failed to package Windows x64 directory: $archive"
           }
+          # The hash of the ZIP itself: the artifact digest GitHub shows covers the download around it
+          $name = Split-Path $archive -Leaf
+          $hash = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          Write-Host "SHA-256 $name $hash"
+          Write-Host "::notice title=SHA-256::$name $hash"
+          # sha256sum format with LF, so that `sha256sum -c` checks it as well as Get-FileHash
+          [System.IO.File]::WriteAllText("$archive.sha256", "$hash  $name`n")
       - name: Upload NaviLync Windows x64 directory package
         uses: actions/upload-artifact@v4
         with:
           name: NaviLync-Windows-x64
-          path: dist/NaviLync-*-windows-x64.zip
+          path: |
+            dist/NaviLync-*-windows-x64.zip
+            dist/NaviLync-*-windows-x64.zip.sha256
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -98,6 +107,7 @@ jobs:
             throw "Tag $env:GITHUB_REF_NAME does not match package version $version"
           }
           $asset = "dist/NaviLync-$version-windows-x64.zip"
+          $checksum = "$asset.sha256"
           # A release candidate must not become the latest release
           $prerelease = $version -match '-(rc|beta|alpha)'
           # Do not use the native PowerShell success status of `gh release view` here:
@@ -107,11 +117,11 @@ jobs:
           $releaseExists = $LASTEXITCODE -eq 0
 
           if ($releaseExists) {
-            gh release upload $tag $asset --clobber
+            gh release upload $tag $asset $checksum --clobber
           } else {
             $createFlags = @('--title', "NaviLync $version", '--generate-notes', '--verify-tag')
             if ($prerelease) { $createFlags += '--prerelease' }
-            gh release create $tag $asset @createFlags
+            gh release create $tag $asset $checksum @createFlags
           }
 
           if ($LASTEXITCODE -ne 0) {

@@ -71,6 +71,8 @@ const baseConfig = {
     globals: true,
     environment: 'jsdom',
     deps: { inline: ['vuetify'] },
+    // The store tests import the whole store in beforeAll: on a cold container that took over the 10 s default
+    hookTimeout: 30_000,
   },
   server: {
     host: '0.0.0.0',
