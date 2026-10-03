@@ -98,6 +98,16 @@ describe('the «Подготовить к выключению» button', () => 
     expect(blueos.requestOnboardPoweroff).not.toHaveBeenCalled()
   })
 
+  test('armed during the hold: nothing is sent', async () => {
+    const wrapper = render()
+    await wrapper.find('button').trigger('pointerdown')
+    await advance(1000)
+    vehicle.isArmed = true
+    await advance(1500)
+
+    expect(blueos.requestOnboardPoweroff).not.toHaveBeenCalled()
+  })
+
   test('held 2 s: BlueOS is told to power off, and the main power may go off only once it stopped answering', async () => {
     const wrapper = render()
     await wrapper.find('button').trigger('pointerdown')

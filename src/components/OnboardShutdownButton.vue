@@ -66,7 +66,8 @@ const startHold = (): void => {
   holdTimer = setTimeout(() => {
     holding.value = false
     holdTimer = undefined
-    shutDown()
+    // A disabled button may never get the pointerup, so the conditions are checked again at the end of the hold
+    if (blockedBy.value === undefined) shutDown()
   }, SHUTDOWN_HOLD_MS)
 }
 
