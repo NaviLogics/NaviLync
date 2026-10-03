@@ -7,6 +7,7 @@ import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { makeNavDelayCommand } from '@/libs/mission/mission-items'
 import {
   type VehicleMissionParameters,
+  isMissionRunning,
   validateMission,
   withStopAtLastWaypoint,
 } from '@/libs/mission/mission-validation'
@@ -181,5 +182,24 @@ describe('mission check before upload', () => {
   test('a mission that stops at its end, with known parameters: nothing to report', () => {
     const fine = withStopAtLastWaypoint(plain())
     expect(validateMission(fine, params)).toEqual({ warnings: [], errors: [] })
+  })
+})
+
+// With the first item marked current, an upload restarts a running mission from its first item
+describe('no upload while the vehicle runs a mission', () => {
+  test('a PX4 vehicle armed in Mission runs a mission; disarmed, in another mode or unknown it does not', () => {
+    expect(isMissionRunning(true, 'Mission', true)).toBe(true)
+    expect(isMissionRunning(false, 'Mission', true)).toBe(false)
+    expect(isMissionRunning(true, 'Hold', true)).toBe(false)
+    expect(isMissionRunning(undefined, 'Mission', true)).toBe(false)
+    expect(isMissionRunning(true, 'Mission', false)).toBe(false)
+  })
+
+  test('the planner stops the upload with the mission check error dialog', () => {
+    const planner = read('src/views/MissionPlanningView.vue')
+    const upload = planner.slice(planner.indexOf('const uploadMissionToVehicle = async'))
+    expect(upload.indexOf('isMissionRunning(')).toBeGreaterThan(-1)
+    expect(upload.indexOf('isMissionRunning(')).toBeLessThan(upload.indexOf("t('missionCheck.errorsTitle')"))
+    expect(upload).toMatch(/kind: 'missionRunning'/)
   })
 })

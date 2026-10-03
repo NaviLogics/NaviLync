@@ -34,6 +34,11 @@ describe('mission check dialog texts', () => {
     expect(text).toContain('1,0 м')
   })
 
+  test('a running mission: «Остановите миссию перед загрузкой новой»', () => {
+    setLocale('ru')
+    expect(missionCheckText({ kind: 'missionRunning' })).toBe('Остановите миссию перед загрузкой новой.')
+  })
+
   test('without the vehicle parameters the dialog says the speed check was not done, even with no other warning', () => {
     setLocale('ru')
     expect(missionCheckMessages([], {})).toEqual(['Параметры аппарата не получены, проверка скорости не выполнена.'])

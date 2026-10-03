@@ -618,7 +618,12 @@ import {
   makeDefaultNavCommands,
   withCruiseSpeed,
 } from '@/libs/mission/mission-items'
-import { type MissionWarning, validateMission, withStopAtLastWaypoint } from '@/libs/mission/mission-validation'
+import {
+  type MissionWarning,
+  isMissionRunning,
+  validateMission,
+  withStopAtLastWaypoint,
+} from '@/libs/mission/mission-validation'
 import {
   type SurveyParameters,
   type SurveyPlan,
@@ -746,6 +751,8 @@ const uploadMissionToVehicle = async (): Promise<void> => {
   const surveySpacings = missionStore.currentPlanningSurveys.map((survey) => Number(survey.distanceBetweenLines))
   const narrowestLineSpacing = surveySpacings.length > 0 ? Math.min(...surveySpacings) : undefined
   const check = validateMission(missionItemsToUpload, missionCheckParameters, narrowestLineSpacing)
+  // The first item goes up marked current, so an upload would restart a running mission from its first item
+  if (isMissionRunning(vehicleStore.isArmed, vehicleStore.mode, isPx4)) check.errors.unshift({ kind: 'missionRunning' })
   if (check.errors.length > 0) {
     showDialog({
       variant: 'error',

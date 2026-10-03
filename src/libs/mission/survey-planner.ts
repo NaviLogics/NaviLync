@@ -344,7 +344,9 @@ export const planSurvey = (
       const approachDistance = Math.max(p.runOut, transitSpeed ** 2 / (2 * APPROACH_DECELERATION))
       add('approach', start - direction * (p.runIn + approachDistance), c, [nav(), speed(p.brakeSpeed)])
     }
-    add('runInStart', start - direction * p.runIn, c, [nav(), ...hold(), speed(p.lineSpeed)])
+    // The first R is on the straight from A0 to S: a rover does not stop there, so a NAV_DELAY would only make it
+    // creep at v_brake (SITL PX4 v1.17); every later R follows a turn
+    add('runInStart', start - direction * p.runIn, c, [nav(), ...(j === 0 ? [] : hold()), speed(p.lineSpeed)])
     add('lineStart', start, c, [nav()])
     add('lineEnd', end, c, [nav(), speed(p.brakeSpeed)])
     add('runOutEnd', end + direction * p.runOut, c, [nav(), ...hold()])
