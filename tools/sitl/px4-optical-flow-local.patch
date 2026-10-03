@@ -1,0 +1,14 @@
+diff --git a/src/modules/simulation/gz_plugins/optical_flow/optical_flow.cmake b/src/modules/simulation/gz_plugins/optical_flow/optical_flow.cmake
+index 8ac1c1f..7465867 100644
+--- a/src/modules/simulation/gz_plugins/optical_flow/optical_flow.cmake
++++ b/src/modules/simulation/gz_plugins/optical_flow/optical_flow.cmake
+@@ -36,8 +36,7 @@ find_package(OpenCV REQUIRED)
+ 
+ if(NOT TARGET OpticalFlow)
+     ExternalProject_Add(OpticalFlow
+-        GIT_REPOSITORY https://github.com/PX4/PX4-OpticalFlow.git
+-        GIT_TAG master
++        SOURCE_DIR /sitl/PX4-OpticalFlow
+         PREFIX ${CMAKE_BINARY_DIR}/OpticalFlow
+         INSTALL_DIR ${CMAKE_BINARY_DIR}/OpticalFlow/install
+         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
