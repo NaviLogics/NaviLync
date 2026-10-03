@@ -36,7 +36,8 @@ const ll = (east: number, north: number): WaypointCoordinates => [
       holdSeconds: 3,
     }
     const plan = planSurvey(area, parameters, transitSpeed)
-    const items = convertCockpitWaypointsToMavlink(withCruiseSpeed(plan.waypoints, transitSpeed), 1)
+    // The first item current, as NaviLync uploads to PX4: a mode change then starts the mission from seq 0
+    const items = convertCockpitWaypointsToMavlink(withCruiseSpeed(plan.waypoints, transitSpeed), 1, true)
     const kinds: string[] = []
     plan.waypoints.forEach((waypoint, i) => waypoint.commands.forEach(() => kinds.push(plan.kinds[i])))
     const exported = items.map((item, i) => ({
