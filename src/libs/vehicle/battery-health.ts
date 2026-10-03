@@ -13,20 +13,16 @@ export const LOW_VOLTAGE_AFTER_MS = 3000
  * @param {number | undefined} current - The battery current, in A; undefined when the vehicle sends -1 (not measured)
  * @returns {boolean} True over CURRENT_MEASURED_ABOVE_A
  */
-export const isCurrentMeasured = (current: number | undefined): boolean => {
-  void current
-  return true
-}
+export const isCurrentMeasured = (current: number | undefined): boolean =>
+  current !== undefined && current > CURRENT_MEASURED_ABOVE_A
 
 /**
  * The low battery voltage for a battery
  * @param {number | undefined} cells - BAT1_N_CELLS
  * @returns {number | undefined} The cells times LOW_CELL_VOLTAGE, in V; undefined without a valid cell count
  */
-export const lowVoltageThreshold = (cells: number | undefined): number | undefined => {
-  void cells
-  return undefined
-}
+export const lowVoltageThreshold = (cells: number | undefined): number | undefined =>
+  cells !== undefined && Number.isInteger(cells) && cells > 0 ? cells * LOW_CELL_VOLTAGE : undefined
 
 /**
  * Tells when the battery voltage stays under the threshold for over 3 s, and when it is back over it for 3 s
@@ -43,7 +39,22 @@ export class LowVoltageWatch {
    * @returns {'started' | 'ended' | undefined} `started` when the voltage became low, `ended` when it came back
    */
   update(now: number, voltage: number | undefined, threshold: number | undefined): 'started' | 'ended' | undefined {
-    void now, voltage, threshold
-    return undefined
+    if (voltage === undefined || threshold === undefined || !Number.isFinite(voltage)) {
+      this.changingSince = undefined
+      return undefined
+    }
+    // While not low, the time under the threshold counts; while low, the time back at it or over it
+    const changing = this.low ? voltage >= threshold : voltage < threshold
+    if (!changing) {
+      this.changingSince = undefined
+      return undefined
+    }
+    this.changingSince ??= now
+    if (now - this.changingSince < LOW_VOLTAGE_AFTER_MS) return undefined
+    this.changingSince = undefined
+    this.low = !this.low
+    return this.low ? 'started' : 'ended'
   }
+
+  private changingSince: number | undefined
 }

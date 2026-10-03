@@ -49,6 +49,7 @@ import { canByPassCategory, EventCategory, slideToConfirm } from '@/libs/slide-t
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
 import { CustomMode } from '@/libs/vehicle/ardupilot/ardurover'
 import { isAutopilotRebootAllowed, setAutopilotRebootGuard } from '@/libs/vehicle/autopilot-reboot'
+import { isCurrentMeasured, lowVoltageThreshold, LowVoltageWatch } from '@/libs/vehicle/battery-health'
 import { defaultMessageIntervalsOptions } from '@/libs/vehicle/mavlink/defaults'
 import type { MAVLinkParameterSetData, MessageIntervalOptions } from '@/libs/vehicle/mavlink/types'
 import { MAVLINK_MESSAGE_INTERVALS_STORAGE_KEY } from '@/libs/vehicle/mavlink/vehicle'
@@ -271,8 +272,31 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const logSessionEvent = (event: SessionEventData): void => {
     sessionEvents.push({ ...event, at: Date.now() })
   }
+
+  // The power module reads near 0 A while the motor ESCs bypass it: the current counts once it read over 0.5 A
+  const currentMeasured = ref(false)
+
+  // The battery is low under 3.5 V per cell (BAT1_N_CELLS) for over 3 s
+  const batteryCells = ref<number | undefined>(undefined)
+  const batteryLowVoltage = computed(() => lowVoltageThreshold(batteryCells.value))
+  const lowVoltageWatch = reactive(new LowVoltageWatch())
+  const lowVoltage = computed(() => lowVoltageWatch.low)
+
   watch(timeNow, (now) => {
     linkOutageJournal.update(now, lastHeartbeat.value?.getTime(), { mode: mode.value, armed: isArmed.value })
+
+    // The last voltage stays in the store once the vehicle is offline: it no longer counts then
+    const voltage = isVehicleOnline.value ? powerSupply.voltage : undefined
+    const change = lowVoltageWatch.update(now, voltage, batteryLowVoltage.value)
+    if (change && voltage !== undefined && batteryLowVoltage.value !== undefined && batteryCells.value !== undefined) {
+      logSessionEvent({
+        kind: 'lowVoltage',
+        stage: change,
+        voltage,
+        threshold: batteryLowVoltage.value,
+        cells: batteryCells.value,
+      })
+    }
   })
 
   /**
@@ -291,12 +315,16 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       delete missionCheckParameters.speedLimit
       delete missionCheckParameters.acceptanceRadius
       stopMissionCheckParameterRequests?.()
+      batteryCells.value = undefined
       stopMissionCheckParameterRequests = requestParametersWithRetry(
         (name) => mainVehicle.value?.requestParameter(name),
-        ['RO_SPEED_LIM', 'NAV_ACC_RAD'],
+        ['RO_SPEED_LIM', 'NAV_ACC_RAD', 'BAT1_N_CELLS'],
         (name) =>
-          (name === 'RO_SPEED_LIM' ? missionCheckParameters.speedLimit : missionCheckParameters.acceptanceRadius) !==
-          undefined
+          ({
+            RO_SPEED_LIM: missionCheckParameters.speedLimit,
+            NAV_ACC_RAD: missionCheckParameters.acceptanceRadius,
+            BAT1_N_CELLS: batteryCells.value,
+          }[name] !== undefined)
       )
       dispatchEvent(new CustomEvent('vehicle-online', { detail: { vehicleAddress: globalAddress.value } }))
       return
@@ -797,6 +825,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     })
     mainVehicle.value.onPowerSupply.add((newPowerSupply: PowerSupply) => {
       Object.assign(powerSupply, newPowerSupply)
+      if (isCurrentMeasured(powerSupply.current)) currentMeasured.value = true
 
       instantaneousWatts.value =
         powerSupply.voltage !== undefined && powerSupply.current !== undefined
@@ -812,6 +841,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     mainVehicle.value.onParameter.add(([parameter]) => {
       if (parameter.name === 'RO_SPEED_LIM') missionCheckParameters.speedLimit = parameter.value
       if (parameter.name === 'NAV_ACC_RAD') missionCheckParameters.acceptanceRadius = parameter.value
+      if (parameter.name === 'BAT1_N_CELLS') batteryCells.value = parameter.value
     })
     mainVehicle.value.onMissionItemReached.add((sequence: number) => {
       markMissionItemAsReached(sequence)
@@ -1251,6 +1281,10 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     linkOutages,
     sessionEvents,
     logSessionEvent,
+    currentMeasured,
+    batteryCells,
+    lowVoltageThreshold: batteryLowVoltage,
+    lowVoltage,
     isVehicleConnectionLost,
     icon,
     configurationPages,
