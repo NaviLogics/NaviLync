@@ -186,4 +186,21 @@ describe('one mission transfer at a time (P6)', () => {
     await expect(mainVehicleStore.uploadMission([], noProgress)).resolves.toBeUndefined()
     expect(fetchSpy).toHaveBeenCalledOnce()
   })
+
+  // The first item is marked current, so an upload would restart a running mission from its first item
+  test('an upload is refused while a PX4 vehicle is armed in Mission, and allowed once it is not', async () => {
+    const [vehicle, mainVehicleStore] = setupStoreWithPx4()
+    const uploadSpy = vi.spyOn(vehicle, 'uploadMission').mockResolvedValue()
+    vehicle.onArm.emit_value(true)
+    vehicle.onMode.emit_value('Mission')
+    await flushPromises()
+
+    await expect(mainVehicleStore.uploadMission([], noProgress)).rejects.toThrow(t('missionCheck.missionRunning'))
+    expect(uploadSpy).not.toHaveBeenCalled()
+
+    vehicle.onMode.emit_value('Hold')
+    await flushPromises()
+    await expect(mainVehicleStore.uploadMission([], noProgress)).resolves.toBeUndefined()
+    expect(uploadSpy).toHaveBeenCalledOnce()
+  })
 })

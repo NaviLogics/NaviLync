@@ -54,6 +54,10 @@ export type MissionWarning =
 /** Something that makes the mission impossible to upload */
 export type MissionError =
   | {
+      /** The vehicle runs a mission: the new one would restart from its first item */
+      kind: 'missionRunning'
+    }
+  | {
       /** The mission has no waypoint */
       kind: 'noWaypoints'
     }
@@ -189,4 +193,16 @@ export const withStopAtLastWaypoint = (waypoints: Waypoint[], brakeSpeed = 0.3, 
     makeNavDelayCommand(holdSeconds),
   ]
   return copy
+}
+
+/**
+ * Whether the vehicle runs a mission now, so that a new upload would restart it from its first item
+ * @param {boolean | undefined} armed - Arming state; undefined while unknown
+ * @param {string | undefined} mode - The mode as NaviLync names it, e.g. `Mission`
+ * @param {boolean} px4 - Whether the autopilot is PX4
+ * @returns {boolean} True if the upload must wait for the mission to stop
+ */
+export const isMissionRunning = (armed: boolean | undefined, mode: string | undefined, px4: boolean): boolean => {
+  void armed, mode, px4
+  return false
 }

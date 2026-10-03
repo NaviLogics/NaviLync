@@ -43,6 +43,8 @@ export const missionCheckText = (issue: MissionWarning | MissionError): string =
         radius: formatNumber(issue.radius),
         spacing: formatNumber(issue.spacing),
       })
+    case 'missionRunning':
+      return ''
     case 'noWaypoints':
       return t('missionCheck.noWaypoints')
     case 'invalidSpeed':

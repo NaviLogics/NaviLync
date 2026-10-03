@@ -27,8 +27,10 @@ const cockpitAltRefFromMavlinkFrame = (mavframe: MavFrame): AltitudeReferenceTyp
 
 export const convertCockpitWaypointsToMavlink = (
   cockpitWaypoints: Waypoint[],
-  system_id: number
+  system_id: number,
+  firstItemCurrent = false
 ): Message.MissionItemInt[] => {
+  void firstItemCurrent
   const mavlinkWaypoints: Message.MissionItemInt[] = []
   cockpitWaypoints.forEach((cockpitWaypoint) => {
     cockpitWaypoint.commands.forEach((waypointCommand) => {
