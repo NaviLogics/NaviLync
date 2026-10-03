@@ -1,0 +1,4 @@
+matplotlib
+numpy
+pymavlink
+pyulog
