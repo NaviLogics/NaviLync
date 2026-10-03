@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { nextTick, reactive } from 'vue'
 
+import type { ShutdownStage, ShutdownSteps } from '@/libs/vehicle/onboard-shutdown'
 import { i18n } from '@/plugins/i18n'
 
 const vehicle = reactive({
@@ -15,16 +16,45 @@ const vehicle = reactive({
     ground?: number
   },
   globalAddress: '192.168.2.2',
+  logSessionEvent: vi.fn(),
 })
 const blueos = { requestOnboardPoweroff: vi.fn(async () => undefined), getStatus: vi.fn(async () => true) }
-let offline: (value: 'off' | 'timeout') => void = () => undefined
-const waitUntilOffline = vi.fn(() => new Promise<'off' | 'timeout'>((resolve) => (offline = resolve)))
+
+/**
+ * A dialog the button asked for
+ */
+interface Dialog {
+  /** Its text */
+  message: string
+  /** Its buttons */
+  actions: {
+    /**
+     *
+     */
+    text: string
+    /**
+     *
+     */
+    action: () => unknown
+  }[]
+}
+const dialogs: Dialog[] = []
+const closeDialog = vi.fn()
+vi.mock('@/composables/interactionDialog', () => ({
+  useInteractionDialog: () => ({ showDialog: (dialog: Dialog) => dialogs.push(dialog), closeDialog }),
+}))
+
+let steps: ShutdownSteps | undefined
+const shutDownOnboardComputer = vi.fn((given: ShutdownSteps) => {
+  steps = given
+  return new Promise<ShutdownStage>(() => undefined)
+})
 
 vi.mock('@/stores/mainVehicle', () => ({ useMainVehicleStore: () => vehicle }))
 vi.mock('@/libs/blueos', () => blueos)
 vi.mock('@/libs/vehicle/onboard-shutdown', async () => ({
   ...(await vi.importActual<typeof import('@/libs/vehicle/onboard-shutdown')>('@/libs/vehicle/onboard-shutdown')),
-  waitUntilOffline: (...args: unknown[]) => waitUntilOffline(...(args as [])),
+  shutDownOnboardComputer: (given: ShutdownSteps) => shutDownOnboardComputer(given),
 }))
 
 import OnboardShutdownButton from '@/components/OnboardShutdownButton.vue'
@@ -51,14 +81,49 @@ const advance = async (ms: number): Promise<void> => {
   }
 }
 
+const hold = async (wrapper: ReturnType<typeof mount>, ms = 2000): Promise<void> => {
+  await wrapper.find('button').trigger('pointerdown')
+  await advance(ms)
+  await flush()
+}
+
+const press = async (dialog: Dialog, text: string): Promise<void> => {
+  await dialog.actions.find((action) => action.text === text)?.action()
+  await flush()
+}
+
+// Held 2 s and confirmed in the dialog
+const confirmShutdown = async (wrapper: ReturnType<typeof mount>): Promise<ShutdownSteps> => {
+  await hold(wrapper)
+  await press(dialogs[0], t('onboardShutdown.confirm'))
+  return steps as ShutdownSteps
+}
+
+const report = async (stage: ShutdownStage): Promise<void> => {
+  steps?.onStage(stage)
+  await flush()
+}
+
+const electronWindow = window as unknown as {
+  /**
+   *
+   */
+  electronAPI?: unknown
+}
+
 // Release 1.0, task 11
 describe('the «Подготовить к выключению» button', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vehicle.isArmed = false
     vehicle.velocity = { ground: 0 }
+    vehicle.logSessionEvent.mockClear()
     blueos.requestOnboardPoweroff.mockClear()
-    waitUntilOffline.mockClear()
+    blueos.getStatus.mockClear()
+    shutDownOnboardComputer.mockClear()
+    dialogs.length = 0
+    steps = undefined
+    delete electronWindow.electronAPI
   })
   afterEach(() => {
     vi.useRealTimers()
@@ -88,62 +153,120 @@ describe('the «Подготовить к выключению» button', () => 
     expect(wrapper.find('button').attributes('title')).toBe(t('onboardShutdown.speedUnknown'))
   })
 
-  test('released before 2 s: nothing is sent', async () => {
+  test('released before 2 s: no dialog, nothing is sent', async () => {
     const wrapper = render()
     await wrapper.find('button').trigger('pointerdown')
     await advance(1900)
     await wrapper.find('button').trigger('pointerup')
     await advance(2000)
 
-    expect(blueos.requestOnboardPoweroff).not.toHaveBeenCalled()
+    expect(dialogs).toHaveLength(0)
+    expect(shutDownOnboardComputer).not.toHaveBeenCalled()
   })
 
-  test('armed during the hold: nothing is sent', async () => {
+  test('armed during the hold: no dialog', async () => {
     const wrapper = render()
     await wrapper.find('button').trigger('pointerdown')
     await advance(1000)
     vehicle.isArmed = true
     await advance(1500)
 
-    expect(blueos.requestOnboardPoweroff).not.toHaveBeenCalled()
+    expect(dialogs).toHaveLength(0)
   })
 
-  test('held 2 s: BlueOS is told to power off, and the main power may go off only once it stopped answering', async () => {
+  test('held 2 s: the dialog warns about the echo sounder and the link; cancel sends nothing', async () => {
     const wrapper = render()
-    await wrapper.find('button').trigger('pointerdown')
-    await advance(2000)
-    await flush()
+    await hold(wrapper)
 
+    expect(dialogs).toHaveLength(1)
+    expect(dialogs[0].message).toBe(
+      'Бортовой компьютер будет выключен. Остановите запись эхолота. ' +
+        'После выключения связь с аппаратом пропадёт до включения питания.'
+    )
+    await press(dialogs[0], t('onboardShutdown.cancel'))
+    expect(shutDownOnboardComputer).not.toHaveBeenCalled()
+  })
+
+  test('armed while the dialog is open: confirming sends nothing', async () => {
+    const wrapper = render()
+    await hold(wrapper)
+    vehicle.isArmed = true
+    await press(dialogs[0], t('onboardShutdown.confirm'))
+
+    expect(shutDownOnboardComputer).not.toHaveBeenCalled()
+  })
+
+  test('confirmed: BlueOS power off, BlueOS /status and the ping of the main process, all to the vehicle', async () => {
+    const pingHost = vi.fn(async () => 'reply')
+    electronWindow.electronAPI = { pingHost }
+    const wrapper = render()
+    const given = await confirmShutdown(wrapper)
+
+    await given.powerOff()
     expect(blueos.requestOnboardPoweroff).toHaveBeenCalledWith('192.168.2.2')
+    await given.status()
+    expect(blueos.getStatus).toHaveBeenCalledWith('192.168.2.2')
+    await expect(given.ping()).resolves.toBe('reply')
+    expect(pingHost).toHaveBeenCalledWith('192.168.2.2')
+  })
+
+  test('in the browser (Lite) there is no ping: unavailable, so BlueOS /status is used', async () => {
+    const wrapper = render()
+    const given = await confirmShutdown(wrapper)
+    await expect(given.ping()).resolves.toBe('unavailable')
+  })
+
+  test('ping path: «выключается…», «завершает работу… N с», then the main power with the Raspberry Pi light', async () => {
+    const wrapper = render()
+    await confirmShutdown(wrapper)
+
+    await report({ kind: 'shuttingDown', detection: 'ping' })
     expect(wrapper.text()).toContain(t('onboardShutdown.shuttingDown'))
+    expect(vehicle.logSessionEvent).toHaveBeenLastCalledWith({
+      kind: 'onboardShutdown',
+      stage: 'commandSent',
+      detection: 'ping',
+    })
+
+    await report({ kind: 'finishing', secondsLeft: 7 })
+    expect(wrapper.text()).toContain(t('onboardShutdown.finishing', { seconds: 7 }))
     expect(wrapper.text()).not.toContain(t('onboardShutdown.canPowerOff'))
 
-    offline('off')
-    await flush()
-    expect(wrapper.text()).toContain(t('onboardShutdown.canPowerOff'))
+    await report({ kind: 'off' })
+    expect(wrapper.text()).toContain('Можно выключать главный выключатель. Убедитесь, что индикатор Raspberry Pi погас')
+    expect(vehicle.logSessionEvent).toHaveBeenLastCalledWith({
+      kind: 'onboardShutdown',
+      stage: 'off',
+      detection: 'ping',
+    })
   })
 
-  test('still answering after the wait: the operator is told not to switch the power off', async () => {
+  test('still answering after 90 s: the operator is told not to switch the power off, and the journal says so', async () => {
     const wrapper = render()
-    await wrapper.find('button').trigger('pointerdown')
-    await advance(2000)
-    await flush()
-    offline('timeout')
-    await flush()
+    await confirmShutdown(wrapper)
+    await report({ kind: 'shuttingDown', detection: 'status' })
+    await report({ kind: 'timeout' })
 
     expect(wrapper.text()).toContain(t('onboardShutdown.timeout'))
     expect(wrapper.text()).not.toContain(t('onboardShutdown.canPowerOff'))
+    expect(vehicle.logSessionEvent).toHaveBeenLastCalledWith({
+      kind: 'onboardShutdown',
+      stage: 'timeout',
+      detection: 'status',
+    })
   })
 
-  test('the command fails: the error is shown and nothing says the power may go off', async () => {
-    blueos.requestOnboardPoweroff.mockRejectedValueOnce(new Error('timeout'))
+  test('the command fails: the error is shown and logged', async () => {
     const wrapper = render()
-    await wrapper.find('button').trigger('pointerdown')
-    await advance(2000)
-    await flush()
+    await confirmShutdown(wrapper)
+    await report({ kind: 'failed', error: 'Error: timeout' })
 
     expect(wrapper.text()).toContain(t('onboardShutdown.failed', { error: 'Error: timeout' }))
-    expect(waitUntilOffline).not.toHaveBeenCalled()
+    expect(vehicle.logSessionEvent).toHaveBeenLastCalledWith({
+      kind: 'onboardShutdown',
+      stage: 'failed',
+      error: 'Error: timeout',
+    })
   })
 
   test('it is on the general settings page, next to the autopilot reboot', () => {

@@ -36,7 +36,7 @@ import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-messag
 import eventTracker from '@/libs/external-telemetry/event-tracking'
 import { availableCockpitActions, registerActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { MavlinkManualControlManager } from '@/libs/joystick/protocols/mavlink-manual-control'
-import { type LinkHealth, type LinkOutage, linkHealth, LinkOutageJournal } from '@/libs/link-health'
+import { type LinkHealth, type LinkOutage, type SessionEvent, linkHealth, LinkOutageJournal } from '@/libs/link-health'
 import type { VehicleMissionParameters } from '@/libs/mission/mission-validation'
 import { canByPassCategory, EventCategory, slideToConfirm } from '@/libs/slide-to-confirm'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
@@ -258,6 +258,12 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   // The losses of the link in this session, with the mode and arming of the moment the link went bad
   const linkOutageJournal = reactive(new LinkOutageJournal())
   const linkOutages = computed((): LinkOutage[] => linkOutageJournal.outages)
+
+  // Other events of the session the operator should find in the same journal
+  const sessionEvents = reactive<SessionEvent[]>([])
+  const logSessionEvent = (event: Omit<SessionEvent, 'at'>): void => {
+    void event
+  }
   watch(timeNow, (now) => {
     linkOutageJournal.update(now, lastHeartbeat.value?.getTime(), { mode: mode.value, armed: isArmed.value })
   })
@@ -1232,6 +1238,8 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     heartbeatAgeMs,
     linkHealthState,
     linkOutages,
+    sessionEvents,
+    logSessionEvent,
     isVehicleConnectionLost,
     icon,
     configurationPages,

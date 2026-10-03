@@ -3,7 +3,7 @@ import { ipcMain } from 'electron'
 import { networkInterfaces } from 'os'
 import { promisify } from 'util'
 
-import { NetworkInfo } from '../../types/network'
+import { NetworkInfo, PingResult } from '../../types/network'
 
 /**
  * Interface name prefixes that are virtual / non-physical and should be skipped
@@ -84,6 +84,26 @@ export const checkHostReachability = async (address: string): Promise<HostReacha
   } catch {
     return { reachable: false }
   }
+}
+
+/**
+ * Whether the output of one ping holds an echo reply from the host
+ * @param {string} output - What ping printed; on Windows in the OEM code page of the console
+ * @returns {boolean} True for an echo reply
+ */
+export const parsePingReply = (output: string): boolean => {
+  void output
+  return false
+}
+
+/**
+ * Ping a host once with the system ping, which needs no administrator rights
+ * @param {string} address - IPv4 address or host name
+ * @returns {Promise<PingResult>} Whether the host answered, or that ping could not be run
+ */
+export const pingHost = async (address: string): Promise<PingResult> => {
+  void address
+  return 'unavailable'
 }
 
 const ipv4ToInt = (address: string): number => {

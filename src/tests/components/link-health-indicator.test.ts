@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, test, vi } from 'vitest'
 import { reactive } from 'vue'
 
-import type { LinkHealth, LinkOutage } from '@/libs/link-health'
+import type { LinkHealth, LinkOutage, SessionEvent } from '@/libs/link-health'
 import { i18n } from '@/plugins/i18n'
 
 const store = reactive({
@@ -12,6 +12,7 @@ const store = reactive({
   linkHealthState: 'ok' as LinkHealth,
   heartbeatAgeMs: 500 as number | undefined,
   linkOutages: [] as LinkOutage[],
+  sessionEvents: [] as SessionEvent[],
 })
 vi.mock('@/stores/mainVehicle', () => ({ useMainVehicleStore: () => store }))
 
@@ -56,9 +57,32 @@ describe('link indicator in the header', () => {
     expect(entry).toContain(i18n.global.t('linkHealth.armed'))
   })
 
+  // Release 1.0, task 11
+  test('the journal lists the onboard computer shutdown: time, what happened and how it was told', () => {
+    store.sessionEvents = [
+      {
+        at: new Date(2026, 9, 3, 18, 40, 5).getTime(),
+        kind: 'onboardShutdown',
+        stage: 'commandSent',
+        detection: 'ping',
+      },
+      { at: new Date(2026, 9, 3, 18, 40, 22).getTime(), kind: 'onboardShutdown', stage: 'off', detection: 'ping' },
+    ]
+    const wrapper = render()
+    const entries = wrapper.findAll('.session-event').map((entry) => entry.text())
+
+    const detection = i18n.global.t('onboardShutdown.detection.ping')
+    expect(entries).toHaveLength(2)
+    expect(entries[0]).toContain('18:40:22')
+    expect(entries[0]).toContain(i18n.global.t('onboardShutdown.journal.off', { detection }))
+    expect(entries[1]).toContain('18:40:05')
+    expect(entries[1]).toContain(i18n.global.t('onboardShutdown.journal.commandSent', { detection }))
+  })
+
   test('the store keeps the state and the journal from the HEARTBEAT of the autopilot', () => {
     const source = readFileSync(join(process.cwd(), 'src/stores/mainVehicle.ts'), 'utf8')
     expect(source).toMatch(/new LinkOutageJournal\(\)/)
     expect(source).toMatch(/linkHealth\(heartbeatAgeMs\.value\)/)
+    expect(source).toMatch(/sessionEvents\.push\(\{ \.\.\.event, at: Date\.now\(\) \}\)/)
   })
 })
