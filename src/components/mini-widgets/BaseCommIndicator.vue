@@ -62,11 +62,13 @@ const stateText = computed((): string => {
   return t(`linkHealth.${store.linkHealthState}`, { age })
 })
 
-const eventText = (event: SessionEvent): string =>
-  t(`onboardShutdown.journal.${event.stage}`, {
+const eventText = (event: SessionEvent): string => {
+  if (event.kind !== 'onboardShutdown') return ''
+  return t(`onboardShutdown.journal.${event.stage}`, {
     detection: event.detection === undefined ? '—' : t(`onboardShutdown.detection.${event.detection}`),
     error: event.error ?? '',
   })
+}
 
 const armingText = (armed: boolean | undefined): string =>
   armed === undefined ? t('linkHealth.unknownArming') : armed ? t('linkHealth.armed') : t('linkHealth.disarmed')

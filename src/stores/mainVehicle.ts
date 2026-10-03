@@ -36,7 +36,14 @@ import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-messag
 import eventTracker from '@/libs/external-telemetry/event-tracking'
 import { availableCockpitActions, registerActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { MavlinkManualControlManager } from '@/libs/joystick/protocols/mavlink-manual-control'
-import { type LinkHealth, type LinkOutage, type SessionEvent, linkHealth, LinkOutageJournal } from '@/libs/link-health'
+import {
+  type LinkHealth,
+  type LinkOutage,
+  type SessionEvent,
+  type SessionEventData,
+  linkHealth,
+  LinkOutageJournal,
+} from '@/libs/link-health'
 import { type VehicleMissionParameters, isMissionRunning } from '@/libs/mission/mission-validation'
 import { canByPassCategory, EventCategory, slideToConfirm } from '@/libs/slide-to-confirm'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
@@ -261,7 +268,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
 
   // Other events of the session the operator should find in the same journal
   const sessionEvents = reactive<SessionEvent[]>([])
-  const logSessionEvent = (event: Omit<SessionEvent, 'at'>): void => {
+  const logSessionEvent = (event: SessionEventData): void => {
     sessionEvents.push({ ...event, at: Date.now() })
   }
   watch(timeNow, (now) => {

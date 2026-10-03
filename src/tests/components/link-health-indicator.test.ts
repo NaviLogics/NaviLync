@@ -79,6 +79,36 @@ describe('link indicator in the header', () => {
     expect(entries[1]).toContain(i18n.global.t('onboardShutdown.journal.commandSent', { detection }))
   })
 
+  // Release 1.0, task 9 (narrowed)
+  test('the journal lists the low battery voltage and its end', () => {
+    store.sessionEvents = [
+      {
+        at: new Date(2026, 9, 3, 19, 2, 11).getTime(),
+        kind: 'lowVoltage',
+        stage: 'started',
+        voltage: 20.7,
+        threshold: 21,
+        cells: 6,
+      },
+      {
+        at: new Date(2026, 9, 3, 19, 5, 40).getTime(),
+        kind: 'lowVoltage',
+        stage: 'ended',
+        voltage: 21.4,
+        threshold: 21,
+        cells: 6,
+      },
+    ]
+    const entries = render()
+      .findAll('.session-event')
+      .map((entry) => entry.text())
+
+    expect(entries[1]).toContain('19:02:11')
+    expect(entries[1]).toContain('Напряжение батареи 20,7 В: ниже 21 В (6 банок × 3,5 В) дольше 3 с')
+    expect(entries[0]).toContain('19:05:40')
+    expect(entries[0]).toContain('Напряжение батареи восстановилось: 21,4 В')
+  })
+
   test('the store keeps the state and the journal from the HEARTBEAT of the autopilot', () => {
     const source = readFileSync(join(process.cwd(), 'src/stores/mainVehicle.ts'), 'utf8')
     expect(source).toMatch(/new LinkOutageJournal\(\)/)

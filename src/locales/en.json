@@ -503,7 +503,9 @@
       "mediumVoltage": "Medium voltage (V)",
       "highVoltage": "High voltage (V)",
       "atLeastOneOption": "At least one of the options must be enabled.",
-      "intervalMinimum": "Interval must be at least {min}ms."
+      "intervalMinimum": "Interval must be at least {min}ms.",
+      "currentNotMeasured": "current is not measured",
+      "lowVoltageAlert": "Battery voltage under {threshold} V ({cells} cells × 3.5 V)"
     },
     "satelliteIndicator": {
       "sats": "sats"
@@ -1744,5 +1746,9 @@
     "cancel": "Cancel",
     "onlyDisarmed": "Reboot is available only with the vehicle disarmed.",
     "failed": "Could not reboot the autopilot: {error}"
+  },
+  "batteryAlert": {
+    "started": "Battery voltage {voltage} V: under {threshold} V ({cells} cells × 3.5 V) for over 3 s",
+    "ended": "Battery voltage back: {voltage} V"
   }
 }

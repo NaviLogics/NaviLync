@@ -92,11 +92,9 @@ export class LinkOutageJournal {
 }
 
 /**
- * An event of the session the operator should find later in the journal, next to the link losses
+ * The onboard computer shutdown, as the journal keeps it
  */
-export interface SessionEvent {
-  /** When it happened, as epoch milliseconds */
-  at: number
+export interface OnboardShutdownEvent {
   /** The onboard computer shutdown */
   kind: 'onboardShutdown'
   /** The command was sent, the onboard computer went off, it kept answering, or the command failed */
@@ -105,4 +103,31 @@ export interface SessionEvent {
   detection?: OffDetection
   /** The error of a failed command */
   error?: string
+}
+
+/**
+ * The battery voltage under 3.5 V per cell for over 3 s, and back over it
+ */
+export interface LowVoltageEvent {
+  /** The battery voltage */
+  kind: 'lowVoltage'
+  /** It went under the threshold, or came back over it */
+  stage: 'started' | 'ended'
+  /** The voltage then, in V */
+  voltage: number
+  /** The threshold: the cells times 3.5 V */
+  threshold: number
+  /** BAT1_N_CELLS */
+  cells: number
+}
+
+/** What an event of the session holds, before it gets its time */
+export type SessionEventData = OnboardShutdownEvent | LowVoltageEvent
+
+/**
+ * An event of the session the operator should find later in the journal, next to the link losses
+ */
+export type SessionEvent = SessionEventData & {
+  /** When it happened, as epoch milliseconds */
+  at: number
 }
